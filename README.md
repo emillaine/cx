@@ -1,10 +1,16 @@
+> [!NOTE]
+> This project was started in January 2017 after I had been annoyed with C++ for a long time, and had not found any good alternatives for my use cases.
+> The current state of the project is that it's functional, but far from truly production-ready. I almost got to the point of releasing the first pre-release version and announcing the project publicly.
+> However, nowadays there are several languages with sufficiently similar design goals, such as [Odin](https://odin-lang.org/), [Jai](https://en.wikipedia.org/?title=JAI_(programming_language)&redirect=no), and [C3](https://c3-lang.org/). Therefore, this project is no longer being developed.
+
 # The C* Programming Language
 
 C* (pronounced "C star") is a C-based hybrid low-level/high-level programming language focused on runtime
 performance and developer productivity (in this order of priority). The language is simple and unopinionated,
 supporting imperative, generic, data-oriented, functional, and object-oriented programming.
 
-Learn more about the language at https://emlai.github.io/cx-language.github.io/.
+Learn more about the language at https://emlai.github.io/cx-language.github.io/.  
+See code samples under [`examples`](https://github.com/emlai/cx/tree/main/examples).
 
 The project is still in early stages of development: some planned features have not yet been implemented,
 existing ones are subject to change, and the documentation is scarce.
