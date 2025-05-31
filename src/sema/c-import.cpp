@@ -75,6 +75,8 @@ static Type toCx(const clang::BuiltinType& type) {
             return getIntTypeByWidth(targetInfo->getLongLongWidth(), true);
         case clang::BuiltinType::ULongLong:
             return getIntTypeByWidth(targetInfo->getLongLongWidth(), false);
+        case clang::BuiltinType::Float16:
+            return Type::getFloat16();
         case clang::BuiltinType::Float:
             return Type::getFloat();
         case clang::BuiltinType::Double:
