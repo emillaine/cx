@@ -77,7 +77,7 @@ target_link_libraries(cx ${LLVM_LIBS})
 add_custom_target(check_lit COMMAND lit --verbose --succinct --incremental ${EXTRA_LIT_FLAGS} ${PROJECT_SOURCE_DIR}/test
     -Dcx_path="$<TARGET_FILE:cx>"
     -Dfilecheck_path="$<TARGET_FILE:FileCheck>"
-    -Dtest_helper_scripts_path="${PROJECT_SOURCE_DIR}/test"
+    -Dtest_dir="${PROJECT_SOURCE_DIR}/test"
     USES_TERMINAL)
 add_custom_target(check_examples COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "$<TARGET_FILE:cx>")
 add_custom_target(check)
@@ -98,6 +98,7 @@ if(NOT TARGET FileCheck)
     target_link_libraries(FileCheck ${FILECHECK_NEEDED_LIBS})
 endif()
 
+# Optimize test utilities by default.
 if(MSVC)
     set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} -w /O2 /GL /MT")
     set_target_properties(cx PROPERTIES COMPILE_FLAGS "/MT")
@@ -105,7 +106,7 @@ else()
     set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} -w -O3")
 endif()
 
-add_dependencies(check FileCheck)
+add_dependencies(check_lit cx FileCheck)
 
 file(DOWNLOAD
     "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-${LLVM_PACKAGE_VERSION}/clang-tools-extra/clang-tidy/tool/run-clang-tidy.py"
