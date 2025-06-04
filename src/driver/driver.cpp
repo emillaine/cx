@@ -72,15 +72,14 @@ cl::opt<bool> typecheck("typecheck", cl::desc("Parse and type-check only"), cl::
 cl::opt<bool> compileOnly("c", cl::desc("Compile only, generating an object file; don't link"), cl::cat(stageSelectionCategory));
 
 cl::OptionCategory outputCategory("Output Options");
-cl::opt<bool> printAST("print-ast", cl::desc("Print the abstract syntax tree of main module"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand),
-                       cl::cat(outputCategory));
-cl::opt<bool> printIR("print-ir", cl::desc("Print C* intermediate representation of main module"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand),
-                      cl::cat(outputCategory));
-cl::opt<bool> printIRAll("print-ir-all", cl::desc("Print C* intermediate representation of all compiled modules"), cl::sub(build),
-                         cl::sub(*cl::TopLevelSubCommand), cl::cat(outputCategory));
-cl::opt<bool> printLLVM("print-llvm", cl::desc("Print LLVM intermediate representation of main module"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand),
-                        cl::cat(outputCategory));
 // TODO: Add -print-llvm-all option.
+enum class PrintMode { None, AST, IR, IRAll, C, LLVM };
+cl::opt<PrintMode> printMode(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand), cl::cat(outputCategory),
+                             cl::values(clEnumValN(PrintMode::AST, "print-ast", "Print the abstract syntax tree of main module"),
+                                        clEnumValN(PrintMode::IR, "print-ir", "Print C* intermediate representation of main module"),
+                                        clEnumValN(PrintMode::IRAll, "print-ir-all", "Print C* intermediate representation of all compiled modules"),
+                                        clEnumValN(PrintMode::C, "print-c", "Print generated C code"),
+                                        clEnumValN(PrintMode::LLVM, "print-llvm", "Print LLVM intermediate representation of main module")));
 enum class Backend { LLVM, C };
 cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::cat(outputCategory),
                          cl::values(clEnumValN(Backend::LLVM, "llvm", "LLVM backend (default)"), clEnumValN(Backend::C, "c", "C backend")));
@@ -243,7 +242,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
 
     if (errors) return 1;
 
-    if (printAST) {
+    if (printMode == PrintMode::AST) {
         mainModule.print(llvm::outs());
         return 0;
     }
@@ -262,12 +261,12 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     if (errors) return 1;
     if (typecheck) return 0;
 
-    if (printIRAll) {
+    if (printMode == PrintMode::IRAll) {
         for (auto* module : irGenerator.generatedModules) {
             module->print(llvm::outs());
         }
         return 0;
-    } else if (printIR) {
+    } else if (printMode == PrintMode::IR) {
         irGenerator.generatedModules.back()->print(llvm::outs());
         return 0;
     }
@@ -287,7 +286,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
             }
             llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
 
-            if (printLLVM) {
+            if (printMode == PrintMode::LLVM) {
                 llvmModule->setModuleIdentifier("");
                 llvmModule->setSourceFileName("");
                 llvmModule->print(llvm::outs(), nullptr);
