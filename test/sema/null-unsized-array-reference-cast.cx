@@ -1,0 +1,7 @@
+// RUN: %not %cx -typecheck %s | %FileCheck %s
+
+void main() {
+    uint64[]? a = null
+    // CHECK: [[@LINE+1]]:9: error: illegal cast from 'ArrayRef<uint64>?' to 'void*?'
+    _ = cast<void*?>(a)
+}
