@@ -81,6 +81,9 @@ cl::opt<bool> printIRAll("print-ir-all", cl::desc("Print C* intermediate represe
 cl::opt<bool> printLLVM("print-llvm", cl::desc("Print LLVM intermediate representation of main module"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand),
                         cl::cat(outputCategory));
 // TODO: Add -print-llvm-all option.
+enum class Backend { LLVM, C };
+cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::cat(outputCategory),
+                         cl::values(clEnumValN(Backend::LLVM, "llvm", "LLVM backend (default)"), clEnumValN(Backend::C, "c", "C backend")));
 cl::opt<bool> emitAssembly("emit-assembly", cl::desc("Emit assembly code"), cl::cat(outputCategory));
 cl::alias emitAssemblyAlias("S", cl::aliasopt(emitAssembly), cl::cat(outputCategory));
 cl::opt<bool> emitBitcode("emit-llvm-bitcode", cl::desc("Emit LLVM bitcode"), cl::cat(outputCategory));
@@ -171,7 +174,7 @@ static void addPredefinedImportSearchPaths(llvm::ArrayRef<std::string> inputFile
     addHeaderSearchPathsFromCCompilerOutput();
 }
 
-static void emitMachineCode(llvm::Module& module, llvm::StringRef fileName, llvm::CodeGenFileType fileType, llvm::Reloc::Model relocModel) {
+static void emitLLVMModuleToMachineCode(llvm::Module& module, llvm::StringRef fileName, llvm::CodeGenFileType fileType, llvm::Reloc::Model relocModel) {
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
@@ -269,44 +272,54 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
         return 0;
     }
 
-    LLVMGenerator llvmGenerator;
-    for (auto* irModule : irGenerator.generatedModules) {
-        llvmGenerator.codegenModule(*irModule);
-    }
-    llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
-
-    if (printLLVM) {
-        llvmModule->setModuleIdentifier("");
-        llvmModule->setSourceFileName("");
-        llvmModule->print(llvm::outs(), nullptr);
-        return 0;
-    }
-
-    llvm::Module linkedModule("", llvmGenerator.ctx);
-    llvm::Linker linker(linkedModule);
-
-    for (auto& module : llvmGenerator.generatedModules) {
-        bool error = linker.linkInModule(std::unique_ptr<llvm::Module>(module));
-        if (error) ABORT("LLVM module linking failed");
-    }
-
-    if (emitBitcode) {
-        emitLLVMBitcode(linkedModule, "output.bc");
-        return 0;
-    }
-
-    auto ccPath = getCCompilerPath();
-    bool msvc = llvm::sys::path::extension(ccPath) == ".exe";
-
     llvm::SmallString<128> temporaryOutputFilePath;
-    auto* outputFileExtension = emitAssembly ? "s" : msvc ? "obj" : "o";
-    if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
-        ABORT(error.message());
-    }
+    const char* outputFileExtension;
+    std::string ccPath;
+    bool msvc;
 
-    auto fileType = emitAssembly ? llvm::CGFT_AssemblyFile : llvm::CGFT_ObjectFile;
-    auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
-    emitMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
+    switch (backend.getValue()) {
+        case Backend::C:
+            break;
+        case Backend::LLVM:
+            LLVMGenerator llvmGenerator;
+            for (auto* irModule : irGenerator.generatedModules) {
+                llvmGenerator.codegenModule(*irModule);
+            }
+            llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
+
+            if (printLLVM) {
+                llvmModule->setModuleIdentifier("");
+                llvmModule->setSourceFileName("");
+                llvmModule->print(llvm::outs(), nullptr);
+                return 0;
+            }
+
+            llvm::Module linkedModule("", llvmGenerator.ctx);
+            llvm::Linker linker(linkedModule);
+
+            for (auto& module : llvmGenerator.generatedModules) {
+                bool error = linker.linkInModule(std::unique_ptr<llvm::Module>(module));
+                if (error) ABORT("LLVM module linking failed");
+            }
+
+            if (emitBitcode) {
+                emitLLVMBitcode(linkedModule, "output.bc");
+                return 0;
+            }
+
+            ccPath = getCCompilerPath();
+            msvc = llvm::sys::path::extension(ccPath) == ".exe";
+
+            outputFileExtension = emitAssembly ? "s" : msvc ? "obj" : "o";
+            if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
+                ABORT(error.message());
+            }
+
+            auto fileType = emitAssembly ? llvm::CGFT_AssemblyFile : llvm::CGFT_ObjectFile;
+            auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
+            emitLLVMModuleToMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
+            break;
+    }
 
     if (!outputDirectory.empty()) {
         auto error = llvm::sys::fs::create_directories(outputDirectory);
