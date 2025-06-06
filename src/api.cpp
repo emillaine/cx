@@ -1,6 +1,10 @@
 #include "cx.h"
 
+#ifdef _WIN32
+// TODO
+#else
 #include <dlfcn.h>
+#endif
 
 #include "ast/mangle.h"
 #include "ast/module.h"
@@ -28,16 +32,21 @@ void cxCompileModule(cxModule* module) {
 }
 
 cxFunction cxGetFunction(cxModule* module, const char* name) {
+    cxFunction function = {};
     auto* decl = module->module.getSymbolTable().findOne(name);
-    std::string mangledName;
+
     if (auto* functionDecl = llvm::dyn_cast_or_null<FunctionDecl>(decl)) {
-        mangledName = mangleFunctionDecl(*functionDecl);
-    } else {
-        return { .ptr = nullptr };
+        auto mangledName = mangleFunctionDecl(*functionDecl);
+
+#ifdef _WIN32
+        // TODO
+#else
+        void* lib = dlopen("main.so", RTLD_LAZY);
+        function.ptr = dlsym(lib, mangledName.c_str());
+#endif
     }
-    void* lib = dlopen("main.so", RTLD_LAZY);
-    void* ptr = dlsym(lib, mangledName.c_str());
-    return { .ptr = ptr };
+
+    return function;
 }
 
 } // extern "C"
