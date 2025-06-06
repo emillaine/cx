@@ -66,7 +66,7 @@ file(GLOB_RECURSE CX_SOURCES src/*.h src/*.cpp)
 add_executable(cx ${CX_SOURCES})
 target_precompile_headers(cx PRIVATE src/pch.h)
 
-if (LLVM_LINK_LLVM_DYLIB)
+if(LLVM_LINK_LLVM_DYLIB)
     set(LLVM_LIBS LLVM)
 else()
     llvm_map_components_to_libnames(LLVM_LIBS core native linker support)
@@ -79,7 +79,9 @@ add_custom_target(check_lit COMMAND lit --verbose --succinct --incremental ${EXT
     -Dfilecheck_path="$<TARGET_FILE:FileCheck>"
     -Dtest_dir="${PROJECT_SOURCE_DIR}/test"
     USES_TERMINAL)
-add_custom_target(check_examples COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "$<TARGET_FILE:cx>")
+add_custom_target(check_examples
+    COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "--cx=$<TARGET_FILE:cx>"
+    COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "--cx=$<TARGET_FILE:cx>" "--backend=c")
 add_custom_target(check)
 add_custom_target(update_snapshots ${CMAKE_COMMAND} -E env UPDATE_SNAPSHOTS=1 cmake --build "${CMAKE_BINARY_DIR}" --target check)
 add_dependencies(check check_lit check_examples)

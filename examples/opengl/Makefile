@@ -11,4 +11,4 @@ ifneq ($(OS),Windows_NT)
 endif
 
 all:
-	cx build -DGLFW_INCLUDE_GLCOREARB $$(pkg-config --cflags --libs glfw3) $(FLAGS)
+	cx build -DGLFW_INCLUDE_GLCOREARB $$(pkg-config --cflags --libs glfw3) $(FLAGS) $(CXFLAGS)
