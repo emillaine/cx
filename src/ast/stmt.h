@@ -46,11 +46,10 @@ struct Stmt {
     bool isContinuable() const;
     Stmt* instantiate(const llvm::StringMap<Type>& genericArgs) const;
 
+    const StmtKind kind;
+
 protected:
     Stmt(StmtKind kind) : kind(kind) {}
-
-private:
-    const StmtKind kind;
 };
 
 inline Stmt::~Stmt() {}
@@ -62,7 +61,6 @@ struct ReturnStmt : Stmt {
     SourceLocation getLocation() const { return location; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::ReturnStmt; }
 
-private:
     Expr* value;
     SourceLocation location;
 };
@@ -72,7 +70,6 @@ struct VarStmt : Stmt {
     VarDecl& getDecl() const { return *decl; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::VarStmt; }
 
-private:
     VarDecl* decl;
 };
 
@@ -82,7 +79,6 @@ struct ExprStmt : Stmt {
     Expr& getExpr() const { return *expr; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::ExprStmt; }
 
-private:
     Expr* expr;
 };
 
@@ -91,7 +87,6 @@ struct DeferStmt : Stmt {
     Expr& getExpr() const { return *expr; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::DeferStmt; }
 
-private:
     Expr* expr;
 };
 
@@ -105,7 +100,6 @@ struct IfStmt : Stmt {
     llvm::MutableArrayRef<Stmt*> getElseBody() { return elseBody; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::IfStmt; }
 
-private:
     Expr* condition;
     std::vector<Stmt*> thenBody;
     std::vector<Stmt*> elseBody;
@@ -119,7 +113,6 @@ struct SwitchCase {
     llvm::MutableArrayRef<Stmt*> getStmts() { return stmts; }
     void setValue(Expr* expr) { value = expr; }
 
-private:
     Expr* value;
     VarDecl* associatedValue;
     std::vector<Stmt*> stmts;
@@ -135,7 +128,6 @@ struct SwitchStmt : Stmt {
     llvm::MutableArrayRef<Stmt*> getDefaultStmts() { return defaultStmts; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::SwitchStmt; }
 
-private:
     Expr* condition;
     std::vector<SwitchCase> cases;
     std::vector<Stmt*> defaultStmts;
@@ -151,7 +143,6 @@ struct WhileStmt : Stmt {
     Stmt* lower();
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::WhileStmt; }
 
-private:
     Expr* condition;
     std::vector<Stmt*> body;
     SourceLocation location;
@@ -168,7 +159,6 @@ struct ForStmt : Stmt {
     SourceLocation getLocation() const { return location; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::ForStmt; }
 
-private:
     VarStmt* variable;
     Expr* condition;
     Expr* increment;
@@ -186,7 +176,6 @@ struct ForEachStmt : Stmt {
     Stmt* lower(int nestLevel);
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::ForEachStmt; }
 
-private:
     VarDecl* variable;
     Expr* range;
     std::vector<Stmt*> body;
@@ -198,7 +187,6 @@ struct BreakStmt : Stmt {
     SourceLocation getLocation() const { return location; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::BreakStmt; }
 
-private:
     SourceLocation location;
 };
 
@@ -207,7 +195,6 @@ struct ContinueStmt : Stmt {
     SourceLocation getLocation() const { return location; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::ContinueStmt; }
 
-private:
     SourceLocation location;
 };
 
@@ -217,7 +204,6 @@ struct CompoundStmt : Stmt {
     llvm::MutableArrayRef<Stmt*> getBody() { return body; }
     static bool classof(const Stmt* s) { return s->getKind() == StmtKind::CompoundStmt; }
 
-private:
     std::vector<Stmt*> body;
 };
 

@@ -93,14 +93,13 @@ struct Expr {
     const Expr* withoutImplicitCast() const;
     bool isThis() const;
 
-protected:
-    Expr(ExprKind kind, SourceLocation location) : kind(kind), location(location) {}
-
-private:
     ExprKind kind;
     Type type;
     Type assignableType;
     SourceLocation location;
+
+protected:
+    Expr(ExprKind kind, SourceLocation location) : kind(kind), location(location) {}
 };
 
 inline Expr::~Expr() {}
@@ -112,7 +111,6 @@ struct VarExpr : Expr {
     llvm::StringRef getIdentifier() const { return identifier; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::VarExpr; }
 
-private:
     Decl* decl;
     std::string identifier;
 };
@@ -122,7 +120,6 @@ struct StringLiteralExpr : Expr {
     llvm::StringRef getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::StringLiteralExpr; }
 
-private:
     std::string value;
 };
 
@@ -131,7 +128,6 @@ struct CharacterLiteralExpr : Expr {
     char getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::CharacterLiteralExpr; }
 
-private:
     char value;
 };
 
@@ -140,7 +136,6 @@ struct IntLiteralExpr : Expr {
     const llvm::APSInt& getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::IntLiteralExpr; }
 
-private:
     llvm::APSInt value;
 };
 
@@ -149,7 +144,6 @@ struct FloatLiteralExpr : Expr {
     const llvm::APFloat& getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::FloatLiteralExpr; }
 
-private:
     llvm::APFloat value;
 };
 
@@ -158,7 +152,6 @@ struct BoolLiteralExpr : Expr {
     bool getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::BoolLiteralExpr; }
 
-private:
     bool value;
 };
 
@@ -177,7 +170,6 @@ struct ArrayLiteralExpr : Expr {
     llvm::ArrayRef<Expr*> getElements() const { return elements; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::ArrayLiteralExpr; }
 
-private:
     std::vector<Expr*> elements;
 };
 
@@ -192,7 +184,6 @@ struct NamedValue {
     void setValue(Expr* expr) { value = NOTNULL(expr); }
     SourceLocation getLocation() const { return location; }
 
-private:
     std::string name; // Empty if no name specified.
     Expr* value;
     SourceLocation location;
@@ -205,7 +196,6 @@ struct TupleExpr : Expr {
     const Expr* getElementByName(llvm::StringRef name) const;
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::TupleExpr; }
 
-private:
     std::vector<NamedValue> elements;
 };
 
@@ -244,16 +234,15 @@ struct CallExpr : Expr {
         }
     }
 
-protected:
-    CallExpr(ExprKind kind, Expr* callee, std::vector<NamedValue>&& args, SourceLocation location)
-    : Expr(kind, location), callee(callee), args(std::move(args)), calleeDecl(nullptr) {}
-
-private:
     Expr* callee;
     std::vector<NamedValue> args;
     std::vector<Type> genericArgs;
     Type receiverType;
     Decl* calleeDecl;
+
+protected:
+    CallExpr(ExprKind kind, Expr* callee, std::vector<NamedValue>&& args, SourceLocation location)
+    : Expr(kind, location), callee(callee), args(std::move(args)), calleeDecl(nullptr) {}
 };
 
 struct UnaryExpr : CallExpr {
@@ -265,7 +254,6 @@ struct UnaryExpr : CallExpr {
     llvm::APSInt getConstantIntegerValue() const;
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::UnaryExpr; }
 
-private:
     UnaryOperator op;
 };
 
@@ -282,7 +270,6 @@ struct BinaryExpr : CallExpr {
     llvm::APSInt getConstantIntegerValue() const;
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::BinaryExpr; }
 
-private:
     BinaryOperator op;
 };
 
@@ -294,7 +281,6 @@ struct SizeofExpr : Expr {
     Type getOperandType() const { return operandType; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::SizeofExpr; }
 
-private:
     Type operandType;
 };
 
@@ -308,7 +294,6 @@ struct MemberExpr : Expr {
     void setDecl(Decl& d) { decl = &d; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::MemberExpr; }
 
-private:
     Expr* base;
     std::string member;
     Decl* decl = nullptr;
@@ -347,7 +332,6 @@ struct UnwrapExpr : Expr {
     Expr& getOperand() const { return *operand; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::UnwrapExpr; }
 
-private:
     Expr* operand;
 };
 
@@ -372,7 +356,6 @@ struct IfExpr : Expr {
     void setElseExpr(Expr* expr) { elseExpr = expr; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::IfExpr; }
 
-private:
     Expr* condition;
     Expr* thenExpr;
     Expr* elseExpr;
@@ -394,7 +377,6 @@ struct ImplicitCastExpr : Expr {
     Kind getImplicitCastKind() const { return kind; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::ImplicitCastExpr; }
 
-private:
     Expr* operand;
     Kind kind;
 };
