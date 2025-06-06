@@ -72,7 +72,7 @@ enum class AccessLevel;
 struct CompileOptions;
 
 struct Parser {
-    Parser(llvm::StringRef filePath, Module& module, const CompileOptions& options);
+    Parser(llvm::MemoryBufferRef input, Module& module, const CompileOptions& options);
     void parse();
 
 private:

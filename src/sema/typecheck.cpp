@@ -47,7 +47,7 @@ static std::error_code importModuleSourcesInDirectoryRecursively(const llvm::Twi
         llvm::sort(paths);
 
         for (auto& path : paths) {
-            Parser parser(path, module, options);
+            Parser parser(addSourceFileToModule(path, module), module, options);
             parser.parse();
         }
     }

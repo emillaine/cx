@@ -156,6 +156,9 @@ private:
     std::vector<SourceFile> sourceFiles;
     SymbolTable symbolTable;
     static llvm::StringMap<Module*> allImportedModules;
+
+public:
+    std::vector<std::unique_ptr<llvm::MemoryBuffer>> fileBuffers;
 };
 
 } // namespace cx

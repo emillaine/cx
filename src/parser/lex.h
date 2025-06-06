@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include "../ast/token.h"
 
 namespace llvm {
@@ -12,11 +11,9 @@ namespace cx {
 struct SourceLocation;
 
 struct Lexer {
-    Lexer(llvm::MemoryBuffer* input);
+    Lexer(llvm::MemoryBufferRef input);
     Token nextToken();
     const char* getFilePath() const;
-
-    static std::vector<llvm::MemoryBuffer*> fileBuffers; // TODO: Make this non-static.
 
 private:
     SourceLocation getCurrentLocation() const;
@@ -26,6 +23,7 @@ private:
     Token readQuotedLiteral(char delimiter, Token::Kind literalKind);
     Token readNumber();
 
+    llvm::MemoryBufferRef buffer;
     const char* currentFilePosition;
     SourceLocation firstLocation;
     SourceLocation lastLocation;

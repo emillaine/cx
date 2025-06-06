@@ -62,9 +62,22 @@ add_definitions(-DCLANG_BUILTIN_INCLUDE_PATH="${CLANG_CMAKE_DIR}/../../clang/${L
 
 enable_testing()
 
-file(GLOB_RECURSE CX_SOURCES src/*.h src/*.cpp)
-add_executable(cx ${CX_SOURCES})
-target_precompile_headers(cx PRIVATE src/pch.h)
+file(GLOB_RECURSE LIBCX_SOURCES CONFIGURE_DEPENDS
+    src/ast/*.h src/ast/*.cpp
+    src/backend/*.h src/backend/*.cpp
+    src/driver/*.h src/driver/*.cpp
+    src/package-manager/*.h src/package-manager/*.cpp
+    src/parser/*.h src/parser/*.cpp
+    src/sema/*.h src/sema/*.cpp
+    src/support/*.h src/support/*.cpp
+    src/api.cpp
+)
+add_library(libcx ${LIBCX_SOURCES})
+set_target_properties(libcx PROPERTIES PREFIX "")
+target_precompile_headers(libcx PRIVATE src/pch.h)
+
+add_executable(cx src/cli/main.cpp)
+target_link_libraries(cx libcx)
 
 if(LLVM_LINK_LLVM_DYLIB)
     set(LLVM_LIBS LLVM)
@@ -72,16 +85,21 @@ else()
     llvm_map_components_to_libnames(LLVM_LIBS core native linker support)
 endif()
 list(APPEND LLVM_LIBS clangAST clangBasic clangFrontend clangLex clangParse clangSema)
-target_link_libraries(cx ${LLVM_LIBS})
+target_link_libraries(libcx ${LLVM_LIBS})
 
+# Tests
 add_custom_target(check_lit COMMAND lit --verbose --succinct --incremental ${EXTRA_LIT_FLAGS} ${PROJECT_SOURCE_DIR}/test
     -Dcx_path="$<TARGET_FILE:cx>"
     -Dfilecheck_path="$<TARGET_FILE:FileCheck>"
     -Dtest_dir="${PROJECT_SOURCE_DIR}/test"
     USES_TERMINAL)
+add_executable(example_embedding examples/embedding/embedding.cpp)
+target_include_directories(example_embedding PRIVATE src)
+target_link_libraries(example_embedding libcx)
 add_custom_target(check_examples
     COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "--cx=$<TARGET_FILE:cx>"
-    COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "--cx=$<TARGET_FILE:cx>" "--backend=c")
+    COMMAND python3 "${PROJECT_SOURCE_DIR}/examples/build_examples.py" "--cx=$<TARGET_FILE:cx>" "--backend=c"
+    DEPENDS example_embedding)
 add_custom_target(check)
 add_custom_target(update_snapshots ${CMAKE_COMMAND} -E env UPDATE_SNAPSHOTS=1 cmake --build "${CMAKE_BINARY_DIR}" --target check)
 add_dependencies(check check_lit check_examples)
@@ -103,6 +121,7 @@ endif()
 # Optimize test utilities by default.
 if(MSVC)
     set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} -w /O2 /GL /MT")
+    set_target_properties(libcx PROPERTIES COMPILE_FLAGS "/MT")
     set_target_properties(cx PROPERTIES COMPILE_FLAGS "/MT")
 else()
     set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} -w -O3")

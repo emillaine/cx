@@ -16,9 +16,12 @@ rules.ninja
 
 # Build products
 build/
+*.o
+*.obj
 *.a
-*.dll
 *.lib
+*.so
+*.dll
 *.exe
 *.pdb
 *.ilk

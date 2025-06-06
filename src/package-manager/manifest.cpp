@@ -35,7 +35,7 @@ PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::m
 
     Module module(manifestFileName);
     CompileOptions options;
-    Parser parser(manifestPath, module, options);
+    Parser parser(addSourceFileToModule(manifestPath, module), module, options);
     parser.parse();
     // TODO: Type-check package manifest.
 

@@ -15,15 +15,13 @@
 
 using namespace cx;
 
-std::vector<llvm::MemoryBuffer*> Lexer::fileBuffers;
-
-Lexer::Lexer(llvm::MemoryBuffer* input) : firstLocation(input->getBufferIdentifier().data(), 1, 0), lastLocation(input->getBufferIdentifier().data(), 1, 0) {
-    fileBuffers.push_back(input);
-    currentFilePosition = fileBuffers.back()->getBufferStart() - 1;
+Lexer::Lexer(llvm::MemoryBufferRef input)
+: buffer(input), firstLocation(input.getBufferIdentifier().data(), 1, 0), lastLocation(input.getBufferIdentifier().data(), 1, 0) {
+    currentFilePosition = buffer.getBufferStart() - 1;
 }
 
 const char* Lexer::getFilePath() const {
-    return fileBuffers.back()->getBufferIdentifier().data();
+    return buffer.getBufferIdentifier().data();
 }
 
 SourceLocation Lexer::getCurrentLocation() const {

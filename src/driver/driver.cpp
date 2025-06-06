@@ -212,24 +212,37 @@ static void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName
     file.flush();
 }
 
-static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManifest* manifest, const char* argv0, llvm::StringRef outputDirectory,
-                           std::string outputFileName) {
-    if (files.empty()) {
+llvm::MemoryBufferRef cx::addSourceFileToModule(llvm::StringRef filePath, Module& targetModule) {
+    auto buffer = llvm::MemoryBuffer::getFile(filePath);
+    if (!buffer) ABORT("couldn't open file '" << filePath << "'");
+    assert((*buffer)->getBufferIdentifier() == filePath);
+    targetModule.fileBuffers.push_back(std::move(*buffer));
+    return targetModule.fileBuffers.back()->getMemBufferRef();
+}
+
+static int buildModuleFromFiles(BuildParams buildParams) {
+    Module mainModule("main");
+    for (llvm::StringRef filePath : buildParams.filePaths) {
+        addSourceFileToModule(filePath, mainModule);
+    }
+    return buildModule(mainModule, std::move(buildParams));
+}
+
+int cx::buildModule(Module& mainModule, BuildParams buildParams) {
+    if (mainModule.fileBuffers.empty()) {
         ABORT("no input files");
     }
 
-    addPredefinedImportSearchPaths(files);
+    addPredefinedImportSearchPaths(buildParams.filePaths);
 
     CompileOptions options = { noUnusedWarnings, importSearchPaths, frameworkSearchPaths, defines, cflags };
 
     if (!specifiedOutputFileName.empty()) {
-        outputFileName = specifiedOutputFileName;
+        buildParams.outputFileName = specifiedOutputFileName;
     }
 
-    Module mainModule("main");
-
-    for (llvm::StringRef filePath : files) {
-        Parser parser(filePath, mainModule, options);
+    for (auto& fileBuffer : mainModule.fileBuffers) {
+        Parser parser(*fileBuffer, mainModule, options);
         parser.parse();
     }
 
@@ -239,7 +252,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     for (auto& importedModule : mainModule.getImportedModules()) {
         typechecker.typecheckModule(*importedModule, nullptr);
     }
-    typechecker.typecheckModule(mainModule, manifest);
+    typechecker.typecheckModule(mainModule, buildParams.manifest);
 
     if (errors) return 1;
 
@@ -275,7 +288,8 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     llvm::SmallString<128> temporaryOutputFilePath;
     const char* outputFileExtension;
     std::string ccPath;
-    bool msvc;
+    bool isMSVC;
+    bool isWindows;
 
     switch (backend.getValue()) {
         case Backend::C: {
@@ -291,7 +305,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
             }
 
             ccPath = getCCompilerPath();
-            msvc = llvm::sys::path::extension(ccPath) == ".exe";
+            isWindows = isMSVC = llvm::sys::path::extension(ccPath) == ".exe";
 
             // TODO: emitAssembly not supported, report to user
             outputFileExtension = "c";
@@ -332,9 +346,16 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
             }
 
             ccPath = getCCompilerPath();
-            msvc = llvm::sys::path::extension(ccPath) == ".exe";
+            isWindows = isMSVC = llvm::sys::path::extension(ccPath) == ".exe";
 
-            outputFileExtension = emitAssembly ? "s" : msvc ? "obj" : "o";
+            if (emitAssembly) {
+                outputFileExtension = "s";
+            } else if (isWindows) {
+                outputFileExtension = buildParams.createSharedLib ? "dll" : "obj";
+            } else {
+                outputFileExtension = buildParams.createSharedLib ? "so" : "o";
+            }
+
             if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
                 ABORT(error.message());
             }
@@ -345,35 +366,43 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
             break;
     }
 
-    if (!outputDirectory.empty()) {
-        auto error = llvm::sys::fs::create_directories(outputDirectory);
+    if (!buildParams.outputDirectory.empty()) {
+        auto error = llvm::sys::fs::create_directories(buildParams.outputDirectory);
         if (error) ABORT(error.message());
     }
 
     bool treatAsLibrary = mainModule.getSymbolTable().find("main").empty() && !run;
-    if (treatAsLibrary) {
+    if (treatAsLibrary && !buildParams.createSharedLib) {
         compileOnly = true;
     }
-
     if (compileOnly || emitAssembly) {
-        llvm::SmallString<128> outputFilePath = outputDirectory;
+        llvm::SmallString<128> outputFilePath = buildParams.outputDirectory;
         llvm::sys::path::append(outputFilePath, llvm::Twine("output.") + outputFileExtension);
         renameFile(temporaryOutputFilePath, outputFilePath);
         return 0;
     }
 
-    // Link the output.
+    // Link the output:
 
     llvm::SmallString<128> temporaryExecutablePath;
-    llvm::sys::fs::createUniquePath(msvc ? "cx-%%%%%%%%.exe" : "cx-%%%%%%%%.out", temporaryExecutablePath, true);
+    llvm::sys::fs::createUniquePath(isWindows ? "cx-%%%%%%%%.exe" : "cx-%%%%%%%%.out", temporaryExecutablePath, true);
 
-    bool useExternalCCompiler = msvc || backend == Backend::C;
+    // TODO: Use the embedded Clang by default even on Windows.
+    bool useExternalCCompiler = isMSVC || buildParams.argv0 == nullptr;
+
+    // FIXME: This is a workaround for the embedded Clang being outdated.
+    // TODO: Allow the user to choose whether to use the system C compiler instead of the embedded Clang.
+    if (buildParams.createSharedLib || backend == Backend::C) {
+        useExternalCCompiler = true;
+    }
+
     std::vector<const char*> ccArgs = {
-        useExternalCCompiler ? ccPath.c_str() : argv0,
+        useExternalCCompiler ? ccPath.c_str() : buildParams.argv0,
         temporaryOutputFilePath.c_str(),
     };
 
-    ccArgs.push_back(msvc ? "-Fe:" : "-o");
+    if (buildParams.createSharedLib) ccArgs.push_back(isMSVC ? "-LD" : "-shared");
+    ccArgs.push_back(isMSVC ? "-Fe:" : "-o");
     ccArgs.push_back(temporaryExecutablePath.c_str());
 
     if (backend == Backend::C) {
@@ -404,7 +433,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
         ccArgs.push_back(flag.c_str());
     }
 
-    if (msvc) {
+    if (isMSVC) {
         ccArgs.push_back("-link");
         ccArgs.push_back("-DEBUG");
         ccArgs.push_back("legacy_stdio_definitions.lib");
@@ -424,7 +453,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
         llvm::outs() << output;
         llvm::sys::fs::remove(temporaryExecutablePath);
 
-        if (msvc) {
+        if (isMSVC) {
             auto path = temporaryExecutablePath;
             llvm::sys::path::replace_extension(path, "ilk");
             llvm::sys::fs::remove(path);
@@ -435,22 +464,26 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
         return executableExitStatus;
     }
 
-    llvm::SmallString<128> outputPathPrefix = outputDirectory;
+    llvm::SmallString<128> outputPathPrefix = buildParams.outputDirectory;
     if (!outputPathPrefix.empty()) {
         outputPathPrefix.append(llvm::sys::path::get_separator());
     }
 
-    if (outputFileName.empty()) {
-        outputFileName = files.size() == 1 ? llvm::sys::path::stem(files[0]).str() : "main";
-        outputFileName.append(msvc ? ".exe" : ".out");
+    if (buildParams.outputFileName.empty()) {
+        buildParams.outputFileName = mainModule.fileBuffers.size() == 1 ? llvm::sys::path::stem(mainModule.fileBuffers[0]->getBufferIdentifier()).str() : "main";
+        if (buildParams.createSharedLib) {
+            buildParams.outputFileName.append(isWindows ? ".dll" : ".so");
+        } else {
+            buildParams.outputFileName.append(isWindows ? ".exe" : ".out");
+        }
     }
 
-    renameFile(temporaryExecutablePath, outputPathPrefix + outputFileName);
+    renameFile(temporaryExecutablePath, outputPathPrefix + buildParams.outputFileName);
 
-    if (msvc) {
+    if (isMSVC) {
         auto path = temporaryExecutablePath;
         auto outputPath = outputPathPrefix;
-        outputPath += outputFileName;
+        outputPath += buildParams.outputFileName;
 
         llvm::sys::path::replace_extension(path, "ilk");
         llvm::sys::path::replace_extension(outputPath, "ilk");
@@ -478,7 +511,13 @@ static int buildPackage(llvm::StringRef packageRoot, const char* argv0) {
         }
         auto sourceFiles = getSourceFiles(targetRootDir, manifestPath);
         // TODO: Add support for library packages.
-        int exitStatus = buildExecutable(sourceFiles, &manifest, argv0, manifest.getOutputDirectory(), outputFileName.str());
+        int exitStatus = buildModuleFromFiles({
+            .filePaths = sourceFiles,
+            .manifest = &manifest,
+            .argv0 = argv0,
+            .outputDirectory = manifest.getOutputDirectory(),
+            .outputFileName = outputFileName.str(),
+        });
         if (exitStatus != 0) return exitStatus;
     }
 
@@ -503,7 +542,7 @@ static void addPlatformCompileOptions() {
 #endif
 }
 
-int main(int argc, const char** argv) {
+int cx::driverMain(int argc, const char** argv) {
     llvm::setBugReportMsg("Please submit a bug report to https://github.com/cx-language/cx/issues and include the crash backtrace.\n");
     llvm::InitLLVM x(argc, argv);
     cl::HideUnrelatedOptions({ &stageSelectionCategory, &outputCategory, &dependencyCategory, &diagnosticCategory });
@@ -511,7 +550,13 @@ int main(int argc, const char** argv) {
     addPlatformCompileOptions();
 
     if (!inputs.empty()) {
-        return buildExecutable(inputs, nullptr, argv[0], ".", "");
+        return buildModuleFromFiles({
+            .filePaths = inputs,
+            .manifest = nullptr,
+            .argv0 = argv[0],
+            .outputDirectory = ".",
+            .outputFileName = "",
+        });
     } else if (build || run) {
         llvm::SmallString<128> currentPath;
         if (auto error = llvm::sys::fs::current_path(currentPath)) {

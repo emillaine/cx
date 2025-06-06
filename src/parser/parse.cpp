@@ -20,14 +20,8 @@
 
 using namespace cx;
 
-static llvm::MemoryBuffer* getFileMemoryBuffer(llvm::StringRef filePath) {
-    auto buffer = llvm::MemoryBuffer::getFile(filePath);
-    if (!buffer) ABORT("couldn't open file '" << filePath << "'");
-    return buffer->release();
-}
-
-Parser::Parser(llvm::StringRef filePath, Module& module, const CompileOptions& options)
-: lexer(getFileMemoryBuffer(filePath)), currentModule(&module), currentTokenIndex(0), options(options) {
+Parser::Parser(llvm::MemoryBufferRef input, Module& module, const CompileOptions& options)
+: lexer(input), currentModule(&module), currentTokenIndex(0), options(options) {
     tokenBuffer.emplace_back(lexer.nextToken());
 }
 

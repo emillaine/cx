@@ -11,6 +11,7 @@ arg_parser.add_argument("--cx", help="path to cx compiler executable", default="
 args, cx_args = arg_parser.parse_known_args()
 
 os.chdir(os.path.dirname(__file__))
+ignored_dirs = ["inputs", "embedding"]  # TODO: Enable 'embedding' example once it works.
 
 for file in os.listdir("."):
     if platform.system() == "Windows" and file in ["tree.cx", "asteroids", "opengl"]:
@@ -20,7 +21,7 @@ for file in os.listdir("."):
         output = os.path.splitext(file)[0] + (".exe" if platform.system() == "Windows" else "")
         exit_status = subprocess.call([args.cx, file, "-o", output, "-Werror"])
         os.remove(output)
-    elif file != "inputs" and os.path.isdir(file):
+    elif file not in ignored_dirs and os.path.isdir(file):
         env = os.environ.copy()
         env["PATH"] = os.path.dirname(args.cx) + ":" + env["PATH"]
         exit_status = subprocess.call(["make", "-C", file, "CXFLAGS=" + " ".join(cx_args)], env=env)
