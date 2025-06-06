@@ -45,7 +45,7 @@ std::string FunctionDecl::getQualifiedName() const {
 
 FunctionType* FunctionDecl::getFunctionType() const {
     auto paramTypes = map(getParams(), [](const ParamDecl& p) -> Type { return p.getType(); });
-    return &llvm::cast<FunctionType>(*FunctionType::get(getReturnType(), std::move(paramTypes)));
+    return &llvm::cast<FunctionType>(*FunctionType::get(getReturnType(), std::move(paramTypes), isVariadic()));
 }
 
 bool FunctionDecl::signatureMatches(const FunctionDecl& other, bool matchReceiver) const {
@@ -178,7 +178,7 @@ Type TypeDecl::getTypeForPassing() const {
 }
 
 unsigned TypeDecl::getFieldIndex(const FieldDecl* field) const {
-    for (auto& p : llvm::enumerate(fields)) {
+    for (const auto& p : llvm::enumerate(fields)) {
         if (&p.value() == field) {
             return static_cast<unsigned>(p.index());
         }

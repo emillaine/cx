@@ -242,7 +242,7 @@ static Decl* findDeclInModules(llvm::StringRef name, SourceLocation location, ll
         return decls[0];
     } else if (decls.empty()) {
         return nullptr;
-    } else if (llvm::all_of(decls, [](Decl* decl) { return decl->getModule() && decl->getModule()->getName().endswith_lower(".h"); })) {
+    } else if (llvm::all_of(decls, [](Decl* decl) { return decl->getModule() && decl->getModule()->getName().ends_with(".h"); })) {
         // For duplicate definitions in C headers, return the last definition. TODO: Check that their value is the same.
         return decls.back();
     } else {

@@ -325,8 +325,8 @@ const char* cx::toString(Token::Kind tokenKind) {
         "->",
         "?",
     };
-    static_assert(llvm::array_lengthof(tokenStrings) == int(Token::TokenCount), "tokenStrings array not up-to-date");
-    return tokenStrings[int(tokenKind)];
+    static_assert(std::size(tokenStrings) == Token::TokenCount, "tokenStrings array not up-to-date");
+    return tokenStrings[tokenKind];
 }
 
 std::ostream& cx::operator<<(std::ostream& stream, Token::Kind tokenKind) {

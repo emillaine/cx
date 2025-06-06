@@ -398,7 +398,7 @@ Type Parser::parseFunctionType(Type returnType) {
     }
 
     consumeToken();
-    return FunctionType::get(returnType, std::move(paramTypes), Mutability::Mutable, returnType.getLocation());
+    return FunctionType::get(returnType, std::move(paramTypes), false, Mutability::Mutable, returnType.getLocation());
 }
 
 /// type ::= simple-type | 'const' simple-type | type '*' | type '?' | function-type | tuple-type

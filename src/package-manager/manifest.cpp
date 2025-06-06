@@ -64,7 +64,7 @@ std::vector<std::string> PackageManifest::getTargetRootDirectories() const {
     for (llvm::sys::fs::directory_iterator it(packageRoot, error), end; it != end; it.increment(error)) {
         if (!llvm::sys::fs::is_directory(it->path())) continue;
         llvm::StringRef dir = llvm::sys::path::filename(it->path());
-        if (dir.equals_lower("src") || dir.equals_lower("source") || dir.equals_lower("sources")) {
+        if (dir.equals_insensitive("src") || dir.equals_insensitive("source") || dir.equals_insensitive("sources")) {
             sourceDir += llvm::sys::path::get_separator();
             sourceDir += dir;
             break;

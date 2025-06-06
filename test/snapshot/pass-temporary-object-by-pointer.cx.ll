@@ -2,15 +2,15 @@
 %A = type { i32 }
 %B = type { i32 }
 
-define void @_EN4main1fEP1A(%A* %a) {
+define void @_EN4main1fEP1A(ptr %a) {
   ret void
 }
 
-define void @_EN4main1fEP1B(%B* %b) {
+define void @_EN4main1fEP1B(ptr %b) {
   ret void
 }
 
-define void @_EN4main1fEP3int(i32* %i) {
+define void @_EN4main1fEP3int(ptr %i) {
   ret void
 }
 
@@ -20,19 +20,19 @@ define i32 @main() {
   %1 = alloca %A, align 8
   %2 = alloca %B, align 8
   %3 = alloca i32, align 4
-  call void @_EN4main1A4initE(%A* %1)
-  call void @_EN4main1fEP1A(%A* %1)
-  call void @_EN4main1B4initE(%B* %2)
-  call void @_EN4main1fEP1B(%B* %2)
-  store i32 0, i32* %3, align 4
-  call void @_EN4main1fEP3int(i32* %3)
+  call void @_EN4main1A4initE(ptr %1)
+  call void @_EN4main1fEP1A(ptr %1)
+  call void @_EN4main1B4initE(ptr %2)
+  call void @_EN4main1fEP1B(ptr %2)
+  store i32 0, ptr %3, align 4
+  call void @_EN4main1fEP3int(ptr %3)
   ret i32 0
 }
 
-define void @_EN4main1A4initE(%A* %this) {
+define void @_EN4main1A4initE(ptr %this) {
   ret void
 }
 
-define void @_EN4main1B4initE(%B* %this) {
+define void @_EN4main1B4initE(ptr %this) {
   ret void
 }

@@ -1,6 +1,6 @@
 
-define void @_EN4main3fooEOP3intP3int(i32* %a, i32* %b) {
-  %1 = icmp eq i32* %a, %b
-  %2 = icmp ne i32* %a, %b
+define void @_EN4main3fooEOP3intP3int(ptr %a, ptr %b) {
+  %1 = icmp eq ptr %a, %b
+  %2 = icmp ne ptr %a, %b
   ret void
 }

@@ -11,15 +11,14 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/CodeGen.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Host.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/Program.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
@@ -53,19 +52,19 @@ cl::SubCommand build("build", "Build a C* project");
 cl::SubCommand run("run", "Build and run a C* executable");
 
 cl::OptionCategory dependencyCategory("Dependency Options");
-cl::list<std::string> inputs(cl::Positional, cl::desc("<input files>"), cl::sub(*cl::AllSubCommands), cl::cat(dependencyCategory));
-cl::list<std::string> defines("D", cl::desc("Specify defines"), cl::Prefix, cl::sub(*cl::AllSubCommands), cl::cat(dependencyCategory));
-cl::list<std::string> importSearchPaths("I", cl::desc("Add directory to import search paths"), cl::value_desc("path"), cl::Prefix, cl::sub(*cl::AllSubCommands),
-                                        cl::cat(dependencyCategory));
-cl::list<std::string> libraries("l", cl::desc("Link against system library"), cl::value_desc("path"), cl::Prefix, cl::sub(*cl::AllSubCommands),
+cl::list<std::string> inputs(cl::Positional, cl::desc("<input files>"), cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
+cl::list<std::string> defines("D", cl::desc("Specify defines"), cl::Prefix, cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
+cl::list<std::string> importSearchPaths("I", cl::desc("Add directory to import search paths"), cl::value_desc("path"), cl::Prefix,
+                                        cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
+cl::list<std::string> libraries("l", cl::desc("Link against system library"), cl::value_desc("path"), cl::Prefix, cl::sub(cl::SubCommand::getAll()),
                                 cl::cat(dependencyCategory));
 cl::list<std::string> librarySearchPaths("L", cl::desc("Add directory to library search paths"), cl::value_desc("path"), cl::Prefix,
-                                         cl::sub(*cl::AllSubCommands), cl::cat(dependencyCategory));
-cl::list<std::string> frameworks("framework", cl::desc("(macOS) Link against framework"), cl::value_desc("path"), cl::Prefix, cl::sub(*cl::AllSubCommands),
+                                         cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
+cl::list<std::string> frameworks("framework", cl::desc("(macOS) Link against framework"), cl::value_desc("path"), cl::Prefix, cl::sub(cl::SubCommand::getAll()),
                                  cl::cat(dependencyCategory));
 cl::list<std::string> frameworkSearchPaths("F", cl::desc("(macOS) Add directory to framework search paths"), cl::value_desc("path"), cl::Prefix,
-                                           cl::sub(*cl::AllSubCommands), cl::cat(dependencyCategory));
-cl::list<std::string> cflags("cflags", cl::desc("Add C compiler flags"), cl::CommaSeparated, cl::sub(*cl::AllSubCommands), cl::cat(dependencyCategory));
+                                           cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
+cl::list<std::string> cflags("cflags", cl::desc("Add C compiler flags"), cl::CommaSeparated, cl::sub(cl::SubCommand::getAll()), cl::cat(dependencyCategory));
 
 cl::OptionCategory stageSelectionCategory("Stage Selection Options");
 cl::opt<bool> parse("parse", cl::desc("Parse only"), cl::cat(stageSelectionCategory));
@@ -75,27 +74,27 @@ cl::opt<bool> compileOnly("c", cl::desc("Compile only, generating an object file
 cl::OptionCategory outputCategory("Output Options");
 // TODO: Add -print-llvm-all option.
 enum class PrintMode { None, AST, IR, IRAll, C, LLVM };
-cl::opt<PrintMode> printMode(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(*cl::TopLevelSubCommand), cl::cat(outputCategory),
+cl::opt<PrintMode> printMode(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(cl::SubCommand::getTopLevel()), cl::cat(outputCategory),
                              cl::values(clEnumValN(PrintMode::AST, "print-ast", "Print the abstract syntax tree of main module"),
                                         clEnumValN(PrintMode::IR, "print-ir", "Print C* intermediate representation of main module"),
                                         clEnumValN(PrintMode::IRAll, "print-ir-all", "Print C* intermediate representation of all compiled modules"),
                                         clEnumValN(PrintMode::C, "print-c", "Print generated C code"),
                                         clEnumValN(PrintMode::LLVM, "print-llvm", "Print LLVM intermediate representation of main module")));
 enum class Backend { LLVM, C };
-cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::sub(*cl::AllSubCommands), cl::cat(outputCategory),
+cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::sub(cl::SubCommand::getAll()), cl::cat(outputCategory),
                          cl::values(clEnumValN(Backend::LLVM, "llvm", "LLVM backend (default)"), clEnumValN(Backend::C, "c", "C backend")));
 cl::opt<bool> emitAssembly("emit-assembly", cl::desc("Emit assembly code"), cl::cat(outputCategory));
 cl::alias emitAssemblyAlias("S", cl::aliasopt(emitAssembly), cl::cat(outputCategory));
 cl::opt<bool> emitBitcode("emit-llvm-bitcode", cl::desc("Emit LLVM bitcode"), cl::cat(outputCategory));
-cl::opt<bool> noPIE("no-pie", cl::desc("Don't produce a position-independent executable"), cl::sub(*cl::AllSubCommands), cl::cat(outputCategory));
+cl::opt<bool> noPIE("no-pie", cl::desc("Don't produce a position-independent executable"), cl::sub(cl::SubCommand::getAll()), cl::cat(outputCategory));
 cl::opt<std::string> specifiedOutputFileName("o", cl::desc("Specify output file name"), cl::cat(outputCategory));
 
 cl::OptionCategory diagnosticCategory("Diagnostic Options");
-cl::opt<bool> disableWarnings("w", cl::desc("Disable all warnings"), cl::sub(*cl::AllSubCommands), cl::cat(diagnosticCategory));
-cl::opt<bool> warningsAsErrors("Werror", cl::desc("Treat warnings as errors"), cl::sub(*cl::AllSubCommands), cl::cat(diagnosticCategory));
-cl::opt<bool> noUnusedWarnings("Wno-unused", cl::desc("Disable warnings about unused entities"), cl::sub(*cl::AllSubCommands), cl::cat(diagnosticCategory));
+cl::opt<bool> disableWarnings("w", cl::desc("Disable all warnings"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
+cl::opt<bool> warningsAsErrors("Werror", cl::desc("Treat warnings as errors"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
+cl::opt<bool> noUnusedWarnings("Wno-unused", cl::desc("Disable warnings about unused entities"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
 cl::opt<int> errorLimit("error-limit", cl::desc("Limit the number of reported errors (10 by default, 0 removes limit)"), cl::init(10),
-                        cl::sub(*cl::AllSubCommands), cl::cat(diagnosticCategory));
+                        cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
 
 } // namespace cx
 
@@ -192,7 +191,7 @@ static void emitLLVMModuleToMachineCode(llvm::Module& module, llvm::StringRef fi
     module.setDataLayout(targetMachine->createDataLayout());
 
     std::error_code error;
-    llvm::raw_fd_ostream file(fileName, error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream file(fileName, error, llvm::sys::fs::OF_None);
     if (error) ABORT(error.message());
 
     llvm::legacy::PassManager passManager;
@@ -206,7 +205,7 @@ static void emitLLVMModuleToMachineCode(llvm::Module& module, llvm::StringRef fi
 
 static void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName) {
     std::error_code error;
-    llvm::raw_fd_ostream file(fileName, error, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream file(fileName, error, llvm::sys::fs::OF_None);
     if (error) ABORT(error.message());
     llvm::WriteBitcodeToFile(module, file);
     file.flush();
@@ -360,7 +359,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
                 ABORT(error.message());
             }
 
-            auto fileType = emitAssembly ? llvm::CGFT_AssemblyFile : llvm::CGFT_ObjectFile;
+            auto fileType = emitAssembly ? llvm::CodeGenFileType::AssemblyFile : llvm::CodeGenFileType::ObjectFile;
             auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
             emitLLVMModuleToMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
             break;

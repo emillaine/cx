@@ -1,20 +1,17 @@
 
-%A = type {}
-%B = type {}
-
-define void @_EN4main1fEP1A(%A* %a) {
-  call void @_EN4main1A6deinitE(%A* %a)
+define void @_EN4main1fEP1A(ptr %a) {
+  call void @_EN4main1A6deinitE(ptr %a)
   ret void
 }
 
-define void @_EN4main1A6deinitE(%A* %this) {
+define void @_EN4main1A6deinitE(ptr %this) {
   ret void
 }
 
-define void @_EN4main1gEP1B(%B* %b) {
+define void @_EN4main1gEP1B(ptr %b) {
   ret void
 }
 
-define void @_EN4main1hEP4char(i8* %c) {
+define void @_EN4main1hEP4char(ptr %c) {
   ret void
 }

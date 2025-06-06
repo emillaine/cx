@@ -1,6 +1,6 @@
 
 %string = type { %"ArrayRef<char>" }
-%"ArrayRef<char>" = type { i8*, i32 }
+%"ArrayRef<char>" = type { ptr, i32 }
 
 @0 = private unnamed_addr constant [4 x i8] c"bar\00", align 1
 
@@ -11,12 +11,12 @@ define i32 @main() {
   call void @_EN4main3fooI3intEE3int(i32 1)
   call void @_EN4main3fooI4boolEE4bool(i1 false)
   call void @_EN4main3fooI4boolEE4bool(i1 true)
-  call void @_EN3std6string4initEP4char3int(%string* %__str, i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), i32 3)
-  %__str.load = load %string, %string* %__str, align 8
+  call void @_EN3std6string4initEP4char3int(ptr %__str, ptr @0, i32 3)
+  %__str.load = load %string, ptr %__str, align 8
   %1 = call %string @_EN4main3barI6stringEE6string(%string %__str.load)
-  store %string %1, %string* %b, align 8
+  store %string %1, ptr %b, align 8
   %2 = call i32 @_EN4main3quxI3intEE3int(i32 -5)
-  store i32 %2, i32* %five, align 4
+  store i32 %2, ptr %five, align 4
   ret i32 0
 }
 
@@ -28,7 +28,7 @@ define void @_EN4main3fooI4boolEE4bool(i1 %t) {
   ret void
 }
 
-declare void @_EN3std6string4initEP4char3int(%string*, i8*, i32)
+declare void @_EN3std6string4initEP4char3int(ptr, ptr, i32)
 
 define %string @_EN4main3barI6stringEE6string(%string %t) {
   ret %string %t

@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 #pragma warning(push, 0)
-#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Casting.h>
 #pragma warning(pop)
@@ -104,7 +103,7 @@ struct Decl {
     virtual SourceLocation getLocation() const = 0;
     virtual llvm::StringRef getName() const = 0;
     bool isMain() const { return getName() == "main"; }
-    bool isLambda() const { return isFunctionDecl() && getName().startswith("__lambda"); }
+    bool isLambda() const { return isFunctionDecl() && getName().starts_with("__lambda"); }
     AccessLevel getAccessLevel() const { return accessLevel; }
     virtual bool isGlobal() const;
     virtual bool isReferenced() const { return referenced; }
@@ -216,7 +215,7 @@ struct FunctionDecl : Decl {
     const FunctionProto& getProto() const { return proto; }
     FunctionProto& getProto() { return proto; }
     virtual TypeDecl* getTypeDecl() const { return nullptr; }
-    bool hasBody() const { return body.hasValue(); }
+    bool hasBody() const { return body.has_value(); }
     llvm::ArrayRef<Stmt*> getBody() const { return *body; }
     llvm::MutableArrayRef<Stmt*> getBody() { return *body; }
     void setBody(std::vector<Stmt*>&& body) { this->body = std::move(body); }
@@ -231,7 +230,7 @@ struct FunctionDecl : Decl {
 
     FunctionProto proto;
     std::vector<Type> genericArgs;
-    llvm::Optional<std::vector<Stmt*>> body;
+    std::optional<std::vector<Stmt*>> body;
     SourceLocation location;
     Module& module;
     bool typechecked;

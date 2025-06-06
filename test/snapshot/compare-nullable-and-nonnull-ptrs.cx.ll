@@ -1,6 +1,6 @@
 
-define void @_EN4main1fEP3intOP3int(i32* %foo, i32* %bar) {
-  %1 = icmp eq i32* %foo, %bar
+define void @_EN4main1fEP3intOP3int(ptr %foo, ptr %bar) {
+  %1 = icmp eq ptr %foo, %bar
   br i1 %1, label %if.then, label %if.else
 
 if.then:                                          ; preds = %0

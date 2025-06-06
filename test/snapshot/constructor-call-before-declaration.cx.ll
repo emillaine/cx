@@ -3,17 +3,17 @@
 
 define i32 @main() {
   %f = alloca %Foo, align 8
-  call void @_EN4main3Foo4initE3int(%Foo* %f, i32 5)
-  call void @_EN4main3Foo6deinitE(%Foo* %f)
+  call void @_EN4main3Foo4initE3int(ptr %f, i32 5)
+  call void @_EN4main3Foo6deinitE(ptr %f)
   ret i32 0
 }
 
-define void @_EN4main3Foo4initE3int(%Foo* %this, i32 %i) {
-  %f = getelementptr inbounds %Foo, %Foo* %this, i32 0, i32 0
-  store float 0.000000e+00, float* %f, align 4
+define void @_EN4main3Foo4initE3int(ptr %this, i32 %i) {
+  %f = getelementptr inbounds %Foo, ptr %this, i32 0, i32 0
+  store float 0.000000e+00, ptr %f, align 4
   ret void
 }
 
-define void @_EN4main3Foo6deinitE(%Foo* %this) {
+define void @_EN4main3Foo6deinitE(ptr %this) {
   ret void
 }

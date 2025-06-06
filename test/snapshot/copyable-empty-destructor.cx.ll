@@ -3,10 +3,10 @@
 
 define i32 @main() {
   %foo = alloca %Foo, align 8
-  call void @_EN4main3Foo6deinitE(%Foo* %foo)
+  call void @_EN4main3Foo6deinitE(ptr %foo)
   ret i32 0
 }
 
-define void @_EN4main3Foo6deinitE(%Foo* %this) {
+define void @_EN4main3Foo6deinitE(ptr %this) {
   ret void
 }

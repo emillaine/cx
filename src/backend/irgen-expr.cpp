@@ -268,7 +268,7 @@ void IRGenerator::emitAssignment(const BinaryExpr& expr) {
 }
 
 static bool isBuiltinArrayToArrayRefConversion(Type sourceType, IRType* targetType) {
-    return sourceType.removePointer().isConstantArray() && targetType->isStruct() && targetType->getName().startswith("ArrayRef<");
+    return sourceType.removePointer().isConstantArray() && targetType->isStruct() && targetType->getName().starts_with("ArrayRef<");
 }
 
 Value* IRGenerator::emitExprForPassing(const Expr& expr, IRType* targetType) {

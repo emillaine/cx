@@ -5,7 +5,6 @@
 #include <vector>
 #pragma warning(push, 0)
 #include <llvm/ADT/APSInt.h>
-#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/Support/ErrorHandling.h>
 #pragma warning(pop)
@@ -138,9 +137,8 @@ Type Typechecker::typecheckArrayLiteralExpr(ArrayLiteralExpr& array, Type expect
 }
 
 Type Typechecker::typecheckTupleExpr(TupleExpr& expr) {
-    auto elements = map(expr.getElements(), [&](NamedValue& namedValue) {
-        return TupleElement { namedValue.getName().str(), typecheckExpr(*namedValue.getValue()) };
-    });
+    auto elements = map(expr.getElements(),
+                        [&](NamedValue& namedValue) { return TupleElement { namedValue.getName().str(), typecheckExpr(*namedValue.getValue()) }; });
     return TupleType::get(std::move(elements));
 }
 
@@ -400,7 +398,7 @@ bool Typechecker::providesInterfaceRequirements(TypeDecl& type, TypeDecl& interf
 }
 
 Expr* Typechecker::convert(Expr* expr, Type type, bool allowPointerToTemporary) const {
-    llvm::Optional<ImplicitCastExpr::Kind> implicitCastKind;
+    std::optional<ImplicitCastExpr::Kind> implicitCastKind;
     if (Type convertedType = isImplicitlyConvertible(expr, expr->getType(), type, allowPointerToTemporary, &implicitCastKind)) {
         if (implicitCastKind) {
             return new ImplicitCastExpr(expr, convertedType, *implicitCastKind);
@@ -418,7 +416,7 @@ Expr* Typechecker::convert(Expr* expr, Type type, bool allowPointerToTemporary) 
 }
 
 Type Typechecker::isImplicitlyConvertible(const Expr* expr, Type source, Type target, bool allowPointerToTemporary,
-                                          llvm::Optional<ImplicitCastExpr::Kind>* implicitCastKind) const {
+                                          std::optional<ImplicitCastExpr::Kind>* implicitCastKind) const {
     if (source.isBasicType() && target.isBasicType() && source.getName() == target.getName() && source.getGenericArgs() == target.getGenericArgs()) {
         return source;
     }
@@ -881,7 +879,7 @@ static bool isStdlibDecl(const Match& match) {
 }
 
 static bool isCHeaderDecl(const Match& match) {
-    return match.decl->getModule() && match.decl->getModule()->getName().endswith_lower(".h");
+    return match.decl->getModule() && match.decl->getModule()->getName().ends_with(".h");
 }
 
 static const Match* resolveAmbiguousOverload(llvm::ArrayRef<Match> matches, const CallExpr& call) {
@@ -1266,9 +1264,9 @@ ArgumentValidation Typechecker::getArgumentValidationResult(CallExpr& expr, llvm
             }
 
             bool invalidType = false;
-            llvm::Optional<ImplicitCastExpr::Kind> implicitCastKind;
+            std::optional<ImplicitCastExpr::Kind> implicitCastKind;
             if (Type convertedType = isImplicitlyConvertible(arg.getValue(), arg.getValue()->getType(), param->getType(), true, &implicitCastKind)) {
-                didConvertArguments = didConvertArguments || convertedType != arg.getValue()->getType() || implicitCastKind.hasValue();
+                didConvertArguments = didConvertArguments || convertedType != arg.getValue()->getType() || implicitCastKind.has_value();
             } else {
                 invalidType = true;
             }
@@ -1281,14 +1279,14 @@ ArgumentValidation Typechecker::getArgumentValidationResult(CallExpr& expr, llvm
     return ArgumentValidation::success(didConvertArguments);
 }
 
-llvm::Optional<Match> Typechecker::matchArguments(CallExpr& expr, Decl* calleeDecl, llvm::ArrayRef<ParamDecl> params) {
+std::optional<Match> Typechecker::matchArguments(CallExpr& expr, Decl* calleeDecl, llvm::ArrayRef<ParamDecl> params) {
     bool isVariadic = false;
     if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(calleeDecl)) {
         params = functionDecl->getParams();
         isVariadic = functionDecl->isVariadic();
     }
     auto result = getArgumentValidationResult(expr, params, isVariadic);
-    if (result.error) return llvm::None;
+    if (result.error) return std::nullopt;
     return Match { calleeDecl, result.didConvertArguments };
 }
 

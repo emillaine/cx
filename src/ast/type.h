@@ -230,16 +230,20 @@ struct FunctionType : TypeBase {
     Type getReturnType() const { return returnType; }
     llvm::ArrayRef<Type> getParamTypes() const { return paramTypes; }
     std::vector<ParamDecl> getParamDecls(SourceLocation location = SourceLocation()) const;
-    static Type get(Type returnType, std::vector<Type>&& paramTypes, Mutability mutability = Mutability::Mutable, SourceLocation location = SourceLocation());
+    static Type get(Type returnType, std::vector<Type>&& paramTypes, bool isVariadic, Mutability mutability = Mutability::Mutable,
+                    SourceLocation location = SourceLocation());
     static bool classof(const TypeBase* t) { return t->getKind() == TypeKind::FunctionType; }
 
 private:
-    FunctionType(Type returnType, std::vector<Type>&& paramTypes)
-    : TypeBase(TypeKind::FunctionType), returnType(returnType), paramTypes(std::move(paramTypes)) {}
+    FunctionType(Type returnType, std::vector<Type>&& paramTypes, bool isVariadic)
+    : TypeBase(TypeKind::FunctionType), returnType(returnType), paramTypes(std::move(paramTypes)), isVariadic(isVariadic) {}
 
 private:
     Type returnType;
     std::vector<Type> paramTypes;
+
+public:
+    bool isVariadic = false;
 };
 
 struct PointerType : TypeBase {

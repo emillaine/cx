@@ -77,6 +77,7 @@ struct IRPointerType : IRType {
 struct IRFunctionType : IRType {
     IRType* returnType;
     std::vector<IRType*> paramTypes;
+    bool isVariadic;
 
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRFunctionType; }
 };

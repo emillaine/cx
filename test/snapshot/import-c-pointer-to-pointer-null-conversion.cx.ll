@@ -1,7 +1,7 @@
 
 define i32 @main() {
-  call void @foo(i8** null)
+  call void @foo(ptr null)
   ret i32 0
 }
 
-declare void @foo(i8**)
+declare void @foo(ptr)

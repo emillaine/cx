@@ -2,8 +2,10 @@
 #pragma warning(push, 0)
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/IR/CFG.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #pragma warning(pop)
+
 #include "ir.h"
 
 using namespace cx;
@@ -59,7 +61,7 @@ llvm::Type* LLVMGenerator::getLLVMType(IRType* type) {
             auto functionType = llvm::cast<IRFunctionType>(type);
             auto returnType = getLLVMType(functionType->returnType);
             auto paramTypes = map(functionType->paramTypes, [&](IRType* type) { return getLLVMType(type); });
-            return llvm::FunctionType::get(returnType, paramTypes, false);
+            return llvm::FunctionType::get(returnType, paramTypes, functionType->isVariadic);
         }
         case IRTypeKind::IRPointerType: {
             auto pointerType = llvm::cast<IRPointerType>(type);
@@ -205,7 +207,7 @@ llvm::Value* LLVMGenerator::codegenSwitch(const SwitchInst* inst) {
 }
 
 llvm::Value* LLVMGenerator::codegenLoad(const LoadInst* inst) {
-    return builder.CreateLoad(getValue(inst->value), inst->name);
+    return builder.CreateLoad(getLLVMType(inst->getType()), getValue(inst->value), inst->name);
 }
 
 llvm::Value* LLVMGenerator::codegenStore(const StoreInst* inst) {
@@ -228,13 +230,13 @@ llvm::Value* LLVMGenerator::codegenExtract(const ExtractInst* inst) {
 llvm::Value* LLVMGenerator::codegenCall(const CallInst* inst) {
     auto function = getValue(inst->function);
     auto args = map(inst->args, [&](auto* arg) { return getValue(arg); });
-
-    auto* functionType = llvm::dyn_cast<llvm::FunctionType>(function->getType());
-    if (!functionType) {
-        functionType = llvm::cast<llvm::FunctionType>(function->getType()->getPointerElementType());
+    auto cxFunctionType = inst->function->getType();
+    if (cxFunctionType->isPointerType()) {
+        cxFunctionType = cxFunctionType->getPointee();
     }
-
-    return builder.CreateCall(functionType, function, args);
+    assert(cxFunctionType->isFunctionType());
+    auto* llvmFunctionType = llvm::cast<llvm::FunctionType>(getLLVMType(cxFunctionType));
+    return builder.CreateCall(llvmFunctionType, function, args);
 }
 
 llvm::Value* LLVMGenerator::codegenBinary(const BinaryInst* inst) {
@@ -318,13 +320,15 @@ llvm::Value* LLVMGenerator::codegenUnary(const UnaryInst* inst) {
 
 llvm::Value* LLVMGenerator::codegenGEP(const GEPInst* inst) {
     auto pointer = getValue(inst->pointer);
+    auto pointeeType = getLLVMType(inst->pointer->getType()->getPointee());
     auto indexes = map(inst->indexes, [&](auto* index) { return getValue(index); });
-    return builder.CreateInBoundsGEP(pointer, indexes, inst->name);
+    return builder.CreateInBoundsGEP(pointeeType, pointer, indexes, inst->name);
 }
 
 llvm::Value* LLVMGenerator::codegenConstGEP(const ConstGEPInst* inst) {
     auto pointer = getValue(inst->pointer);
-    return builder.CreateConstInBoundsGEP2_32(nullptr, pointer, 0, inst->index, inst->name);
+    auto pointeeType = getLLVMType(inst->pointer->getType()->getPointee());
+    return builder.CreateConstInBoundsGEP2_32(pointeeType, pointer, 0, inst->index, inst->name);
 }
 
 llvm::Value* LLVMGenerator::codegenCast(const CastInst* inst) {
@@ -378,7 +382,7 @@ llvm::Value* LLVMGenerator::codegenGlobalVariable(const GlobalVariable* inst) {
 }
 
 llvm::Value* LLVMGenerator::codegenConstantString(const ConstantString* inst) {
-    return builder.CreateGlobalStringPtr(inst->value);
+    return builder.CreateGlobalString(inst->value);
 }
 
 llvm::Value* LLVMGenerator::codegenConstantInt(const ConstantInt* inst) {

@@ -107,7 +107,7 @@ std::string cx::getCCompilerPath() {
 
 void cx::printStackTrace() {
     if (auto env = llvm::sys::Process::GetEnv("CX_PRINT_STACK_TRACE")) {
-        if (llvm::StringRef(*env).equals_lower("true") || *env == "1") {
+        if (llvm::StringRef(*env).equals_insensitive("true") || *env == "1") {
             llvm::sys::PrintStackTrace(llvm::outs());
         }
     }

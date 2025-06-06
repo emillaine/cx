@@ -18,7 +18,6 @@
 #include <clang/Sema/Sema.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
-#include <llvm/Support/Host.h>
 #include <llvm/Support/Path.h>
 #pragma warning(pop)
 #include "typecheck.h"
@@ -132,12 +131,11 @@ static Type toCx(clang::QualType qualtype) {
         case clang::Type::FunctionProto: {
             auto& functionProtoType = llvm::cast<clang::FunctionProtoType>(type);
             auto paramTypes = map(functionProtoType.getParamTypes(), [](clang::QualType qualType) { return toCx(qualType); });
-            return FunctionType::get(toCx(functionProtoType.getReturnType()), std::move(paramTypes), mutability);
+            return FunctionType::get(toCx(functionProtoType.getReturnType()), std::move(paramTypes), functionProtoType.isVariadic(), mutability);
         }
         case clang::Type::FunctionNoProto: {
             auto& functionNoProtoType = llvm::cast<clang::FunctionNoProtoType>(type);
-            // This treats it as a zero-argument function, but really it should accept any number of arguments of any types.
-            return FunctionType::get(toCx(functionNoProtoType.getReturnType()), {}, mutability);
+            return FunctionType::get(toCx(functionNoProtoType.getReturnType()), {}, true, mutability);
         }
         case clang::Type::ConstantArray: {
             auto& constantArrayType = llvm::cast<clang::ConstantArrayType>(type);
@@ -172,8 +170,8 @@ static Type toCx(clang::QualType qualtype) {
     }
 }
 
-static llvm::Optional<FieldDecl> toCx(const clang::FieldDecl& decl, TypeDecl& typeDecl) {
-    if (decl.getName().empty()) return llvm::None;
+static std::optional<FieldDecl> toCx(const clang::FieldDecl& decl, TypeDecl& typeDecl) {
+    if (decl.getName().empty()) return std::nullopt;
     return FieldDecl(toCx(decl.getType()), decl.getNameAsString(), nullptr, typeDecl, AccessLevel::Default, SourceLocation());
 }
 
@@ -240,7 +238,7 @@ struct CToCxConverter : clang::ASTConsumer {
 
                     for (clang::EnumConstantDecl* enumerator : enumDecl.enumerators()) {
                         auto enumeratorName = enumerator->getName();
-                        auto& value = enumerator->getInitVal();
+                        auto value = enumerator->getInitVal();
                         auto valueExpr = new IntLiteralExpr(value, SourceLocation());
                         cases.push_back(EnumCase(enumeratorName.str(), valueExpr, Type(), AccessLevel::Default, SourceLocation()));
                         addIntegerConstantToSymbolTable(enumeratorName, value, type, module);
@@ -336,11 +334,11 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     }
 
     clang::CompilerInstance ci;
-    ci.createDiagnostics();
+    ci.createDiagnostics(*llvm::vfs::getRealFileSystem());
     auto args = map(options.cflags, [](auto& cflag) { return cflag.c_str(); });
     clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args, ci.getDiagnostics());
 
-    std::shared_ptr<clang::TargetOptions> pto = std::make_shared<clang::TargetOptions>();
+    auto pto = std::make_shared<clang::TargetOptions>();
     pto->Triple = llvm::sys::getDefaultTargetTriple();
     targetInfo = clang::TargetInfo::CreateTargetInfo(ci.getDiagnostics(), pto);
     ci.setTarget(targetInfo);
@@ -365,9 +363,8 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     auto& pp = ci.getPreprocessor();
     pp.getBuiltinInfo().initializeBuiltins(pp.getIdentifierTable(), pp.getLangOpts());
 
-    const clang::DirectoryLookup* curDir = nullptr;
     clang::HeaderSearch& headerSearch = ci.getPreprocessor().getHeaderSearchInfo();
-    auto fileEntry = headerSearch.LookupFile(headerName, {}, false, nullptr, curDir, {}, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    auto fileEntry = headerSearch.LookupFile(headerName, {}, false, nullptr, nullptr, {}, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     if (!fileEntry) {
         std::string searchDirs;
         for (auto searchDir = headerSearch.search_dir_begin(), end = headerSearch.search_dir_end(); searchDir != end; ++searchDir) {

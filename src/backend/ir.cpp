@@ -73,7 +73,12 @@ IRType* cx::getIRType(Type astType) {
         case TypeKind::FunctionType: {
             auto returnType = getIRType(astType.getReturnType());
             auto paramTypes = map(astType.getParamTypes(), [](Type t) { return getIRType(t); });
-            auto functionType = new IRFunctionType { IRTypeKind::IRFunctionType, returnType, std::move(paramTypes) };
+            auto functionType = new IRFunctionType {
+                IRTypeKind::IRFunctionType,
+                .returnType = returnType,
+                .paramTypes = std::move(paramTypes),
+                .isVariadic = llvm::cast<FunctionType>(astType.getBase())->isVariadic,
+            };
             irType = new IRPointerType { IRTypeKind::IRPointerType, functionType };
             break;
         }
@@ -187,7 +192,13 @@ IRType* Value::getType() const {
         case ValueKind::Function: {
             auto function = llvm::cast<Function>(this);
             auto paramTypes = map(function->params, [](auto& p) { return p.type; });
-            return (new IRFunctionType { IRTypeKind::IRFunctionType, function->returnType, std::move(paramTypes) })->getPointerTo();
+            return (new IRFunctionType {
+                        IRTypeKind::IRFunctionType,
+                        .returnType = function->returnType,
+                        .paramTypes = std::move(paramTypes),
+                        .isVariadic = function->isVariadic,
+                    })
+                ->getPointerTo();
         }
         case ValueKind::Parameter:
             return llvm::cast<Parameter>(this)->type;
@@ -271,8 +282,11 @@ std::string Value::getName() const {
             return llvm::cast<GlobalVariable>(this)->name;
         case ValueKind::ConstantString:
             return '"' + llvm::cast<ConstantString>(this)->value + '"';
-        case ValueKind::ConstantInt:
-            return llvm::cast<ConstantInt>(this)->value.toString(10);
+        case ValueKind::ConstantInt: {
+            llvm::SmallString<128> buffer;
+            llvm::cast<ConstantInt>(this)->value.toString(buffer, 10);
+            return std::string(buffer);
+        }
         case ValueKind::ConstantFP: {
             llvm::SmallString<128> buffer;
             llvm::cast<ConstantFP>(this)->value.toString(buffer);

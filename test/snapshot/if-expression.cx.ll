@@ -36,6 +36,6 @@ if.end:                                           ; preds = %if.else2, %if.then1
 
 if.end3:                                          ; preds = %if.end, %if.then
   %if.result4 = phi i1 [ %2, %if.then ], [ %if.result, %if.end ]
-  store i1 %if.result4, i1* %x, align 1
+  store i1 %if.result4, ptr %x, align 1
   ret i32 0
 }

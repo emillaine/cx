@@ -342,7 +342,7 @@ void Typechecker::typecheckFieldDecl(FieldDecl& decl) {
 void Typechecker::typecheckImportDecl(ImportDecl& decl, const PackageManifest* manifest) {
     // TODO: Print import search paths as part of the below error messages.
 
-    if (decl.getTarget().endswith(".h")) {
+    if (decl.getTarget().ends_with(".h")) {
         if (!importCHeader(*currentSourceFile, decl.getTarget(), options, decl.getLocation())) {
             REPORT_ERROR(decl.getLocation(), "couldn't import C header file '" << decl.getTarget() << "'");
         }

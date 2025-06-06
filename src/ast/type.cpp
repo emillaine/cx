@@ -13,8 +13,12 @@ using namespace cx;
 static std::vector<TypeBase*> typeBases;
 
 #define DEFINE_BUILTIN_TYPE_GET_AND_IS(TYPE, NAME) \
-    Type Type::get##TYPE(Mutability mutability, SourceLocation location) { return BasicType::get(#NAME, {}, mutability, location); } \
-    bool Type::is##TYPE() const { return isBasicType() && getName() == #NAME; }
+    Type Type::get##TYPE(Mutability mutability, SourceLocation location) { \
+        return BasicType::get(#NAME, {}, mutability, location); \
+    } \
+    bool Type::is##TYPE() const { \
+        return isBasicType() && getName() == #NAME; \
+    }
 
 DEFINE_BUILTIN_TYPE_GET_AND_IS(Void, void)
 DEFINE_BUILTIN_TYPE_GET_AND_IS(Bool, bool)
@@ -104,14 +108,13 @@ Type Type::resolve(const llvm::StringMap<Type>& replacements) const {
             return ArrayType::get(getElementType().resolve(replacements), getArraySize(), location);
 
         case TypeKind::TupleType: {
-            auto elements = map(getTupleElements(), [&](const TupleElement& element) {
-                return TupleElement { element.name, element.type.resolve(replacements) };
-            });
+            auto elements = map(getTupleElements(), [&](auto& element) { return TupleElement { element.name, element.type.resolve(replacements) }; });
             return TupleType::get(std::move(elements), mutability, location);
         }
         case TypeKind::FunctionType: {
             auto paramTypes = map(getParamTypes(), [&](Type t) { return t.resolve(replacements); });
-            return FunctionType::get(getReturnType().resolve(replacements), std::move(paramTypes), mutability, location);
+            return FunctionType::get(getReturnType().resolve(replacements), std::move(paramTypes), llvm::cast<FunctionType>(typeBase)->isVariadic, mutability,
+                                     location);
         }
         case TypeKind::PointerType:
             return PointerType::get(getPointee().resolve(replacements), mutability, location);
@@ -148,8 +151,8 @@ Type TupleType::get(std::vector<TupleElement>&& elements, Mutability mutability,
     return getType(TupleType(std::move(elements)), mutability, location);
 }
 
-Type FunctionType::get(Type returnType, std::vector<Type>&& paramTypes, Mutability mutability, SourceLocation location) {
-    return getType(FunctionType(returnType, std::move(paramTypes)), mutability, location);
+Type FunctionType::get(Type returnType, std::vector<Type>&& paramTypes, bool isVariadic, Mutability mutability, SourceLocation location) {
+    return getType(FunctionType(returnType, std::move(paramTypes), isVariadic), mutability, location);
 }
 
 Type PointerType::get(Type pointeeType, Mutability mutability, SourceLocation location) {

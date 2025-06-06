@@ -9,11 +9,11 @@ define i32 @main() {
   br i1 %assert.condition, label %assert.fail, label %assert.success
 
 assert.fail:                                      ; preds = %0
-  call void @_EN3std10assertFailEP4char(i8* getelementptr inbounds ([35 x i8], [35 x i8]* @0, i32 0, i32 0))
+  call void @_EN3std10assertFailEP4char(ptr @0)
   unreachable
 
 assert.success:                                   ; preds = %0
   ret i32 0
 }
 
-declare void @_EN3std10assertFailEP4char(i8*)
+declare void @_EN3std10assertFailEP4char(ptr)

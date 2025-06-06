@@ -4,26 +4,26 @@
 
 define i32 @main() {
   %x = alloca %"S<A>", align 8
-  call void @_EN4main1SI1AE4initE(%"S<A>"* %x)
-  call void @_EN4main1SI1AE1sE(%"S<A>"* %x)
+  call void @_EN4main1SI1AE4initE(ptr %x)
+  call void @_EN4main1SI1AE1sE(ptr %x)
   ret i32 0
 }
 
-define void @_EN4main1SI1AE4initE(%"S<A>"* %this) {
+define void @_EN4main1SI1AE4initE(ptr %this) {
   %1 = alloca %A, align 8
-  call void @_EN4main1A4initE(%A* %1)
-  call void @_EN4main1A1hE(%A* %1)
+  call void @_EN4main1A4initE(ptr %1)
+  call void @_EN4main1A1hE(ptr %1)
   ret void
 }
 
-define void @_EN4main1SI1AE1sE(%"S<A>"* %this) {
+define void @_EN4main1SI1AE1sE(ptr %this) {
   ret void
 }
 
-define void @_EN4main1A4initE(%A* %this) {
+define void @_EN4main1A4initE(ptr %this) {
   ret void
 }
 
-define void @_EN4main1A1hE(%A* %this) {
+define void @_EN4main1A1hE(ptr %this) {
   ret void
 }
