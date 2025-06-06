@@ -50,6 +50,14 @@ jobs:
           export CMAKE_BUILD_PARALLEL_LEVEL=""
           cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH="$LLVMDIR"
 
+      - name: install DIA SDK # Workaround for https://github.com/llvm/llvm-project/issues/86250
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -x
+          mkdir -p "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional" || true
+          cp -rv "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/DIA SDK" "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/DIA SDK"
+
       - name: Build
         working-directory: ${{runner.workspace}}/build
         shell: bash
