@@ -4,7 +4,6 @@ on: [ push, pull_request ]
 
 env:
   BUILD_TYPE: Release
-  LLVM_VERSION: 20.1.6
 
 jobs:
   build:
@@ -24,21 +23,19 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            export LLVM_TARBALL_NAME=clang+llvm-$LLVM_VERSION-x86_64-linux-gnu-ubuntu-$(lsb_release -sr)
-            wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSION/$LLVM_TARBALL_NAME.tar.xz
-            tar -xf $LLVM_TARBALL_NAME.tar.xz
-            export LLVMDIR="$PWD/$LLVM_TARBALL_NAME"
+            wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.6/LLVM-20.1.6-Linux-X64.tar.xz
+            tar -xf LLVM-20.1.6-Linux-X64.tar.xz
+            export LLVMDIR="$PWD/LLVM-20.1.6-Linux-X64"
           fi
           if [ "$RUNNER_OS" == "macOS" ]; then
-            export LLVM_TARBALL_NAME=clang+llvm-$LLVM_VERSION-x86_64-apple-darwin
-            wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSION/$LLVM_TARBALL_NAME.tar.xz
-            tar -xf $LLVM_TARBALL_NAME.tar.xz
-            export LLVMDIR="$PWD/$LLVM_TARBALL_NAME"
+            wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.4/LLVM-20.1.4-macOS-ARM64.tar.xz
+            tar -xf LLVM-20.1.4-macOS-ARM64.tar.xz
+            export LLVMDIR="$PWD/LLVM-20.1.4-macOS-ARM64"
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
-            curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LLVM_VERSION/clang+llvm-$LLVM_VERSION-x86_64-pc-windows-msvc.tar.xz" --output llvm.tar.xz && 7z x llvm.tar.xz && 7z x llvm.tar
+            curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.6/clang+llvm-20.1.6-x86_64-pc-windows-msvc.tar.xz" --output llvm.tar.xz && 7z x llvm.tar.xz && 7z x llvm.tar
             # The sed below converts the path to a Windows-style path
-            export LLVMDIR="$(echo "$PWD/clang+llvm-$LLVM_VERSION-x86_64-pc-windows-msvc" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')"
+            export LLVMDIR="$(echo "$PWD/clang+llvm-20.1.6-x86_64-pc-windows-msvc" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')"
           fi
           echo "LLVMDIR=$LLVMDIR" >> $GITHUB_ENV
           echo "$LLVMDIR/bin" >> $GITHUB_PATH
