@@ -50,7 +50,7 @@ void print<T: Printable>(Optional<T>* optional) {
 
 void print(const char[*]? cString) {
     if (cString) {
-        printf(cString);
+        printf("%s", cString);
     } else {
         printf("null");
     }
@@ -116,7 +116,7 @@ bool writeFile(string path, string content) {
 void assertFail(const char* message) {
     var stream = fdopen(2, "w");
     if (stream) {
-        fprintf(stream, message);
+        fprintf(stream, "%s", message);
         fclose(stream);
     }
     abortWrapper();

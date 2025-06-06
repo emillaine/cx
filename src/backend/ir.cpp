@@ -4,6 +4,7 @@
 #include <llvm/ADT/StringSwitch.h>
 #pragma warning(pop)
 #include "../ast/decl.h"
+#include "../ast/mangle.h"
 
 using namespace cx;
 
@@ -33,7 +34,8 @@ IRType* cx::getIRType(Type astType) {
 
                 if (enumDecl->hasAssociatedValues()) {
                     auto unionType = new IRUnionType { IRTypeKind::IRUnionType, {}, "" };
-                    irType = new IRStructType { IRTypeKind::IRStructType, { tagType, unionType }, astType.getQualifiedTypeName(), false };
+                    irType =
+                        new IRStructType { IRTypeKind::IRStructType, { tagType, unionType }, astType.getQualifiedTypeName(), '_' + mangleType(astType), false };
                     irTypes.emplace(astType.getBase(), irType);
                     auto associatedTypes = map(enumDecl->getCases(), [](const EnumCase& c) { return getIRType(c.getAssociatedType()); });
                     unionType->elementTypes = std::move(associatedTypes);
@@ -42,7 +44,8 @@ IRType* cx::getIRType(Type astType) {
                     irType = tagType;
                 }
             } else if (astType.getDecl()) {
-                auto structType = new IRStructType { IRTypeKind::IRStructType, {}, astType.getQualifiedTypeName(), astType.getDecl()->packed };
+                auto structType =
+                    new IRStructType { IRTypeKind::IRStructType, {}, astType.getQualifiedTypeName(), '_' + mangleType(astType), astType.getDecl()->packed };
                 irTypes.emplace(astType.getBase(), structType);
                 auto elementTypes = map(astType.getDecl()->getFields(), [](const FieldDecl& f) { return getIRType(f.getType()); });
                 structType->elementTypes = std::move(elementTypes);
@@ -64,7 +67,7 @@ IRType* cx::getIRType(Type astType) {
         }
         case TypeKind::TupleType: {
             auto elementTypes = map(astType.getTupleElements(), [](const TupleElement& e) { return getIRType(e.type); });
-            irType = new IRStructType { IRTypeKind::IRStructType, std::move(elementTypes), "", false };
+            irType = new IRStructType { IRTypeKind::IRStructType, std::move(elementTypes), std::string(), std::string(), false };
             break;
         }
         case TypeKind::FunctionType: {
@@ -578,6 +581,11 @@ bool IRType::isBool() {
 bool IRType::isVoid() {
     if (!isBasicType()) return false;
     return llvm::cast<IRBasicType>(this)->name == "void";
+}
+
+bool IRType::isNever() {
+    if (!isStruct()) return false;
+    return llvm::cast<IRStructType>(this)->name == "never";
 }
 
 IRType* IRType::getPointee() {

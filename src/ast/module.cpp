@@ -1,4 +1,5 @@
 #include "module.h"
+#include "ast-print.h"
 
 using namespace cx;
 

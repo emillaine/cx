@@ -9,8 +9,6 @@
 
 using namespace cx;
 
-static void mangleType(llvm::raw_string_ostream& stream, Type type);
-
 static const char cxPrefix[] = "_E";
 
 static bool isOperator(const FunctionDecl& functionDecl) {
@@ -54,7 +52,7 @@ static void mangleGenericArgs(llvm::raw_string_ostream& stream, llvm::ArrayRef<T
     }
 }
 
-static void mangleType(llvm::raw_string_ostream& stream, Type type) {
+void cx::mangleType(llvm::raw_string_ostream& stream, Type type) {
     switch (type.getKind()) {
         case TypeKind::BasicType:
             if (type.isOptionalType()) {
@@ -84,7 +82,7 @@ static void mangleType(llvm::raw_string_ostream& stream, Type type) {
             for (auto& element : type.getTupleElements()) {
                 mangleType(stream, element.type);
             }
-            stream << '_';
+            stream << '_'; // TODO: should this be removed?
             break;
         case TypeKind::FunctionType:
             stream << 'F';
@@ -143,4 +141,11 @@ std::string cx::mangleFunctionDecl(const FunctionDecl& functionDecl) {
 
     stream.flush();
     return mangled;
+}
+
+std::string cx::mangleType(Type type) {
+    std::string mangledName;
+    llvm::raw_string_ostream stream(mangledName);
+    mangleType(stream, type);
+    return std::move(stream.str());
 }

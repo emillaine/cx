@@ -50,6 +50,7 @@ struct IRType {
     bool isChar();
     bool isBool();
     bool isVoid();
+    bool isNever();
     IRType* getPointee();
     llvm::ArrayRef<IRType*> getElements();
     llvm::StringRef getName();
@@ -90,6 +91,7 @@ struct IRArrayType : IRType {
 struct IRStructType : IRType {
     std::vector<IRType*> elementTypes;
     std::string name;
+    std::string mangledName;
     bool packed;
 
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRStructType; }

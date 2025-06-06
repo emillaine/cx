@@ -26,6 +26,7 @@
 #pragma warning(pop)
 #include "clang.h"
 #include "../ast/module.h"
+#include "../backend/c-backend.h"
 #include "../backend/irgen.h"
 #include "../backend/llvm.h"
 #include "../package-manager/manifest.h"
@@ -81,7 +82,7 @@ cl::opt<PrintMode> printMode(cl::desc("Print output from intermediate steps:"), 
                                         clEnumValN(PrintMode::C, "print-c", "Print generated C code"),
                                         clEnumValN(PrintMode::LLVM, "print-llvm", "Print LLVM intermediate representation of main module")));
 enum class Backend { LLVM, C };
-cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::cat(outputCategory),
+cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::sub(*cl::AllSubCommands), cl::cat(outputCategory),
                          cl::values(clEnumValN(Backend::LLVM, "llvm", "LLVM backend (default)"), clEnumValN(Backend::C, "c", "C backend")));
 cl::opt<bool> emitAssembly("emit-assembly", cl::desc("Emit assembly code"), cl::cat(outputCategory));
 cl::alias emitAssemblyAlias("S", cl::aliasopt(emitAssembly), cl::cat(outputCategory));
@@ -277,8 +278,32 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     bool msvc;
 
     switch (backend.getValue()) {
-        case Backend::C:
+        case Backend::C: {
+            CGenerator cGen;
+            for (auto* irModule : irGenerator.generatedModules) {
+                cGen.codegenModule(*irModule);
+            }
+            std::string cCode = cGen.finish();
+
+            if (printMode == PrintMode::C) {
+                llvm::outs() << cCode << "\n";
+                return 0;
+            }
+
+            ccPath = getCCompilerPath();
+            msvc = llvm::sys::path::extension(ccPath) == ".exe";
+
+            // TODO: emitAssembly not supported, report to user
+            outputFileExtension = "c";
+            int fileDescriptor;
+            if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, fileDescriptor, temporaryOutputFilePath)) {
+                ABORT(error.message());
+            }
+
+            llvm::raw_fd_ostream file(fileDescriptor, /* shouldClose */ true);
+            file << cCode;
             break;
+        }
         case Backend::LLVM:
             LLVMGenerator llvmGenerator;
             for (auto* irModule : irGenerator.generatedModules) {
@@ -342,13 +367,22 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     llvm::SmallString<128> temporaryExecutablePath;
     llvm::sys::fs::createUniquePath(msvc ? "cx-%%%%%%%%.exe" : "cx-%%%%%%%%.out", temporaryExecutablePath, true);
 
+    bool useExternalCCompiler = msvc || backend == Backend::C;
     std::vector<const char*> ccArgs = {
-        msvc ? ccPath.c_str() : argv0,
+        useExternalCCompiler ? ccPath.c_str() : argv0,
         temporaryOutputFilePath.c_str(),
     };
 
     ccArgs.push_back(msvc ? "-Fe:" : "-o");
     ccArgs.push_back(temporaryExecutablePath.c_str());
+
+    if (backend == Backend::C) {
+        // TODO: remove these and fix errors
+        ccArgs.push_back("-Wno-incompatible-library-redeclaration");
+        ccArgs.push_back("-Wno-incompatible-pointer-types");
+        ccArgs.push_back("-Wno-format");
+        ccArgs.push_back("-Wno-return-type");
+    }
 
     for (auto& flag : options.cflags) {
         ccArgs.push_back(flag.c_str());
@@ -379,7 +413,7 @@ static int buildExecutable(llvm::ArrayRef<std::string> files, const PackageManif
     }
 
     std::vector<llvm::StringRef> ccArgStringRefs(ccArgs.begin(), ccArgs.end());
-    int ccExitStatus = msvc ? llvm::sys::ExecuteAndWait(ccArgs[0], ccArgStringRefs) : invokeClang(ccArgs);
+    int ccExitStatus = useExternalCCompiler ? llvm::sys::ExecuteAndWait(ccArgs[0], ccArgStringRefs) : invokeClang(ccArgs);
     llvm::sys::fs::remove(temporaryOutputFilePath);
     if (ccExitStatus != 0) return ccExitStatus;
 
