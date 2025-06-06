@@ -6,6 +6,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_UNITY_BUILD ON CACHE BOOL "Enable unity build")
 
 if(MSVC)
+    # Enable standards-conforming preprocessor. https://learn.microsoft.com/en-us/cpp/build/reference/zc-preprocessor
+    string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
+
     set(CMAKE_CXX_FLAGS "-w14062 -wd4244 -D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING ${CMAKE_CXX_FLAGS}")
 
     # Use static release version of Runtime Library to match prebuilt LLVM.
