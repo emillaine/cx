@@ -91,7 +91,7 @@ list(APPEND LLVM_LIBS clangAST clangBasic clangFrontend clangLex clangParse clan
 target_link_libraries(libcx ${LLVM_LIBS})
 
 # Tests
-add_custom_target(check_lit COMMAND lit --verbose --succinct --incremental ${EXTRA_LIT_FLAGS} ${PROJECT_SOURCE_DIR}/test
+add_custom_target(check_lit COMMAND lit --verbose --succinct ${EXTRA_LIT_FLAGS} ${PROJECT_SOURCE_DIR}/test
     -Dcx_path="$<TARGET_FILE:cx>"
     -Dfilecheck_path="$<TARGET_FILE:FileCheck>"
     -Dtest_dir="${PROJECT_SOURCE_DIR}/test"

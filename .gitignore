@@ -50,3 +50,6 @@ cmake-build-*
 
 # System files
 .DS_Store
+
+# LLVM Integrated Tester
+.lit_test_times.txt
