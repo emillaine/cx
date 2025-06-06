@@ -280,6 +280,22 @@ struct FunctionTemplate : Decl {
     std::unordered_map<std::vector<Type>, FunctionDecl*> instantiations;
 };
 
+struct FieldDecl : VariableDecl {
+    FieldDecl(Type type, std::string&& name, Expr* defaultValue, TypeDecl& parent, AccessLevel accessLevel, SourceLocation location);
+    llvm::StringRef getName() const override { return name; }
+    std::string getQualifiedName() const;
+    Expr* getDefaultValue() const { return defaultValue; }
+    TypeDecl* getParentDecl() const { return llvm::cast<TypeDecl>(VariableDecl::getParentDecl()); }
+    Module* getModule() const override;
+    SourceLocation getLocation() const override { return location; }
+    FieldDecl instantiate(const llvm::StringMap<Type>& genericArgs, TypeDecl& typeDecl) const;
+    static bool classof(const Decl* d) { return d->getKind() == DeclKind::FieldDecl; }
+
+    std::string name;
+    Expr* defaultValue;
+    SourceLocation location;
+};
+
 enum class TypeTag { Struct, Interface, Union, Enum };
 
 /// A non-template function declaration or a function template instantiation.
@@ -393,23 +409,6 @@ struct VarDecl : VariableDecl, Movable {
     Expr* initializer;
     SourceLocation location;
     Module& module;
-};
-
-struct FieldDecl : VariableDecl {
-    FieldDecl(Type type, std::string&& name, Expr* defaultValue, TypeDecl& parent, AccessLevel accessLevel, SourceLocation location)
-    : VariableDecl(DeclKind::FieldDecl, accessLevel, &parent, type), name(std::move(name)), defaultValue(defaultValue), location(location) {}
-    llvm::StringRef getName() const override { return name; }
-    std::string getQualifiedName() const;
-    Expr* getDefaultValue() const { return defaultValue; }
-    TypeDecl* getParentDecl() const { return llvm::cast<TypeDecl>(VariableDecl::getParentDecl()); }
-    Module* getModule() const override { return getParentDecl()->getModule(); }
-    SourceLocation getLocation() const override { return location; }
-    FieldDecl instantiate(const llvm::StringMap<Type>& genericArgs, TypeDecl& typeDecl) const;
-    static bool classof(const Decl* d) { return d->getKind() == DeclKind::FieldDecl; }
-
-    std::string name;
-    Expr* defaultValue;
-    SourceLocation location;
 };
 
 struct ImportDecl : Decl {

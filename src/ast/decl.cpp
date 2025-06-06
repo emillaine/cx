@@ -230,6 +230,13 @@ bool EnumDecl::hasAssociatedValues() const {
     return false;
 }
 
+FieldDecl::FieldDecl(Type type, std::string&& name, Expr* defaultValue, TypeDecl& parent, AccessLevel accessLevel, SourceLocation location)
+: VariableDecl(DeclKind::FieldDecl, accessLevel, &parent, type), name(std::move(name)), defaultValue(defaultValue), location(location) {}
+
+Module* FieldDecl::getModule() const {
+    return getParentDecl()->getModule();
+}
+
 std::string FieldDecl::getQualifiedName() const {
     return (llvm::cast<TypeDecl>(getParentDecl())->getQualifiedName() + "." + getName()).str();
 }

@@ -75,9 +75,9 @@ IRType* cx::getIRType(Type astType) {
             auto paramTypes = map(astType.getParamTypes(), [](Type t) { return getIRType(t); });
             auto functionType = new IRFunctionType {
                 IRTypeKind::IRFunctionType,
-                .returnType = returnType,
-                .paramTypes = std::move(paramTypes),
-                .isVariadic = llvm::cast<FunctionType>(astType.getBase())->isVariadic,
+                returnType,
+                std::move(paramTypes),
+                llvm::cast<FunctionType>(astType.getBase())->isVariadic,
             };
             irType = new IRPointerType { IRTypeKind::IRPointerType, functionType };
             break;
@@ -194,9 +194,9 @@ IRType* Value::getType() const {
             auto paramTypes = map(function->params, [](auto& p) { return p.type; });
             return (new IRFunctionType {
                         IRTypeKind::IRFunctionType,
-                        .returnType = function->returnType,
-                        .paramTypes = std::move(paramTypes),
-                        .isVariadic = function->isVariadic,
+                        function->returnType,
+                        std::move(paramTypes),
+                        function->isVariadic,
                     })
                 ->getPointerTo();
         }
