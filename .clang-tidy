@@ -1,8 +1,10 @@
 Checks:
   -*,
   readability-braces-around-statements
+  readability-implicit-bool-conversion
 WarningsAsErrors:
   readability-braces-around-statements
+  readability-implicit-bool-conversion
 FormatStyle: file
 CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
