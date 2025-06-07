@@ -48,7 +48,7 @@ jobs:
         working-directory: ${{runner.workspace}}/build
         run: |
           export CMAKE_BUILD_PARALLEL_LEVEL=""
-          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH="$LLVMDIR"
+          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH="$LLVMDIR" -DCMAKE_UNITY_BUILD=OFF
 
       - name: install DIA SDK # Workaround for https://github.com/llvm/llvm-project/issues/86250
         if: runner.os == 'Windows'
