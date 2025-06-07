@@ -15,14 +15,14 @@ Function* IRGenerator::getFunction(const FunctionDecl& decl) {
         }
     }
 
-    auto params = map(decl.getParams(), [](const ParamDecl& p) { return Parameter { ValueKind::Parameter, getIRType(p.getType()), p.getName().str() }; });
+    auto params = map(decl.getParams(), [](const ParamDecl& p) { return Parameter{ValueKind::Parameter, getIRType(p.getType()), p.getName().str()}; });
 
     if (decl.isMethodDecl()) {
-        params.insert(params.begin(), Parameter { ValueKind::Parameter, getIRType(decl.getTypeDecl()->getType().getPointerTo()), "this" });
+        params.insert(params.begin(), Parameter{ValueKind::Parameter, getIRType(decl.getTypeDecl()->getType().getPointerTo()), "this"});
     }
 
     auto returnType = getIRType(decl.isMain() ? Type::getInt() : decl.getReturnType());
-    auto function = new Function {
+    auto function = new Function{
         ValueKind::Function, mangledName, returnType, std::move(params), {}, decl.isExtern(), decl.isVariadic(), decl.getLocation(),
     };
     module->functions.push_back(function);
@@ -33,7 +33,7 @@ Function* IRGenerator::getFunction(const FunctionDecl& decl) {
         }
     }
 
-    functionInstantiations.push_back({ &decl, function });
+    functionInstantiations.push_back({&decl, function});
     return function;
 }
 
@@ -130,27 +130,27 @@ void IRGenerator::emitDecl(const Decl& decl) {
     llvm::SaveAndRestore setCurrentDecl(currentDecl, &decl);
 
     switch (decl.getKind()) {
-        case DeclKind::ParamDecl:
-            llvm_unreachable("handled via FunctionDecl");
-        case DeclKind::FunctionDecl:
-        case DeclKind::MethodDecl:
-        case DeclKind::ConstructorDecl:
-        case DeclKind::DestructorDecl:
-            emitFunctionDecl(llvm::cast<FunctionDecl>(decl));
-            break;
-        case DeclKind::GenericParamDecl:
-            llvm_unreachable("cannot emit generic parameter declaration");
-        case DeclKind::VarDecl:
-            emitVarDecl(llvm::cast<VarDecl>(decl));
-            break;
-        case DeclKind::FieldDecl:
-            llvm_unreachable("handled via TypeDecl");
-        case DeclKind::TypeDecl:
-        case DeclKind::ImportDecl:
-        case DeclKind::FunctionTemplate:
-        case DeclKind::TypeTemplate:
-        case DeclKind::EnumDecl:
-        case DeclKind::EnumCase:
-            break;
+    case DeclKind::ParamDecl:
+        llvm_unreachable("handled via FunctionDecl");
+    case DeclKind::FunctionDecl:
+    case DeclKind::MethodDecl:
+    case DeclKind::ConstructorDecl:
+    case DeclKind::DestructorDecl:
+        emitFunctionDecl(llvm::cast<FunctionDecl>(decl));
+        break;
+    case DeclKind::GenericParamDecl:
+        llvm_unreachable("cannot emit generic parameter declaration");
+    case DeclKind::VarDecl:
+        emitVarDecl(llvm::cast<VarDecl>(decl));
+        break;
+    case DeclKind::FieldDecl:
+        llvm_unreachable("handled via TypeDecl");
+    case DeclKind::TypeDecl:
+    case DeclKind::ImportDecl:
+    case DeclKind::FunctionTemplate:
+    case DeclKind::TypeTemplate:
+    case DeclKind::EnumDecl:
+    case DeclKind::EnumCase:
+        break;
     }
 }

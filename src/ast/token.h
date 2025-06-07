@@ -10,8 +10,7 @@
 namespace llvm {
 class APSInt;
 class APFloat;
-template<typename T>
-class ArrayRef;
+template<typename T> class ArrayRef;
 } // namespace llvm
 
 namespace cx {
@@ -123,7 +122,7 @@ private:
     Token::Kind kind;
     union {
         llvm::StringRef string; ///< The substring in the source code representing this token.
-        uint64_t integer; ///< The parsed integer literal value (only valid if this is a IntegerLiteral token)
+        uint64_t integer;       ///< The parsed integer literal value (only valid if this is a IntegerLiteral token)
     } src;
     SourceLocation location;
 };

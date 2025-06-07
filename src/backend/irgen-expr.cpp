@@ -31,7 +31,7 @@ Value* IRGenerator::emitStringLiteralExpr(const StringLiteralExpr& expr) {
     }
 
     ASSERT(stringConstructor);
-    createCall(stringConstructor, { alloca, stringPtr, size }, nullptr);
+    createCall(stringConstructor, {alloca, stringPtr, size}, nullptr);
     return alloca;
 }
 
@@ -140,35 +140,35 @@ Value* IRGenerator::emitNot(const UnaryExpr& expr) {
 
 Value* IRGenerator::emitUnaryExpr(const UnaryExpr& expr) {
     switch (expr.getOperator()) {
-        case Token::Plus:
-            return emitExpr(expr.getOperand());
-        case Token::Minus:
-            return createNeg(emitExpr(expr.getOperand()));
-        case Token::Star: {
-            auto operand = emitExpr(expr.getOperand());
-            if (auto load = llvm::dyn_cast<LoadInst>(operand)) {
-                load->expr = &expr;
-            }
-            return operand;
+    case Token::Plus:
+        return emitExpr(expr.getOperand());
+    case Token::Minus:
+        return createNeg(emitExpr(expr.getOperand()));
+    case Token::Star: {
+        auto operand = emitExpr(expr.getOperand());
+        if (auto load = llvm::dyn_cast<LoadInst>(operand)) {
+            load->expr = &expr;
         }
-        case Token::And:
-            return emitExprAsPointer(expr.getOperand());
-        case Token::Not:
-            // FIXME: Temporary hack. Lower implicit null checks such as `if (ptr)` and `if (!ptr)` when expression lowering is implemented.
-            if (expr.getOperand().getType().isOptionalType() && !expr.getOperand().getType().getWrappedType().isPointerType()) {
-                auto operand = emitExpr(expr.getOperand());
-                auto hasValue = createExtractValue(operand, optionalHasValueFieldIndex);
-                return createNot(hasValue);
-            }
-            LLVM_FALLTHROUGH;
-        case Token::Tilde:
-            return emitNot(expr);
-        case Token::Increment:
-            return emitConstantIncrement(expr, 1);
-        case Token::Decrement:
-            return emitConstantIncrement(expr, -1);
-        default:
-            llvm_unreachable("invalid prefix operator");
+        return operand;
+    }
+    case Token::And:
+        return emitExprAsPointer(expr.getOperand());
+    case Token::Not:
+        // FIXME: Temporary hack. Lower implicit null checks such as `if (ptr)` and `if (!ptr)` when expression lowering is implemented.
+        if (expr.getOperand().getType().isOptionalType() && !expr.getOperand().getType().getWrappedType().isPointerType()) {
+            auto operand = emitExpr(expr.getOperand());
+            auto hasValue = createExtractValue(operand, optionalHasValueFieldIndex);
+            return createNot(hasValue);
+        }
+        LLVM_FALLTHROUGH;
+    case Token::Tilde:
+        return emitNot(expr);
+    case Token::Increment:
+        return emitConstantIncrement(expr, 1);
+    case Token::Decrement:
+        return emitConstantIncrement(expr, -1);
+    default:
+        llvm_unreachable("invalid prefix operator");
     }
 }
 
@@ -185,7 +185,7 @@ Value* IRGenerator::emitConstantIncrement(const UnaryExpr& expr, int increment) 
     if (value->getType()->isInteger()) {
         result = createBinaryOp(Token::Plus, value, createConstantInt(value->getType(), increment), &expr);
     } else if (value->getType()->isPointerType()) {
-        result = createGEP(value, { createConstantInt(Type::getInt(), increment) });
+        result = createGEP(value, {createConstantInt(Type::getInt(), increment)});
     } else if (value->getType()->isFloatingPoint()) {
         result = createBinaryOp(Token::Plus, value, createConstantFP(value->getType(), increment), &expr);
     } else {
@@ -208,7 +208,7 @@ Value* IRGenerator::emitLogicalAnd(const Expr& left, const Expr& right) {
     createBr(endBlock, rhs);
 
     setInsertPoint(endBlock);
-    endBlock->parameter = new Parameter { ValueKind::Parameter, lhs->getType(), "and" };
+    endBlock->parameter = new Parameter{ValueKind::Parameter, lhs->getType(), "and"};
     return endBlock->parameter;
 }
 
@@ -224,7 +224,7 @@ Value* IRGenerator::emitLogicalOr(const Expr& left, const Expr& right) {
     createBr(endBlock, rhs);
 
     setInsertPoint(endBlock);
-    endBlock->parameter = new Parameter { ValueKind::Parameter, lhs->getType(), "or" };
+    endBlock->parameter = new Parameter{ValueKind::Parameter, lhs->getType(), "or"};
     return endBlock->parameter;
 }
 
@@ -239,23 +239,23 @@ Value* IRGenerator::emitBinaryExpr(const BinaryExpr& expr) {
     }
 
     switch (expr.getOperator()) {
-        case Token::AndAnd:
-            return emitLogicalAnd(expr.getLHS(), expr.getRHS());
+    case Token::AndAnd:
+        return emitLogicalAnd(expr.getLHS(), expr.getRHS());
 
-        case Token::OrOr:
-            return emitLogicalOr(expr.getLHS(), expr.getRHS());
+    case Token::OrOr:
+        return emitLogicalOr(expr.getLHS(), expr.getRHS());
 
-        default:
-            auto left = emitExprOrEnumTag(expr.getLHS(), nullptr);
-            auto right = emitExprOrEnumTag(expr.getRHS(), nullptr);
+    default:
+        auto left = emitExprOrEnumTag(expr.getLHS(), nullptr);
+        auto right = emitExprOrEnumTag(expr.getRHS(), nullptr);
 
-            if (left->getType()->isPointerType() && left->getType()->getPointee()->equals(right->getType())) {
-                left = createLoad(left);
-            } else if (right->getType()->isPointerType() && right->getType()->getPointee()->equals(left->getType())) {
-                right = createLoad(right);
-            }
+        if (left->getType()->isPointerType() && left->getType()->getPointee()->equals(right->getType())) {
+            left = createLoad(left);
+        } else if (right->getType()->isPointerType() && right->getType()->getPointee()->equals(left->getType())) {
+            right = createLoad(right);
+        }
 
-            return createBinaryOp(expr.getOperator(), left, right, &expr);
+        return createBinaryOp(expr.getOperator(), left, right, &expr);
     }
 }
 
@@ -477,7 +477,7 @@ Value* IRGenerator::getArrayIterator(const Expr& object, Type objectType) {
     auto* value = emitExprAsPointer(object);
     auto* elementPtr = createGEP(value, 0);
     auto* size = getArrayLength(object, objectType);
-    auto* end = createGEP(elementPtr, { size });
+    auto* end = createGEP(elementPtr, {size});
     auto* iterator = createInsertValue(createUndefined(type), elementPtr, 0);
     return createInsertValue(iterator, end, 1);
 }
@@ -522,9 +522,9 @@ Value* IRGenerator::emitIndexedAccess(const Expr& base, const Expr& index) {
     }
 
     if (base.getType().removeOptional().isUnsizedArrayPointer()) {
-        return createGEP(value, { emitExpr(index) });
+        return createGEP(value, {emitExpr(index)});
     } else {
-        return createGEP(value, { createConstantInt(Type::getInt(), 0), emitExpr(index) });
+        return createGEP(value, {createConstantInt(Type::getInt(), 0), emitExpr(index)});
     }
 }
 
@@ -587,24 +587,24 @@ Value* IRGenerator::emitIfExpr(const IfExpr& expr) {
     createBr(endIfBlock, elseValue);
 
     setInsertPoint(endIfBlock);
-    endIfBlock->parameter = new Parameter { ValueKind::Parameter, thenValue->getType(), "if.result" };
+    endIfBlock->parameter = new Parameter{ValueKind::Parameter, thenValue->getType(), "if.result"};
     return endIfBlock->parameter;
 }
 
 Value* IRGenerator::emitImplicitCastExpr(const ImplicitCastExpr& expr) {
     switch (expr.getImplicitCastKind()) {
-        case ImplicitCastExpr::OptionalWrap:
-            if (expr.getType().getWrappedType().isImplementedAsPointer()) {
-                return emitExpr(*expr.getOperand());
-            } else {
-                return emitOptionalConstruction(expr.getOperand()->getType(), expr.getOperand());
-            }
-        case ImplicitCastExpr::OptionalUnwrap:
-            return emitOptionalUnwrap(*expr.getOperand(), expr, "__implicit_unwrap");
-        case ImplicitCastExpr::AutoReference:
-            return emitPlainExpr(*expr.getOperand());
-        case ImplicitCastExpr::AutoDereference:
-            return createLoad(emitPlainExpr(*expr.getOperand()));
+    case ImplicitCastExpr::OptionalWrap:
+        if (expr.getType().getWrappedType().isImplementedAsPointer()) {
+            return emitExpr(*expr.getOperand());
+        } else {
+            return emitOptionalConstruction(expr.getOperand()->getType(), expr.getOperand());
+        }
+    case ImplicitCastExpr::OptionalUnwrap:
+        return emitOptionalUnwrap(*expr.getOperand(), expr, "__implicit_unwrap");
+    case ImplicitCastExpr::AutoReference:
+        return emitPlainExpr(*expr.getOperand());
+    case ImplicitCastExpr::AutoDereference:
+        return createLoad(emitPlainExpr(*expr.getOperand()));
     }
 
     llvm_unreachable("all implicit cast kinds handled");
@@ -616,50 +616,50 @@ Value* IRGenerator::emitPlainExpr(const Expr& expr) {
     }
 
     switch (expr.getKind()) {
-        case ExprKind::VarExpr:
-            return emitVarExpr(llvm::cast<VarExpr>(expr));
-        case ExprKind::StringLiteralExpr:
-            return emitStringLiteralExpr(llvm::cast<StringLiteralExpr>(expr));
-        case ExprKind::CharacterLiteralExpr:
-            return emitCharacterLiteralExpr(llvm::cast<CharacterLiteralExpr>(expr));
-        case ExprKind::IntLiteralExpr:
-            return emitIntLiteralExpr(llvm::cast<IntLiteralExpr>(expr));
-        case ExprKind::FloatLiteralExpr:
-            return emitFloatLiteralExpr(llvm::cast<FloatLiteralExpr>(expr));
-        case ExprKind::BoolLiteralExpr:
-            return emitBoolLiteralExpr(llvm::cast<BoolLiteralExpr>(expr));
-        case ExprKind::NullLiteralExpr:
-            return emitNullLiteralExpr(llvm::cast<NullLiteralExpr>(expr));
-        case ExprKind::UndefinedLiteralExpr:
-            return emitUndefinedLiteralExpr(llvm::cast<UndefinedLiteralExpr>(expr));
-        case ExprKind::ArrayLiteralExpr:
-            return emitArrayLiteralExpr(llvm::cast<ArrayLiteralExpr>(expr));
-        case ExprKind::TupleExpr:
-            return emitTupleExpr(llvm::cast<TupleExpr>(expr));
-        case ExprKind::UnaryExpr:
-            return emitUnaryExpr(llvm::cast<UnaryExpr>(expr));
-        case ExprKind::BinaryExpr:
-            return emitBinaryExpr(llvm::cast<BinaryExpr>(expr));
-        case ExprKind::CallExpr:
-            return emitCallExpr(llvm::cast<CallExpr>(expr));
-        case ExprKind::SizeofExpr:
-            return emitSizeofExpr(llvm::cast<SizeofExpr>(expr));
-        case ExprKind::MemberExpr:
-            return emitMemberExpr(llvm::cast<MemberExpr>(expr));
-        case ExprKind::IndexExpr:
-            return emitIndexExpr(llvm::cast<IndexExpr>(expr));
-        case ExprKind::IndexAssignmentExpr:
-            return emitIndexAssignmentExpr(llvm::cast<IndexAssignmentExpr>(expr));
-        case ExprKind::UnwrapExpr:
-            return emitUnwrapExpr(llvm::cast<UnwrapExpr>(expr));
-        case ExprKind::LambdaExpr:
-            return emitLambdaExpr(llvm::cast<LambdaExpr>(expr));
-        case ExprKind::IfExpr:
-            return emitIfExpr(llvm::cast<IfExpr>(expr));
-        case ExprKind::ImplicitCastExpr:
-            return emitImplicitCastExpr(llvm::cast<ImplicitCastExpr>(expr));
-        case ExprKind::VarDeclExpr:
-            return emitVarDecl(*llvm::cast<VarDeclExpr>(expr).varDecl);
+    case ExprKind::VarExpr:
+        return emitVarExpr(llvm::cast<VarExpr>(expr));
+    case ExprKind::StringLiteralExpr:
+        return emitStringLiteralExpr(llvm::cast<StringLiteralExpr>(expr));
+    case ExprKind::CharacterLiteralExpr:
+        return emitCharacterLiteralExpr(llvm::cast<CharacterLiteralExpr>(expr));
+    case ExprKind::IntLiteralExpr:
+        return emitIntLiteralExpr(llvm::cast<IntLiteralExpr>(expr));
+    case ExprKind::FloatLiteralExpr:
+        return emitFloatLiteralExpr(llvm::cast<FloatLiteralExpr>(expr));
+    case ExprKind::BoolLiteralExpr:
+        return emitBoolLiteralExpr(llvm::cast<BoolLiteralExpr>(expr));
+    case ExprKind::NullLiteralExpr:
+        return emitNullLiteralExpr(llvm::cast<NullLiteralExpr>(expr));
+    case ExprKind::UndefinedLiteralExpr:
+        return emitUndefinedLiteralExpr(llvm::cast<UndefinedLiteralExpr>(expr));
+    case ExprKind::ArrayLiteralExpr:
+        return emitArrayLiteralExpr(llvm::cast<ArrayLiteralExpr>(expr));
+    case ExprKind::TupleExpr:
+        return emitTupleExpr(llvm::cast<TupleExpr>(expr));
+    case ExprKind::UnaryExpr:
+        return emitUnaryExpr(llvm::cast<UnaryExpr>(expr));
+    case ExprKind::BinaryExpr:
+        return emitBinaryExpr(llvm::cast<BinaryExpr>(expr));
+    case ExprKind::CallExpr:
+        return emitCallExpr(llvm::cast<CallExpr>(expr));
+    case ExprKind::SizeofExpr:
+        return emitSizeofExpr(llvm::cast<SizeofExpr>(expr));
+    case ExprKind::MemberExpr:
+        return emitMemberExpr(llvm::cast<MemberExpr>(expr));
+    case ExprKind::IndexExpr:
+        return emitIndexExpr(llvm::cast<IndexExpr>(expr));
+    case ExprKind::IndexAssignmentExpr:
+        return emitIndexAssignmentExpr(llvm::cast<IndexAssignmentExpr>(expr));
+    case ExprKind::UnwrapExpr:
+        return emitUnwrapExpr(llvm::cast<UnwrapExpr>(expr));
+    case ExprKind::LambdaExpr:
+        return emitLambdaExpr(llvm::cast<LambdaExpr>(expr));
+    case ExprKind::IfExpr:
+        return emitIfExpr(llvm::cast<IfExpr>(expr));
+    case ExprKind::ImplicitCastExpr:
+        return emitImplicitCastExpr(llvm::cast<ImplicitCastExpr>(expr));
+    case ExprKind::VarDeclExpr:
+        return emitVarDecl(*llvm::cast<VarDeclExpr>(expr).varDecl);
     }
     llvm_unreachable("all cases handled");
 }

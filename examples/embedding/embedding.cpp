@@ -1,6 +1,6 @@
+#include "cx.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "cx.h"
 
 struct Buffer {
     char* data;
@@ -18,7 +18,7 @@ Buffer readFile(const char* path) {
     long size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    char* data = (char*) malloc(size + 1);
+    char* data = (char*)malloc(size + 1);
     if (data) {
         fread(data, 1, size, file);
         data[size] = '\0';
@@ -27,7 +27,7 @@ Buffer readFile(const char* path) {
     }
 
     fclose(file);
-    return { data, size };
+    return {data, size};
 }
 
 int main() {

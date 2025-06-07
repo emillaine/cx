@@ -5,8 +5,8 @@
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Support/ErrorHandling.h>
 #pragma warning(pop)
-#include "decl.h"
 #include "../support/utility.h"
+#include "decl.h"
 
 using namespace cx;
 
@@ -46,17 +46,17 @@ DEFINE_BUILTIN_TYPE_GET_AND_IS(Undefined, undefined)
 
 bool Type::isImplicitlyCopyable() const {
     switch (getKind()) {
-        case TypeKind::BasicType:
-            return !getDecl() || getDecl()->passByValue();
-        case TypeKind::ArrayType:
-            return !isConstantArray() || getElementType().isImplicitlyCopyable();
-        case TypeKind::TupleType:
-            return llvm::all_of(llvm::cast<TupleType>(typeBase)->getElements(), [&](auto& element) { return element.type.isImplicitlyCopyable(); });
-        case TypeKind::FunctionType:
-        case TypeKind::PointerType:
-            return true;
-        case TypeKind::UnresolvedType:
-            llvm_unreachable("invalid unresolved type");
+    case TypeKind::BasicType:
+        return !getDecl() || getDecl()->passByValue();
+    case TypeKind::ArrayType:
+        return !isConstantArray() || getElementType().isImplicitlyCopyable();
+    case TypeKind::TupleType:
+        return llvm::all_of(llvm::cast<TupleType>(typeBase)->getElements(), [&](auto& element) { return element.type.isImplicitlyCopyable(); });
+    case TypeKind::FunctionType:
+    case TypeKind::PointerType:
+        return true;
+    case TypeKind::UnresolvedType:
+        llvm_unreachable("invalid unresolved type");
     }
     llvm_unreachable("all cases handled");
 }
@@ -92,40 +92,39 @@ Type Type::resolve(const llvm::StringMap<Type>& replacements) const {
     if (!typeBase) return Type(nullptr, mutability, location);
 
     switch (getKind()) {
-        case TypeKind::BasicType: {
-            auto it = replacements.find(getName());
-            if (it != replacements.end()) {
-                // TODO: Handle generic arguments for type placeholders.
-                Type resolved = it->second.withMutability(mutability);
-                resolved.setLocation(location);
-                return resolved;
-            }
+    case TypeKind::BasicType: {
+        auto it = replacements.find(getName());
+        if (it != replacements.end()) {
+            // TODO: Handle generic arguments for type placeholders.
+            Type resolved = it->second.withMutability(mutability);
+            resolved.setLocation(location);
+            return resolved;
+        }
 
-            auto genericArgs = map(getGenericArgs(), [&](Type t) { return t.resolve(replacements); });
-            return BasicType::get(getName(), std::move(genericArgs), mutability, location);
-        }
-        case TypeKind::ArrayType:
-            return ArrayType::get(getElementType().resolve(replacements), getArraySize(), location);
+        auto genericArgs = map(getGenericArgs(), [&](Type t) { return t.resolve(replacements); });
+        return BasicType::get(getName(), std::move(genericArgs), mutability, location);
+    }
+    case TypeKind::ArrayType:
+        return ArrayType::get(getElementType().resolve(replacements), getArraySize(), location);
 
-        case TypeKind::TupleType: {
-            auto elements = map(getTupleElements(), [&](auto& element) { return TupleElement { element.name, element.type.resolve(replacements) }; });
-            return TupleType::get(std::move(elements), mutability, location);
-        }
-        case TypeKind::FunctionType: {
-            auto paramTypes = map(getParamTypes(), [&](Type t) { return t.resolve(replacements); });
-            return FunctionType::get(getReturnType().resolve(replacements), std::move(paramTypes), llvm::cast<FunctionType>(typeBase)->isVariadic, mutability,
-                                     location);
-        }
-        case TypeKind::PointerType:
-            return PointerType::get(getPointee().resolve(replacements), mutability, location);
-        case TypeKind::UnresolvedType:
-            llvm_unreachable("invalid unresolved type");
+    case TypeKind::TupleType: {
+        auto elements = map(getTupleElements(), [&](auto& element) { return TupleElement{element.name, element.type.resolve(replacements)}; });
+        return TupleType::get(std::move(elements), mutability, location);
+    }
+    case TypeKind::FunctionType: {
+        auto paramTypes = map(getParamTypes(), [&](Type t) { return t.resolve(replacements); });
+        return FunctionType::get(getReturnType().resolve(replacements), std::move(paramTypes), llvm::cast<FunctionType>(typeBase)->isVariadic, mutability,
+                                 location);
+    }
+    case TypeKind::PointerType:
+        return PointerType::get(getPointee().resolve(replacements), mutability, location);
+    case TypeKind::UnresolvedType:
+        llvm_unreachable("invalid unresolved type");
     }
     llvm_unreachable("all cases handled");
 }
 
-template<typename T>
-static Type getType(T&& typeBase, Mutability mutability, SourceLocation location) {
+template<typename T> static Type getType(T&& typeBase, Mutability mutability, SourceLocation location) {
     Type newType(&typeBase, mutability, location);
 
     for (auto& existingTypeBase : typeBases) {
@@ -192,8 +191,8 @@ std::vector<ParamDecl> FunctionType::getParamDecls(SourceLocation location) cons
     return map(paramTypes, [&](Type paramType) { return ParamDecl(paramType, "", false, location); });
 }
 
-constexpr auto signedInts = { "int", "int8", "int16", "int32", "int64" };
-constexpr auto unsignedInts = { "uint", "uint8", "uint16", "uint32", "uint64" };
+constexpr auto signedInts = {"int", "int8", "int16", "int32", "int64"};
+constexpr auto unsignedInts = {"uint", "uint8", "uint16", "uint32", "uint64"};
 
 bool Type::isInteger() const {
     if (!isBasicType()) return false;
@@ -278,18 +277,18 @@ bool cx::operator==(Type lhs, Type rhs) {
 
 bool Type::equalsIgnoreTopLevelMutable(Type other) const {
     switch (getKind()) {
-        case TypeKind::BasicType:
-            return other.isBasicType() && getName() == other.getName() && getGenericArgs() == other.getGenericArgs();
-        case TypeKind::ArrayType:
-            return other.isArrayType() && getElementType() == other.getElementType() && getArraySize() == other.getArraySize();
-        case TypeKind::TupleType:
-            return other.isTupleType() && getTupleElements() == other.getTupleElements();
-        case TypeKind::FunctionType:
-            return other.isFunctionType() && getReturnType() == other.getReturnType() && getParamTypes() == other.getParamTypes();
-        case TypeKind::PointerType:
-            return other.isPointerType() && getPointee() == other.getPointee();
-        case TypeKind::UnresolvedType:
-            return false;
+    case TypeKind::BasicType:
+        return other.isBasicType() && getName() == other.getName() && getGenericArgs() == other.getGenericArgs();
+    case TypeKind::ArrayType:
+        return other.isArrayType() && getElementType() == other.getElementType() && getArraySize() == other.getArraySize();
+    case TypeKind::TupleType:
+        return other.isTupleType() && getTupleElements() == other.getTupleElements();
+    case TypeKind::FunctionType:
+        return other.isFunctionType() && getReturnType() == other.getReturnType() && getParamTypes() == other.getParamTypes();
+    case TypeKind::PointerType:
+        return other.isPointerType() && getPointee() == other.getPointee();
+    case TypeKind::UnresolvedType:
+        return false;
     }
     llvm_unreachable("all cases handled");
 }
@@ -300,38 +299,38 @@ bool cx::operator!=(Type lhs, Type rhs) {
 
 bool Type::containsUnresolvedPlaceholder() const {
     switch (getKind()) {
-        case TypeKind::BasicType:
-            for (Type genericArg : getGenericArgs()) {
-                if (genericArg.containsUnresolvedPlaceholder()) {
-                    return true;
-                }
+    case TypeKind::BasicType:
+        for (Type genericArg : getGenericArgs()) {
+            if (genericArg.containsUnresolvedPlaceholder()) {
+                return true;
             }
-            return false;
+        }
+        return false;
 
-        case TypeKind::ArrayType:
-            return getElementType().containsUnresolvedPlaceholder();
+    case TypeKind::ArrayType:
+        return getElementType().containsUnresolvedPlaceholder();
 
-        case TypeKind::TupleType:
-            for (auto& element : getTupleElements()) {
-                if (element.type.containsUnresolvedPlaceholder()) {
-                    return true;
-                }
+    case TypeKind::TupleType:
+        for (auto& element : getTupleElements()) {
+            if (element.type.containsUnresolvedPlaceholder()) {
+                return true;
             }
-            return false;
+        }
+        return false;
 
-        case TypeKind::FunctionType:
-            for (Type paramType : getParamTypes()) {
-                if (paramType.containsUnresolvedPlaceholder()) {
-                    return true;
-                }
+    case TypeKind::FunctionType:
+        for (Type paramType : getParamTypes()) {
+            if (paramType.containsUnresolvedPlaceholder()) {
+                return true;
             }
-            return getReturnType().containsUnresolvedPlaceholder();
+        }
+        return getReturnType().containsUnresolvedPlaceholder();
 
-        case TypeKind::PointerType:
-            return getPointee().containsUnresolvedPlaceholder();
+    case TypeKind::PointerType:
+        return getPointee().containsUnresolvedPlaceholder();
 
-        case TypeKind::UnresolvedType:
-            return true;
+    case TypeKind::UnresolvedType:
+        return true;
     }
 
     llvm_unreachable("all cases handled");
@@ -354,68 +353,68 @@ void Type::printTo(std::ostream& stream) const {
     }
 
     switch (typeBase->getKind()) {
-        case TypeKind::BasicType: {
-            if (isOptionalType()) {
-                getWrappedType().printTo(stream);
-                if (!isMutable()) stream << " const";
-                stream << '?';
-                break;
-            }
-
-            if (!isMutable()) stream << "const ";
-            stream << getName();
-
-            auto genericArgs = llvm::cast<BasicType>(typeBase)->getGenericArgs();
-            if (!genericArgs.empty()) {
-                stream << "<";
-                for (auto& type : genericArgs) {
-                    type.printTo(stream);
-                    if (&type != &genericArgs.back()) stream << ", ";
-                }
-                stream << ">";
-            }
-
+    case TypeKind::BasicType: {
+        if (isOptionalType()) {
+            getWrappedType().printTo(stream);
+            if (!isMutable()) stream << " const";
+            stream << '?';
             break;
         }
-        case TypeKind::ArrayType:
-            getElementType().printTo(stream);
-            stream << "[";
-            switch (getArraySize()) {
-                case ArrayType::UnknownSize:
-                    stream << "*";
-                    break;
-                default:
-                    stream << getArraySize();
-                    break;
+
+        if (!isMutable()) stream << "const ";
+        stream << getName();
+
+        auto genericArgs = llvm::cast<BasicType>(typeBase)->getGenericArgs();
+        if (!genericArgs.empty()) {
+            stream << "<";
+            for (auto& type : genericArgs) {
+                type.printTo(stream);
+                if (&type != &genericArgs.back()) stream << ", ";
             }
-            stream << "]";
+            stream << ">";
+        }
+
+        break;
+    }
+    case TypeKind::ArrayType:
+        getElementType().printTo(stream);
+        stream << "[";
+        switch (getArraySize()) {
+        case ArrayType::UnknownSize:
+            stream << "*";
             break;
-        case TypeKind::TupleType:
-            stream << "(";
-            for (auto& element : getTupleElements()) {
-                element.type.printTo(stream);
-                stream << " " << element.name;
-                if (&element != &getTupleElements().back()) stream << ", ";
-            }
-            stream << ")";
+        default:
+            stream << getArraySize();
             break;
-        case TypeKind::FunctionType:
-            getReturnType().printTo(stream);
-            stream << "(";
-            for (const Type& paramType : getParamTypes()) {
-                stream << paramType;
-                if (&paramType != &getParamTypes().back()) stream << ", ";
-            }
-            stream << ")";
-            break;
-        case TypeKind::PointerType:
-            getPointee().printTo(stream);
-            if (!isMutable()) stream << " const";
-            stream << '*';
-            break;
-        case TypeKind::UnresolvedType:
-            stream << "<UNRESOLVED>";
-            break;
+        }
+        stream << "]";
+        break;
+    case TypeKind::TupleType:
+        stream << "(";
+        for (auto& element : getTupleElements()) {
+            element.type.printTo(stream);
+            stream << " " << element.name;
+            if (&element != &getTupleElements().back()) stream << ", ";
+        }
+        stream << ")";
+        break;
+    case TypeKind::FunctionType:
+        getReturnType().printTo(stream);
+        stream << "(";
+        for (const Type& paramType : getParamTypes()) {
+            stream << paramType;
+            if (&paramType != &getParamTypes().back()) stream << ", ";
+        }
+        stream << ")";
+        break;
+    case TypeKind::PointerType:
+        getPointee().printTo(stream);
+        if (!isMutable()) stream << " const";
+        stream << '*';
+        break;
+    case TypeKind::UnresolvedType:
+        stream << "<UNRESOLVED>";
+        break;
     }
 }
 

@@ -20,12 +20,12 @@
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/Path.h>
 #pragma warning(pop)
-#include "typecheck.h"
 #include "../ast/decl.h"
 #include "../ast/module.h"
 #include "../ast/type.h"
 #include "../driver/driver.h"
 #include "../support/utility.h"
+#include "typecheck.h"
 
 using namespace cx;
 
@@ -33,62 +33,62 @@ static clang::TargetInfo* targetInfo;
 
 static Type getIntTypeByWidth(int widthInBits, bool asSigned) {
     switch (widthInBits) {
-        case 8:
-            return asSigned ? Type::getInt8() : Type::getUInt8();
-        case 16:
-            return asSigned ? Type::getInt16() : Type::getUInt16();
-        case 32:
-            return asSigned ? Type::getInt32() : Type::getUInt32();
-        case 64:
-            return asSigned ? Type::getInt64() : Type::getUInt64();
+    case 8:
+        return asSigned ? Type::getInt8() : Type::getUInt8();
+    case 16:
+        return asSigned ? Type::getInt16() : Type::getUInt16();
+    case 32:
+        return asSigned ? Type::getInt32() : Type::getUInt32();
+    case 64:
+        return asSigned ? Type::getInt64() : Type::getUInt64();
     }
     llvm_unreachable("unsupported integer width");
 }
 
 static Type toCx(const clang::BuiltinType& type) {
     switch (type.getKind()) {
-        case clang::BuiltinType::Void:
-            return Type::getVoid();
-        case clang::BuiltinType::Bool:
-            return Type::getBool();
-        case clang::BuiltinType::Char_S:
-        case clang::BuiltinType::Char_U:
-            return Type::getChar();
-        case clang::BuiltinType::SChar:
-            return getIntTypeByWidth(targetInfo->getCharWidth(), true);
-        case clang::BuiltinType::UChar:
-            return getIntTypeByWidth(targetInfo->getCharWidth(), false);
-        case clang::BuiltinType::Short:
-            return getIntTypeByWidth(targetInfo->getShortWidth(), true);
-        case clang::BuiltinType::UShort:
-            return getIntTypeByWidth(targetInfo->getShortWidth(), false);
-        case clang::BuiltinType::Int:
-            return Type::getInt();
-        case clang::BuiltinType::UInt:
-            return Type::getUInt();
-        case clang::BuiltinType::Long:
-            return getIntTypeByWidth(targetInfo->getLongWidth(), true);
-        case clang::BuiltinType::ULong:
-            return getIntTypeByWidth(targetInfo->getLongWidth(), false);
-        case clang::BuiltinType::LongLong:
-            return getIntTypeByWidth(targetInfo->getLongLongWidth(), true);
-        case clang::BuiltinType::ULongLong:
-            return getIntTypeByWidth(targetInfo->getLongLongWidth(), false);
-        case clang::BuiltinType::Float16:
-            return Type::getFloat16();
-        case clang::BuiltinType::Float:
-            return Type::getFloat();
-        case clang::BuiltinType::Double:
-            return Type::getFloat64();
-        case clang::BuiltinType::LongDouble:
-            return Type::getFloat80();
-        case clang::BuiltinType::Int128:
-            return Type::getInt128();
-        case clang::BuiltinType::UInt128:
-            return Type::getUInt128();
-        default:
-            type.dump();
-            llvm_unreachable("unsupported clang::BuiltinType");
+    case clang::BuiltinType::Void:
+        return Type::getVoid();
+    case clang::BuiltinType::Bool:
+        return Type::getBool();
+    case clang::BuiltinType::Char_S:
+    case clang::BuiltinType::Char_U:
+        return Type::getChar();
+    case clang::BuiltinType::SChar:
+        return getIntTypeByWidth(targetInfo->getCharWidth(), true);
+    case clang::BuiltinType::UChar:
+        return getIntTypeByWidth(targetInfo->getCharWidth(), false);
+    case clang::BuiltinType::Short:
+        return getIntTypeByWidth(targetInfo->getShortWidth(), true);
+    case clang::BuiltinType::UShort:
+        return getIntTypeByWidth(targetInfo->getShortWidth(), false);
+    case clang::BuiltinType::Int:
+        return Type::getInt();
+    case clang::BuiltinType::UInt:
+        return Type::getUInt();
+    case clang::BuiltinType::Long:
+        return getIntTypeByWidth(targetInfo->getLongWidth(), true);
+    case clang::BuiltinType::ULong:
+        return getIntTypeByWidth(targetInfo->getLongWidth(), false);
+    case clang::BuiltinType::LongLong:
+        return getIntTypeByWidth(targetInfo->getLongLongWidth(), true);
+    case clang::BuiltinType::ULongLong:
+        return getIntTypeByWidth(targetInfo->getLongLongWidth(), false);
+    case clang::BuiltinType::Float16:
+        return Type::getFloat16();
+    case clang::BuiltinType::Float:
+        return Type::getFloat();
+    case clang::BuiltinType::Double:
+        return Type::getFloat64();
+    case clang::BuiltinType::LongDouble:
+        return Type::getFloat80();
+    case clang::BuiltinType::Int128:
+        return Type::getInt128();
+    case clang::BuiltinType::UInt128:
+        return Type::getUInt128();
+    default:
+        type.dump();
+        llvm_unreachable("unsupported clang::BuiltinType");
     }
 }
 
@@ -106,67 +106,67 @@ static Type toCx(clang::QualType qualtype) {
     auto& type = *qualtype.getTypePtr();
 
     switch (type.getTypeClass()) {
-        case clang::Type::Pointer: {
-            auto pointeeType = llvm::cast<clang::PointerType>(type).getPointeeType();
-            if (pointeeType->isFunctionType()) {
-                return OptionalType::get(toCx(pointeeType), mutability);
-            }
-            return OptionalType::get(PointerType::get(toCx(pointeeType), Mutability::Mutable), mutability);
+    case clang::Type::Pointer: {
+        auto pointeeType = llvm::cast<clang::PointerType>(type).getPointeeType();
+        if (pointeeType->isFunctionType()) {
+            return OptionalType::get(toCx(pointeeType), mutability);
         }
-        case clang::Type::Builtin:
-            return toCx(llvm::cast<clang::BuiltinType>(type)).withMutability(mutability);
-        case clang::Type::Typedef: {
-            auto desugared = llvm::cast<clang::TypedefType>(type).desugar();
-            if (mutability == Mutability::Const) desugared.addConst();
-            return toCx(desugared);
+        return OptionalType::get(PointerType::get(toCx(pointeeType), Mutability::Mutable), mutability);
+    }
+    case clang::Type::Builtin:
+        return toCx(llvm::cast<clang::BuiltinType>(type)).withMutability(mutability);
+    case clang::Type::Typedef: {
+        auto desugared = llvm::cast<clang::TypedefType>(type).desugar();
+        if (mutability == Mutability::Const) desugared.addConst();
+        return toCx(desugared);
+    }
+    case clang::Type::Elaborated:
+        return toCx(llvm::cast<clang::ElaboratedType>(type).getNamedType());
+    case clang::Type::Record: {
+        auto* recordDecl = llvm::cast<clang::RecordType>(type).getDecl();
+        return BasicType::get(getName(*recordDecl), {}, mutability);
+    }
+    case clang::Type::Paren:
+        return toCx(llvm::cast<clang::ParenType>(type).getInnerType());
+    case clang::Type::FunctionProto: {
+        auto& functionProtoType = llvm::cast<clang::FunctionProtoType>(type);
+        auto paramTypes = map(functionProtoType.getParamTypes(), [](clang::QualType qualType) { return toCx(qualType); });
+        return FunctionType::get(toCx(functionProtoType.getReturnType()), std::move(paramTypes), functionProtoType.isVariadic(), mutability);
+    }
+    case clang::Type::FunctionNoProto: {
+        auto& functionNoProtoType = llvm::cast<clang::FunctionNoProtoType>(type);
+        return FunctionType::get(toCx(functionNoProtoType.getReturnType()), {}, true, mutability);
+    }
+    case clang::Type::ConstantArray: {
+        auto& constantArrayType = llvm::cast<clang::ConstantArrayType>(type);
+        if (!constantArrayType.getSize().isIntN(64)) {
+            ERROR(SourceLocation(), "array is too large");
         }
-        case clang::Type::Elaborated:
-            return toCx(llvm::cast<clang::ElaboratedType>(type).getNamedType());
-        case clang::Type::Record: {
-            auto* recordDecl = llvm::cast<clang::RecordType>(type).getDecl();
-            return BasicType::get(getName(*recordDecl), {}, mutability);
-        }
-        case clang::Type::Paren:
-            return toCx(llvm::cast<clang::ParenType>(type).getInnerType());
-        case clang::Type::FunctionProto: {
-            auto& functionProtoType = llvm::cast<clang::FunctionProtoType>(type);
-            auto paramTypes = map(functionProtoType.getParamTypes(), [](clang::QualType qualType) { return toCx(qualType); });
-            return FunctionType::get(toCx(functionProtoType.getReturnType()), std::move(paramTypes), functionProtoType.isVariadic(), mutability);
-        }
-        case clang::Type::FunctionNoProto: {
-            auto& functionNoProtoType = llvm::cast<clang::FunctionNoProtoType>(type);
-            return FunctionType::get(toCx(functionNoProtoType.getReturnType()), {}, true, mutability);
-        }
-        case clang::Type::ConstantArray: {
-            auto& constantArrayType = llvm::cast<clang::ConstantArrayType>(type);
-            if (!constantArrayType.getSize().isIntN(64)) {
-                ERROR(SourceLocation(), "array is too large");
-            }
-            return ArrayType::get(toCx(constantArrayType.getElementType()), constantArrayType.getSize().getLimitedValue());
-        }
-        case clang::Type::IncompleteArray:
-            return ArrayType::get(toCx(llvm::cast<clang::IncompleteArrayType>(type).getElementType()), ArrayType::UnknownSize);
-        case clang::Type::Attributed:
-            return toCx(llvm::cast<clang::AttributedType>(type).getEquivalentType());
-        case clang::Type::Decayed:
-            return toCx(llvm::cast<clang::DecayedType>(type).getDecayedType());
-        case clang::Type::Enum: {
-            auto& enumType = llvm::cast<clang::EnumType>(type);
-            auto name = getName(*enumType.getDecl());
+        return ArrayType::get(toCx(constantArrayType.getElementType()), constantArrayType.getSize().getLimitedValue());
+    }
+    case clang::Type::IncompleteArray:
+        return ArrayType::get(toCx(llvm::cast<clang::IncompleteArrayType>(type).getElementType()), ArrayType::UnknownSize);
+    case clang::Type::Attributed:
+        return toCx(llvm::cast<clang::AttributedType>(type).getEquivalentType());
+    case clang::Type::Decayed:
+        return toCx(llvm::cast<clang::DecayedType>(type).getDecayedType());
+    case clang::Type::Enum: {
+        auto& enumType = llvm::cast<clang::EnumType>(type);
+        auto name = getName(*enumType.getDecl());
 
-            if (name.empty()) {
-                return toCx(enumType.getDecl()->getIntegerType());
-            } else {
-                return BasicType::get(name, {}, mutability);
-            }
+        if (name.empty()) {
+            return toCx(enumType.getDecl()->getIntegerType());
+        } else {
+            return BasicType::get(name, {}, mutability);
         }
-        case clang::Type::Vector: {
-            auto& vectorType = llvm::cast<clang::VectorType>(type);
-            return ArrayType::get(toCx(vectorType.getElementType()), vectorType.getNumElements());
-        }
-        default:
-            WARN(SourceLocation(), "unhandled type class '" << type.getTypeClassName() << "' (importing type '" << qualtype.getAsString() << "')");
-            return Type::getInt();
+    }
+    case clang::Type::Vector: {
+        auto& vectorType = llvm::cast<clang::VectorType>(type);
+        return ArrayType::get(toCx(vectorType.getElementType()), vectorType.getNumElements());
+    }
+    default:
+        WARN(SourceLocation(), "unhandled type class '" << type.getTypeClassName() << "' (importing type '" << qualtype.getAsString() << "')");
+        return Type::getInt();
     }
 }
 
@@ -216,52 +216,52 @@ struct CToCxConverter : clang::ASTConsumer {
     bool HandleTopLevelDecl(clang::DeclGroupRef declGroup) final override {
         for (clang::Decl* decl : declGroup) {
             switch (decl->getKind()) {
-                case clang::Decl::Function: {
-                    auto functionDecl = toCx(*llvm::cast<clang::FunctionDecl>(decl), &module);
-                    if (module.getSymbolTable().find(functionDecl->getName()).empty()) {
-                        module.addToSymbolTable(functionDecl);
-                    }
-                    break;
+            case clang::Decl::Function: {
+                auto functionDecl = toCx(*llvm::cast<clang::FunctionDecl>(decl), &module);
+                if (module.getSymbolTable().find(functionDecl->getName()).empty()) {
+                    module.addToSymbolTable(functionDecl);
                 }
-                case clang::Decl::Record: {
-                    if (!decl->isFirstDecl()) break;
-                    auto typeDecl = ::toCx(llvm::cast<clang::RecordDecl>(*decl), &module);
-                    if (typeDecl && module.getSymbolTable().find(typeDecl->getName()).empty()) {
-                        module.addToSymbolTable(typeDecl);
-                    }
-                    break;
+                break;
+            }
+            case clang::Decl::Record: {
+                if (!decl->isFirstDecl()) break;
+                auto typeDecl = ::toCx(llvm::cast<clang::RecordDecl>(*decl), &module);
+                if (typeDecl && module.getSymbolTable().find(typeDecl->getName()).empty()) {
+                    module.addToSymbolTable(typeDecl);
                 }
-                case clang::Decl::Enum: {
-                    auto& enumDecl = llvm::cast<clang::EnumDecl>(*decl);
-                    auto type = getName(enumDecl).empty() ? enumDecl.getIntegerType() : clang::QualType(enumDecl.getTypeForDecl(), 0);
-                    std::vector<EnumCase> cases;
+                break;
+            }
+            case clang::Decl::Enum: {
+                auto& enumDecl = llvm::cast<clang::EnumDecl>(*decl);
+                auto type = getName(enumDecl).empty() ? enumDecl.getIntegerType() : clang::QualType(enumDecl.getTypeForDecl(), 0);
+                std::vector<EnumCase> cases;
 
-                    for (clang::EnumConstantDecl* enumerator : enumDecl.enumerators()) {
-                        auto enumeratorName = enumerator->getName();
-                        auto value = enumerator->getInitVal();
-                        auto valueExpr = new IntLiteralExpr(value, SourceLocation());
-                        cases.push_back(EnumCase(enumeratorName.str(), valueExpr, Type(), AccessLevel::Default, SourceLocation()));
-                        addIntegerConstantToSymbolTable(enumeratorName, value, type, module);
-                    }
+                for (clang::EnumConstantDecl* enumerator : enumDecl.enumerators()) {
+                    auto enumeratorName = enumerator->getName();
+                    auto value = enumerator->getInitVal();
+                    auto valueExpr = new IntLiteralExpr(value, SourceLocation());
+                    cases.push_back(EnumCase(enumeratorName.str(), valueExpr, Type(), AccessLevel::Default, SourceLocation()));
+                    addIntegerConstantToSymbolTable(enumeratorName, value, type, module);
+                }
 
-                    module.addToSymbolTable(new EnumDecl(getName(enumDecl).str(), std::move(cases), AccessLevel::Default, module, nullptr, SourceLocation()));
-                    break;
+                module.addToSymbolTable(new EnumDecl(getName(enumDecl).str(), std::move(cases), AccessLevel::Default, module, nullptr, SourceLocation()));
+                break;
+            }
+            case clang::Decl::Var:
+                module.addToSymbolTable(::toCx(llvm::cast<clang::VarDecl>(*decl), &module));
+                break;
+            case clang::Decl::Typedef: {
+                auto& typedefDecl = llvm::cast<clang::TypedefDecl>(*decl);
+                auto type = ::toCx(typedefDecl.getUnderlyingType());
+                if (type.isBasicType()) {
+                    llvm::cast<BasicType>(BasicType::get(typedefDecl.getName(), {}).getBase())->setName(type.getName().str());
+                } else {
+                    // TODO: Import non-BasicType typedefs from C headers.
                 }
-                case clang::Decl::Var:
-                    module.addToSymbolTable(::toCx(llvm::cast<clang::VarDecl>(*decl), &module));
-                    break;
-                case clang::Decl::Typedef: {
-                    auto& typedefDecl = llvm::cast<clang::TypedefDecl>(*decl);
-                    auto type = ::toCx(typedefDecl.getUnderlyingType());
-                    if (type.isBasicType()) {
-                        llvm::cast<BasicType>(BasicType::get(typedefDecl.getName(), {}).getBase())->setName(type.getName().str());
-                    } else {
-                        // TODO: Import non-BasicType typedefs from C headers.
-                    }
-                    break;
-                }
-                default:
-                    break;
+                break;
+            }
+            default:
+                break;
             }
         }
         return true; // continue parsing
@@ -295,14 +295,14 @@ struct MacroImporter : clang::PPCallbacks {
         auto& token = macro->getMacroInfo()->getReplacementToken(0);
 
         switch (token.getKind()) {
-            case clang::tok::identifier:
-                module.addIdentifierReplacement(name.getIdentifierInfo()->getName(), token.getIdentifierInfo()->getName());
-                break;
-            case clang::tok::numeric_constant:
-                importMacroConstant(name.getIdentifierInfo()->getName(), token);
-                break;
-            default:
-                break;
+        case clang::tok::identifier:
+            module.addIdentifierReplacement(name.getIdentifierInfo()->getName(), token.getIdentifierInfo()->getName());
+            break;
+        case clang::tok::numeric_constant:
+            importMacroConstant(name.getIdentifierInfo()->getName(), token);
+            break;
+        default:
+            break;
         }
     }
 

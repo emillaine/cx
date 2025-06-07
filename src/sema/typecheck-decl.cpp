@@ -3,80 +3,80 @@
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/Support/SaveAndRestore.h>
 #pragma warning(pop)
-#include "c-import.h"
 #include "../ast/module.h"
+#include "c-import.h"
 
 using namespace cx;
 
 void Typechecker::typecheckType(Type type, AccessLevel userAccessLevel) {
     switch (type.getKind()) {
-        case TypeKind::BasicType: {
-            if (!type.isOptionalType() && type.isBuiltinType()) {
-                validateGenericArgCount(0, type.getGenericArgs(), type.getName(), type.getLocation());
-                break;
-            }
+    case TypeKind::BasicType: {
+        if (!type.isOptionalType() && type.isBuiltinType()) {
+            validateGenericArgCount(0, type.getGenericArgs(), type.getName(), type.getLocation());
+            break;
+        }
 
-            auto* basicType = llvm::cast<BasicType>(type.getBase());
+        auto* basicType = llvm::cast<BasicType>(type.getBase());
 
-            for (auto genericArg : basicType->getGenericArgs()) {
-                typecheckType(genericArg, userAccessLevel);
-            }
+        for (auto genericArg : basicType->getGenericArgs()) {
+            typecheckType(genericArg, userAccessLevel);
+        }
 
-            auto decls = findDecls(basicType->getQualifiedName());
-            Decl* decl;
+        auto decls = findDecls(basicType->getQualifiedName());
+        Decl* decl;
+
+        if (decls.empty()) {
+            auto decls = findDecls(basicType->getName());
 
             if (decls.empty()) {
-                auto decls = findDecls(basicType->getName());
-
-                if (decls.empty()) {
-                    ERROR(type.getLocation(), "unknown type '" << type << "'");
-                }
-
-                ASSERT(decls.size() == 1);
-                decl = decls[0];
-                auto instantiation = llvm::cast<TypeTemplate>(decl)->instantiate(basicType->getGenericArgs());
-                getCurrentModule()->addToSymbolTable(*instantiation);
-                deferTypechecking(instantiation);
-            } else {
-                ASSERT(decls.size() == 1);
-                decl = decls[0];
-
-                switch (decl->getKind()) {
-                    case DeclKind::TypeDecl:
-                    case DeclKind::EnumDecl:
-                        break;
-                    case DeclKind::TypeTemplate:
-                        validateGenericArgCount(llvm::cast<TypeTemplate>(decl)->getGenericParams().size(), basicType->getGenericArgs(), basicType->getName(),
-                                                type.getLocation());
-                        break;
-                    default:
-                        ERROR(type.getLocation(), "'" << type << "' is not a type");
-                }
+                ERROR(type.getLocation(), "unknown type '" << type << "'");
             }
 
-            checkHasAccess(*decl, type.getLocation(), userAccessLevel);
-            break;
+            ASSERT(decls.size() == 1);
+            decl = decls[0];
+            auto instantiation = llvm::cast<TypeTemplate>(decl)->instantiate(basicType->getGenericArgs());
+            getCurrentModule()->addToSymbolTable(*instantiation);
+            deferTypechecking(instantiation);
+        } else {
+            ASSERT(decls.size() == 1);
+            decl = decls[0];
+
+            switch (decl->getKind()) {
+            case DeclKind::TypeDecl:
+            case DeclKind::EnumDecl:
+                break;
+            case DeclKind::TypeTemplate:
+                validateGenericArgCount(llvm::cast<TypeTemplate>(decl)->getGenericParams().size(), basicType->getGenericArgs(), basicType->getName(),
+                                        type.getLocation());
+                break;
+            default:
+                ERROR(type.getLocation(), "'" << type << "' is not a type");
+            }
         }
-        case TypeKind::ArrayType:
-            typecheckType(type.getElementType(), userAccessLevel);
-            break;
-        case TypeKind::TupleType:
-            for (auto& element : type.getTupleElements()) {
-                typecheckType(element.type, userAccessLevel);
-            }
-            break;
-        case TypeKind::FunctionType:
-            for (auto paramType : type.getParamTypes()) {
-                typecheckType(paramType, userAccessLevel);
-            }
-            typecheckType(type.getReturnType(), userAccessLevel);
-            break;
-        case TypeKind::PointerType: {
-            typecheckType(type.getPointee(), userAccessLevel);
-            break;
+
+        checkHasAccess(*decl, type.getLocation(), userAccessLevel);
+        break;
+    }
+    case TypeKind::ArrayType:
+        typecheckType(type.getElementType(), userAccessLevel);
+        break;
+    case TypeKind::TupleType:
+        for (auto& element : type.getTupleElements()) {
+            typecheckType(element.type, userAccessLevel);
         }
-        case TypeKind::UnresolvedType:
-            llvm_unreachable("invalid unresolved type");
+        break;
+    case TypeKind::FunctionType:
+        for (auto paramType : type.getParamTypes()) {
+            typecheckType(paramType, userAccessLevel);
+        }
+        typecheckType(type.getReturnType(), userAccessLevel);
+        break;
+    case TypeKind::PointerType: {
+        typecheckType(type.getPointee(), userAccessLevel);
+        break;
+    }
+    case TypeKind::UnresolvedType:
+        llvm_unreachable("invalid unresolved type");
     }
 }
 
@@ -93,23 +93,23 @@ static bool allPathsReturn(llvm::ArrayRef<Stmt*> block) {
     if (block.empty()) return false;
 
     switch (block.back()->getKind()) {
-        case StmtKind::ReturnStmt:
-            return true;
-        case StmtKind::ExprStmt: {
-            auto& exprStmt = llvm::cast<ExprStmt>(*block.back());
-            auto call = llvm::dyn_cast<CallExpr>(&exprStmt.getExpr());
-            return call && call->getType().isNeverType();
-        }
-        case StmtKind::IfStmt: {
-            auto& ifStmt = llvm::cast<IfStmt>(*block.back());
-            return allPathsReturn(ifStmt.getThenBody()) && allPathsReturn(ifStmt.getElseBody());
-        }
-        case StmtKind::SwitchStmt: {
-            auto& switchStmt = llvm::cast<SwitchStmt>(*block.back());
-            return llvm::all_of(switchStmt.getCases(), [](auto& c) { return allPathsReturn(c.getStmts()); }) && allPathsReturn(switchStmt.getDefaultStmts());
-        }
-        default:
-            return false;
+    case StmtKind::ReturnStmt:
+        return true;
+    case StmtKind::ExprStmt: {
+        auto& exprStmt = llvm::cast<ExprStmt>(*block.back());
+        auto call = llvm::dyn_cast<CallExpr>(&exprStmt.getExpr());
+        return call && call->getType().isNeverType();
+    }
+    case StmtKind::IfStmt: {
+        auto& ifStmt = llvm::cast<IfStmt>(*block.back());
+        return allPathsReturn(ifStmt.getThenBody()) && allPathsReturn(ifStmt.getElseBody());
+    }
+    case StmtKind::SwitchStmt: {
+        auto& switchStmt = llvm::cast<SwitchStmt>(*block.back());
+        return llvm::all_of(switchStmt.getCases(), [](auto& c) { return allPathsReturn(c.getStmts()); }) && allPathsReturn(switchStmt.getDefaultStmts());
+    }
+    default:
+        return false;
     }
 }
 
@@ -195,14 +195,14 @@ void Typechecker::typecheckFunctionDecl(FunctionDecl& decl) {
             // This prevents creating destructors calls during codegen.
             for (auto* movedDecl : movedDecls) {
                 switch (movedDecl->getKind()) {
-                    case DeclKind::ParamDecl:
-                        llvm::cast<ParamDecl>(movedDecl)->setMoved(true);
-                        break;
-                    case DeclKind::VarDecl:
-                        llvm::cast<VarDecl>(movedDecl)->setMoved(true);
-                        break;
-                    default:
-                        break;
+                case DeclKind::ParamDecl:
+                    llvm::cast<ParamDecl>(movedDecl)->setMoved(true);
+                    break;
+                case DeclKind::VarDecl:
+                    llvm::cast<VarDecl>(movedDecl)->setMoved(true);
+                    break;
+                default:
+                    break;
                 }
             }
 
@@ -253,7 +253,7 @@ void Typechecker::typecheckTypeDecl(TypeDecl& decl) {
 
     if (decl.isInterface()) {
         // TODO: Move this to typecheckModule to the pre-typechecking phase?
-        realDecl = llvm::cast<TypeDecl>(decl.instantiate({ { "This", decl.getType() } }, {}));
+        realDecl = llvm::cast<TypeDecl>(decl.instantiate({{"This", decl.getType()}}, {}));
     } else {
         realDecl = &decl;
     }
@@ -356,55 +356,55 @@ void Typechecker::typecheckImportDecl(ImportDecl& decl, const PackageManifest* m
 
 void Typechecker::typecheckTopLevelDecl(Decl& decl, const PackageManifest* manifest) {
     switch (decl.getKind()) {
-        case DeclKind::ParamDecl:
-            llvm_unreachable("no top-level parameter declarations");
-        case DeclKind::FunctionDecl:
-            typecheckFunctionDecl(llvm::cast<FunctionDecl>(decl));
-            break;
-        case DeclKind::MethodDecl:
-            llvm_unreachable("no top-level method declarations");
-        case DeclKind::GenericParamDecl:
-            llvm_unreachable("no top-level parameter declarations");
-        case DeclKind::ConstructorDecl:
-            llvm_unreachable("no top-level constructor declarations");
-        case DeclKind::DestructorDecl:
-            llvm_unreachable("no top-level destructor declarations");
-        case DeclKind::FunctionTemplate:
-            typecheckFunctionTemplate(llvm::cast<FunctionTemplate>(decl));
-            break;
-        case DeclKind::TypeDecl:
-            typecheckTypeDecl(llvm::cast<TypeDecl>(decl));
-            break;
-        case DeclKind::TypeTemplate:
-            typecheckTypeTemplate(llvm::cast<TypeTemplate>(decl));
-            break;
-        case DeclKind::EnumDecl:
-            typecheckEnumDecl(llvm::cast<EnumDecl>(decl));
-            break;
-        case DeclKind::EnumCase:
-            llvm_unreachable("no top-level enum case declarations");
-        case DeclKind::VarDecl:
-            typecheckVarDecl(llvm::cast<VarDecl>(decl));
-            break;
-        case DeclKind::FieldDecl:
-            llvm_unreachable("no top-level field declarations");
-        case DeclKind::ImportDecl:
-            typecheckImportDecl(llvm::cast<ImportDecl>(decl), manifest);
-            break;
+    case DeclKind::ParamDecl:
+        llvm_unreachable("no top-level parameter declarations");
+    case DeclKind::FunctionDecl:
+        typecheckFunctionDecl(llvm::cast<FunctionDecl>(decl));
+        break;
+    case DeclKind::MethodDecl:
+        llvm_unreachable("no top-level method declarations");
+    case DeclKind::GenericParamDecl:
+        llvm_unreachable("no top-level parameter declarations");
+    case DeclKind::ConstructorDecl:
+        llvm_unreachable("no top-level constructor declarations");
+    case DeclKind::DestructorDecl:
+        llvm_unreachable("no top-level destructor declarations");
+    case DeclKind::FunctionTemplate:
+        typecheckFunctionTemplate(llvm::cast<FunctionTemplate>(decl));
+        break;
+    case DeclKind::TypeDecl:
+        typecheckTypeDecl(llvm::cast<TypeDecl>(decl));
+        break;
+    case DeclKind::TypeTemplate:
+        typecheckTypeTemplate(llvm::cast<TypeTemplate>(decl));
+        break;
+    case DeclKind::EnumDecl:
+        typecheckEnumDecl(llvm::cast<EnumDecl>(decl));
+        break;
+    case DeclKind::EnumCase:
+        llvm_unreachable("no top-level enum case declarations");
+    case DeclKind::VarDecl:
+        typecheckVarDecl(llvm::cast<VarDecl>(decl));
+        break;
+    case DeclKind::FieldDecl:
+        llvm_unreachable("no top-level field declarations");
+    case DeclKind::ImportDecl:
+        typecheckImportDecl(llvm::cast<ImportDecl>(decl), manifest);
+        break;
     }
 }
 
 void Typechecker::typecheckMethodDecl(Decl& decl) {
     switch (decl.getKind()) {
-        case DeclKind::MethodDecl:
-        case DeclKind::ConstructorDecl:
-        case DeclKind::DestructorDecl:
-            typecheckFunctionDecl(llvm::cast<MethodDecl>(decl));
-            break;
-        case DeclKind::FunctionTemplate:
-            typecheckFunctionTemplate(llvm::cast<FunctionTemplate>(decl));
-            break;
-        default:
-            llvm_unreachable("invalid method declaration kind");
+    case DeclKind::MethodDecl:
+    case DeclKind::ConstructorDecl:
+    case DeclKind::DestructorDecl:
+        typecheckFunctionDecl(llvm::cast<MethodDecl>(decl));
+        break;
+    case DeclKind::FunctionTemplate:
+        typecheckFunctionTemplate(llvm::cast<FunctionTemplate>(decl));
+        break;
+    default:
+        llvm_unreachable("invalid method declaration kind");
     }
 }

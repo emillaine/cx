@@ -11,12 +11,12 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SaveAndRestore.h>
 #pragma warning(pop)
-#include "lex.h"
 #include "../ast/decl.h"
 #include "../ast/module.h"
 #include "../ast/token.h"
 #include "../driver/driver.h"
 #include "../support/utility.h"
+#include "lex.h"
 
 using namespace cx;
 
@@ -105,15 +105,15 @@ void Parser::parseStmtTerminator(const char* contextInfo) {
     if (getCurrentLocation().line != lookAhead(-1).getLocation().line) return;
 
     switch (currentToken()) {
-        case Token::RightBrace:
-        case Token::RightParen:
-        case Token::In:
-            return;
-        case Token::Semicolon:
-            consumeToken();
-            return;
-        default:
-            unexpectedToken(currentToken(), { Token::Newline, Token::Semicolon }, contextInfo);
+    case Token::RightBrace:
+    case Token::RightParen:
+    case Token::In:
+        return;
+    case Token::Semicolon:
+        consumeToken();
+        return;
+    default:
+        unexpectedToken(currentToken(), {Token::Newline, Token::Semicolon}, contextInfo);
     }
 }
 
@@ -140,8 +140,8 @@ std::vector<NamedValue> Parser::parseArgumentList(bool allowEmpty) {
         }
         auto value = parseExpr();
         if (!location.isValid()) location = value->getLocation();
-        args.push_back({ std::move(name), value, location });
-    } while (parse({ Token::Comma, Token::RightParen }) == Token::Comma);
+        args.push_back({std::move(name), value, location});
+    } while (parse({Token::Comma, Token::RightParen}) == Token::Comma);
 
     return args;
 }
@@ -169,31 +169,31 @@ static std::string replaceEscapeChars(llvm::StringRef literalContent, SourceLoca
             ++it;
             ASSERT(it != end);
             switch (*it) {
-                case '0':
-                    result += '\0';
-                    break;
-                case 'n':
-                    result += '\n';
-                    break;
-                case 'r':
-                    result += '\r';
-                    break;
-                case 't':
-                    result += '\t';
-                    break;
-                case '"':
-                    result += '"';
-                    break;
-                case '\'':
-                    result += '\'';
-                    break;
-                case '\\':
-                    result += '\\';
-                    break;
-                default:
-                    auto itColumn = literalStartLocation.column + 1 + (it - literalContent.begin());
-                    SourceLocation itLocation(literalStartLocation.file, literalStartLocation.line, itColumn);
-                    ERROR(itLocation, "unknown escape character '\\" << *it << "'");
+            case '0':
+                result += '\0';
+                break;
+            case 'n':
+                result += '\n';
+                break;
+            case 'r':
+                result += '\r';
+                break;
+            case 't':
+                result += '\t';
+                break;
+            case '"':
+                result += '"';
+                break;
+            case '\'':
+                result += '\'';
+                break;
+            case '\\':
+                result += '\\';
+                break;
+            default:
+                auto itColumn = literalStartLocation.column + 1 + (it - literalContent.begin());
+                SourceLocation itLocation(literalStartLocation.file, literalStartLocation.line, itColumn);
+                ERROR(itLocation, "unknown escape character '\\" << *it << "'");
             }
             continue;
         }
@@ -236,14 +236,14 @@ FloatLiteralExpr* Parser::parseFloatLiteral() {
 BoolLiteralExpr* Parser::parseBoolLiteral() {
     BoolLiteralExpr* expr;
     switch (currentToken()) {
-        case Token::True:
-            expr = new BoolLiteralExpr(true, getCurrentLocation());
-            break;
-        case Token::False:
-            expr = new BoolLiteralExpr(false, getCurrentLocation());
-            break;
-        default:
-            llvm_unreachable("all cases handled");
+    case Token::True:
+        expr = new BoolLiteralExpr(true, getCurrentLocation());
+        break;
+    case Token::False:
+        expr = new BoolLiteralExpr(false, getCurrentLocation());
+        break;
+    default:
+        llvm_unreachable("all cases handled");
     }
     consumeToken();
     return expr;
@@ -330,22 +330,22 @@ Type Parser::parseArrayType(Type elementType) {
     consumeToken();
 
     switch (currentToken()) {
-        case Token::IntegerLiteral: {
-            auto arraySize = consumeToken().getIntegerValue().getExtValue();
-            parse(Token::RightBracket);
-            return ArrayType::get(elementType, arraySize);
-        }
-        case Token::RightBracket:
-            consumeToken();
-            return BasicType::get("ArrayRef", elementType);
+    case Token::IntegerLiteral: {
+        auto arraySize = consumeToken().getIntegerValue().getExtValue();
+        parse(Token::RightBracket);
+        return ArrayType::get(elementType, arraySize);
+    }
+    case Token::RightBracket:
+        consumeToken();
+        return BasicType::get("ArrayRef", elementType);
 
-        case Token::Star:
-            consumeToken();
-            parse(Token::RightBracket);
-            return ArrayType::get(elementType, ArrayType::UnknownSize);
+    case Token::Star:
+        consumeToken();
+        parse(Token::RightBracket);
+        return ArrayType::get(elementType, ArrayType::UnknownSize);
 
-        default:
-            ERROR(getCurrentLocation(), "non-literal array bounds not implemented yet");
+    default:
+        ERROR(getCurrentLocation(), "non-literal array bounds not implemented yet");
     }
 }
 
@@ -355,13 +355,13 @@ Type Parser::parseSimpleType(Mutability mutability) {
     std::vector<Type> genericArgs;
 
     switch (currentToken()) {
-        case Token::Less:
-            genericArgs = parseGenericArgumentList();
-            LLVM_FALLTHROUGH;
-        default:
-            return BasicType::get(identifier.getString(), std::move(genericArgs), mutability, identifier.getLocation());
-        case Token::LeftBracket:
-            return parseArrayType(BasicType::get(identifier.getString(), {}, mutability, identifier.getLocation()));
+    case Token::Less:
+        genericArgs = parseGenericArgumentList();
+        LLVM_FALLTHROUGH;
+    default:
+        return BasicType::get(identifier.getString(), std::move(genericArgs), mutability, identifier.getLocation());
+    case Token::LeftBracket:
+        return parseArrayType(BasicType::get(identifier.getString(), {}, mutability, identifier.getLocation()));
     }
 }
 
@@ -377,7 +377,7 @@ Type Parser::parseTupleType() {
     while (currentToken() != Token::RightParen) {
         auto type = parseType();
         std::string name = currentToken() == Token::Identifier ? consumeToken().getString().str() : "";
-        elements.push_back({ std::move(name), type });
+        elements.push_back({std::move(name), type});
         if (currentToken() != Token::RightParen) parse(Token::Comma);
     }
 
@@ -407,40 +407,40 @@ Type Parser::parseType() {
     auto location = getCurrentLocation();
 
     switch (currentToken()) {
-        case Token::Identifier:
-            type = parseSimpleType(Mutability::Mutable);
-            break;
-        case Token::Const:
-            consumeToken();
-            type = parseSimpleType(Mutability::Const);
-            break;
-        case Token::LeftParen:
-            type = parseTupleType();
-            break;
-        default:
-            unexpectedToken(currentToken());
+    case Token::Identifier:
+        type = parseSimpleType(Mutability::Mutable);
+        break;
+    case Token::Const:
+        consumeToken();
+        type = parseSimpleType(Mutability::Const);
+        break;
+    case Token::LeftParen:
+        type = parseTupleType();
+        break;
+    default:
+        unexpectedToken(currentToken());
     }
 
     while (true) {
         switch (currentToken()) {
-            case Token::Star:
-                type = PointerType::get(type, Mutability::Mutable, getCurrentLocation());
-                consumeToken();
-                break;
-            case Token::QuestionMark:
-                type = OptionalType::get(type, Mutability::Mutable, getCurrentLocation());
-                consumeToken();
-                break;
-            case Token::LeftParen:
-                type = parseFunctionType(type);
-                break;
-            case Token::LeftBracket:
-                type = parseArrayType(type);
-                break;
-            case Token::And:
-                ERROR(getCurrentLocation(), "C* doesn't have C++-style references; use pointers ('*') instead, they are non-null by default");
-            default:
-                return type.withLocation(location);
+        case Token::Star:
+            type = PointerType::get(type, Mutability::Mutable, getCurrentLocation());
+            consumeToken();
+            break;
+        case Token::QuestionMark:
+            type = OptionalType::get(type, Mutability::Mutable, getCurrentLocation());
+            consumeToken();
+            break;
+        case Token::LeftParen:
+            type = parseFunctionType(type);
+            break;
+        case Token::LeftBracket:
+            type = parseArrayType(type);
+            break;
+        case Token::And:
+            ERROR(getCurrentLocation(), "C* doesn't have C++-style references; use pointers ('*') instead, they are non-null by default");
+        default:
+            return type.withLocation(location);
         }
     }
 }
@@ -500,7 +500,7 @@ CallExpr* Parser::parseCallExpr(Expr* callee) {
 }
 
 LambdaExpr* Parser::parseLambdaExpr() {
-    ASSERT(currentToken().is({ Token::LeftParen, Token::Identifier }));
+    ASSERT(currentToken().is({Token::LeftParen, Token::Identifier}));
     auto location = getCurrentLocation();
     std::vector<ParamDecl> params;
 
@@ -518,7 +518,7 @@ LambdaExpr* Parser::parseLambdaExpr() {
         lambda->functionDecl->setBody(parseBlock(lambda->functionDecl));
     } else {
         auto expr = parseExpr();
-        lambda->functionDecl->setBody({ new ReturnStmt(expr, expr->getLocation()) });
+        lambda->functionDecl->setBody({new ReturnStmt(expr, expr->getLocation())});
     }
 
     return lambda;
@@ -536,15 +536,15 @@ IfExpr* Parser::parseIfExpr(Expr* condition) {
 }
 
 bool Parser::shouldParseVarStmt() {
-    if (currentToken().is({ Token::Var, Token::Const })) return true;
-    if (!currentToken().is({ Token::Identifier, Token::LeftParen })) return false;
+    if (currentToken().is({Token::Var, Token::Const})) return true;
+    if (!currentToken().is({Token::Identifier, Token::LeftParen})) return false;
     if (lookAhead(1).is(Token::Dot) || isCompoundAssignmentOperator(lookAhead(1))) return false;
     int offset = 2;
 
     while (true) {
         if (lookAhead(offset).is(Token::Assignment)) {
             if (lookAhead(offset - 1).is(Token::Identifier)) {
-                if (lookAhead(offset - 2).is({ Token::Identifier, Token::RightBracket, Token::QuestionMark, Token::Greater })) {
+                if (lookAhead(offset - 2).is({Token::Identifier, Token::RightBracket, Token::QuestionMark, Token::Greater})) {
                     return true;
                 }
                 if (lookAhead(offset - 2).is(Token::Star)) {
@@ -557,7 +557,7 @@ bool Parser::shouldParseVarStmt() {
             return false;
         } else if (lookAhead(offset).is(Token::Semicolon) || lookAhead(offset).getLocation().line != lookAhead(offset - 1).getLocation().line) {
             if (lookAhead(offset - 1).is(Token::Identifier)) {
-                if (lookAhead(offset - 2).is({ Token::Identifier, Token::RightBracket, Token::QuestionMark, Token::Greater, Token::Star })) {
+                if (lookAhead(offset - 2).is({Token::Identifier, Token::RightBracket, Token::QuestionMark, Token::Greater, Token::Star})) {
                     return true;
                 }
             }
@@ -583,14 +583,14 @@ bool Parser::arrowAfterParentheses() {
 
     for (int parenDepth = 1; parenDepth > 0; ++offset) {
         switch (lookAhead(offset)) {
-            case Token::LeftParen:
-                ++parenDepth;
-                break;
-            case Token::RightParen:
-                --parenDepth;
-                break;
-            default:
-                break;
+        case Token::LeftParen:
+            ++parenDepth;
+            break;
+        case Token::RightParen:
+            --parenDepth;
+            break;
+        default:
+            break;
         }
     }
 
@@ -605,89 +605,89 @@ Expr* Parser::parsePostfixExpr() {
     Expr* expr;
 
     switch (currentToken()) {
-        case Token::Identifier:
-            switch (lookAhead(1)) {
-                case Token::LeftParen:
-                    expr = parseCallExpr(parseVarExpr());
-                    break;
-                case Token::RightArrow:
-                    expr = parseLambdaExpr();
-                    break;
-                case Token::Less:
-                    if (shouldParseGenericArgumentList()) {
-                        expr = parseCallExpr(parseVarExpr());
-                        break;
-                    }
-                    LLVM_FALLTHROUGH;
-                default:
-                    expr = parseVarExpr();
-                    break;
-            }
-            break;
-        case Token::StringLiteral:
-            expr = parseStringLiteral();
-            break;
-        case Token::CharacterLiteral:
-            expr = parseCharacterLiteral();
-            break;
-        case Token::IntegerLiteral:
-            expr = parseIntLiteral();
-            break;
-        case Token::FloatLiteral:
-            expr = parseFloatLiteral();
-            break;
-        case Token::True:
-        case Token::False:
-            expr = parseBoolLiteral();
-            break;
-        case Token::Null:
-            expr = parseNullLiteral();
-            break;
-        case Token::This:
-            expr = parseThis();
-            break;
+    case Token::Identifier:
+        switch (lookAhead(1)) {
         case Token::LeftParen:
-            if (arrowAfterParentheses()) {
-                expr = parseLambdaExpr();
-            } else {
-                expr = parseTupleLiteralOrParenExpr();
+            expr = parseCallExpr(parseVarExpr());
+            break;
+        case Token::RightArrow:
+            expr = parseLambdaExpr();
+            break;
+        case Token::Less:
+            if (shouldParseGenericArgumentList()) {
+                expr = parseCallExpr(parseVarExpr());
+                break;
             }
-            break;
-        case Token::LeftBracket:
-            expr = parseArrayLiteral();
-            break;
-        case Token::Sizeof:
-            expr = parseSizeofExpr();
-            break;
-        case Token::Undefined:
-            expr = parseUndefinedLiteral();
-            break;
+            LLVM_FALLTHROUGH;
         default:
-            unexpectedToken(currentToken());
+            expr = parseVarExpr();
             break;
+        }
+        break;
+    case Token::StringLiteral:
+        expr = parseStringLiteral();
+        break;
+    case Token::CharacterLiteral:
+        expr = parseCharacterLiteral();
+        break;
+    case Token::IntegerLiteral:
+        expr = parseIntLiteral();
+        break;
+    case Token::FloatLiteral:
+        expr = parseFloatLiteral();
+        break;
+    case Token::True:
+    case Token::False:
+        expr = parseBoolLiteral();
+        break;
+    case Token::Null:
+        expr = parseNullLiteral();
+        break;
+    case Token::This:
+        expr = parseThis();
+        break;
+    case Token::LeftParen:
+        if (arrowAfterParentheses()) {
+            expr = parseLambdaExpr();
+        } else {
+            expr = parseTupleLiteralOrParenExpr();
+        }
+        break;
+    case Token::LeftBracket:
+        expr = parseArrayLiteral();
+        break;
+    case Token::Sizeof:
+        expr = parseSizeofExpr();
+        break;
+    case Token::Undefined:
+        expr = parseUndefinedLiteral();
+        break;
+    default:
+        unexpectedToken(currentToken());
+        break;
     }
 
     while (true) {
         switch (currentToken()) {
-            case Token::LeftBracket:
-                expr = parseIndexExprOrIndexAssignmentExpr(expr);
-                break;
-            case Token::LeftParen:
-                expr = parseCallExpr(expr);
-                break;
-            case Token::Dot:
-                consumeToken();
-                expr = parseMemberExpr(expr);
-                break;
-            case Token::Increment:
-            case Token::Decrement:
-                expr = parseIncrementOrDecrementExpr(expr);
-                break;
-            case Token::Not:
-                expr = parseUnwrapExpr(expr);
-                break;
-            default:
-                return expr;
+        case Token::LeftBracket:
+            expr = parseIndexExprOrIndexAssignmentExpr(expr);
+            break;
+        case Token::LeftParen:
+            expr = parseCallExpr(expr);
+            break;
+        case Token::Dot:
+            consumeToken();
+            expr = parseMemberExpr(expr);
+            break;
+        case Token::Increment:
+        case Token::Decrement:
+            expr = parseIncrementOrDecrementExpr(expr);
+            break;
+        case Token::Not:
+            expr = parseUnwrapExpr(expr);
+            break;
+        default:
+            return expr;
         }
     }
 }
@@ -706,7 +706,7 @@ Expr* Parser::parsePreOrPostfixExpr() {
 /// inc-expr ::= expr '++'
 /// dec-expr ::= expr '--'
 UnaryExpr* Parser::parseIncrementOrDecrementExpr(Expr* operand) {
-    auto op = parse({ Token::Increment, Token::Decrement });
+    auto op = parse({Token::Increment, Token::Decrement});
     return new UnaryExpr(op.getKind(), operand, op.getLocation());
 }
 
@@ -754,12 +754,12 @@ std::vector<Expr*> Parser::parseExprList() {
     std::vector<Expr*> exprs;
 
     switch (currentToken()) {
-        case Token::Semicolon:
-        case Token::RightBrace:
-        case Token::RightBracket:
-            return exprs;
-        default:
-            break;
+    case Token::Semicolon:
+    case Token::RightBrace:
+    case Token::RightBracket:
+        return exprs;
+    default:
+        break;
     }
 
     while (true) {
@@ -774,7 +774,7 @@ ReturnStmt* Parser::parseReturnStmt() {
     ASSERT(currentToken() == Token::Return);
     auto location = getCurrentLocation();
     consumeToken();
-    auto returnValue = currentToken().is({ Token::Semicolon, Token::RightBrace }) ? nullptr : parseExpr();
+    auto returnValue = currentToken().is({Token::Semicolon, Token::RightBrace}) ? nullptr : parseExpr();
     parseStmtTerminator();
     return new ReturnStmt(returnValue, location);
 }
@@ -843,7 +843,7 @@ std::vector<Stmt*> Parser::parseBlockOrStmt(Decl* parent) {
     if (currentToken() == Token::LeftBrace) {
         return parseBlock(parent);
     } else {
-        return { parseStmt(parent) };
+        return {parseStmt(parent)};
     }
 }
 
@@ -984,36 +984,36 @@ ContinueStmt* Parser::parseContinueStmt() {
 ///          while-stmt | for-stmt | foreach-stmt | break-stmt | continue-stmt
 Stmt* Parser::parseStmt(Decl* parent) {
     switch (currentToken()) {
-        case Token::Return:
-            return parseReturnStmt();
-        case Token::Defer:
-            return parseDeferStmt();
-        case Token::If:
-            return parseIfStmt(parent);
-        case Token::While:
-            return parseWhileStmt(parent);
-        case Token::For:
-            return parseForOrForEachStmt(parent);
-        case Token::Switch:
-            return parseSwitchStmt(parent);
-        case Token::Break:
-            return parseBreakStmt();
-        case Token::Continue:
-            return parseContinueStmt();
-        case Token::Identifier:
-            if (currentToken().getString() == "_") {
-                consumeToken();
-                parse(Token::Assignment);
-                return parseExprStmt();
-            } else if (lookAhead(1).is(Token::Assignment)) {
-                return parseExprStmt();
-            }
-            LLVM_FALLTHROUGH;
-        default:
-            if (shouldParseVarStmt()) {
-                return parseVarStmt(parent);
-            }
+    case Token::Return:
+        return parseReturnStmt();
+    case Token::Defer:
+        return parseDeferStmt();
+    case Token::If:
+        return parseIfStmt(parent);
+    case Token::While:
+        return parseWhileStmt(parent);
+    case Token::For:
+        return parseForOrForEachStmt(parent);
+    case Token::Switch:
+        return parseSwitchStmt(parent);
+    case Token::Break:
+        return parseBreakStmt();
+    case Token::Continue:
+        return parseContinueStmt();
+    case Token::Identifier:
+        if (currentToken().getString() == "_") {
+            consumeToken();
+            parse(Token::Assignment);
             return parseExprStmt();
+        } else if (lookAhead(1).is(Token::Assignment)) {
+            return parseExprStmt();
+        }
+        LLVM_FALLTHROUGH;
+    default:
+        if (shouldParseVarStmt()) {
+            return parseVarStmt(parent);
+        }
+        return parseExprStmt();
     }
 }
 
@@ -1031,7 +1031,7 @@ ParamDecl Parser::parseParam(bool requireType) {
     if (isPublic) consumeToken();
 
     Type type;
-    if (requireType || !lookAhead(1).is({ Token::Comma, Token::RightParen })) {
+    if (requireType || !lookAhead(1).is({Token::Comma, Token::RightParen})) {
         type = parseType();
     }
 
@@ -1225,14 +1225,14 @@ Token Parser::parseTypeHeader(std::vector<Type>& interfaces, std::vector<Generic
 TypeDecl* Parser::parseTypeDecl(std::vector<GenericParamDecl>* genericParams, AccessLevel typeAccessLevel) {
     TypeTag tag;
     switch (consumeToken()) {
-        case Token::Struct:
-            tag = TypeTag::Struct;
-            break;
-        case Token::Interface:
-            tag = TypeTag::Interface;
-            break;
-        default:
-            llvm_unreachable("invalid token");
+    case Token::Struct:
+        tag = TypeTag::Struct;
+        break;
+    case Token::Interface:
+        tag = TypeTag::Interface;
+        break;
+    default:
+        llvm_unreachable("invalid token");
     }
 
     std::vector<Type> interfaces;
@@ -1247,48 +1247,48 @@ TypeDecl* Parser::parseTypeDecl(std::vector<GenericParamDecl>* genericParams, Ac
 
     start:
         switch (currentToken()) {
-            case Token::Private:
-                if (tag == TypeTag::Interface) {
-                    WARN(getCurrentLocation(), "interface members cannot be private");
-                }
-                if (accessLevel != AccessLevel::Default) {
-                    WARN(getCurrentLocation(), "duplicate access specifier");
-                }
-                accessLevel = AccessLevel::Private;
-                consumeToken();
-                goto start;
-            case Token::Tilde:
-                if (accessLevel != AccessLevel::Default) {
-                    WARN(lookAhead(-1).getLocation(), "destructors cannot be " << accessLevel);
-                }
-                typeDecl->addMethod(parseDestructorDecl(*typeDecl));
-                break;
-            case Token::Identifier:
-                if (lookAhead(1) == Token::LeftParen && currentToken().getString() == typeName.getString()) {
-                    typeDecl->addMethod(parseConstructorDecl(*typeDecl, accessLevel));
-                    hasConstructor = true;
-                    break;
-                }
-                LLVM_FALLTHROUGH;
-            default: {
-                auto type = parseType();
-                auto location = getCurrentLocation();
-                auto name = parseFunctionName(&*typeDecl);
-                auto requireBody = tag != TypeTag::Interface;
-
-                switch (currentToken()) {
-                    case Token::LeftParen:
-                        typeDecl->addMethod(parseFunctionDecl(typeDecl, accessLevel, requireBody, type, name, location));
-                        break;
-                    case Token::Less:
-                        typeDecl->addMethod(parseFunctionTemplate(typeDecl, accessLevel, type, name, location));
-                        break;
-                    default:
-                        typeDecl->addField(parseFieldDecl(*typeDecl, accessLevel, type, name, location));
-                        break;
-                }
+        case Token::Private:
+            if (tag == TypeTag::Interface) {
+                WARN(getCurrentLocation(), "interface members cannot be private");
+            }
+            if (accessLevel != AccessLevel::Default) {
+                WARN(getCurrentLocation(), "duplicate access specifier");
+            }
+            accessLevel = AccessLevel::Private;
+            consumeToken();
+            goto start;
+        case Token::Tilde:
+            if (accessLevel != AccessLevel::Default) {
+                WARN(lookAhead(-1).getLocation(), "destructors cannot be " << accessLevel);
+            }
+            typeDecl->addMethod(parseDestructorDecl(*typeDecl));
+            break;
+        case Token::Identifier:
+            if (lookAhead(1) == Token::LeftParen && currentToken().getString() == typeName.getString()) {
+                typeDecl->addMethod(parseConstructorDecl(*typeDecl, accessLevel));
+                hasConstructor = true;
                 break;
             }
+            LLVM_FALLTHROUGH;
+        default: {
+            auto type = parseType();
+            auto location = getCurrentLocation();
+            auto name = parseFunctionName(&*typeDecl);
+            auto requireBody = tag != TypeTag::Interface;
+
+            switch (currentToken()) {
+            case Token::LeftParen:
+                typeDecl->addMethod(parseFunctionDecl(typeDecl, accessLevel, requireBody, type, name, location));
+                break;
+            case Token::Less:
+                typeDecl->addMethod(parseFunctionTemplate(typeDecl, accessLevel, type, name, location));
+                break;
+            default:
+                typeDecl->addField(parseFieldDecl(*typeDecl, accessLevel, type, name, location));
+                break;
+            }
+            break;
+        }
         }
     }
 
@@ -1371,7 +1371,7 @@ ImportDecl* Parser::parseImportDecl() {
     if (currentToken() == Token::StringLiteral) {
         importTarget = parseStringLiteral()->getValue().str();
     } else {
-        importTarget = parse({ Token::Identifier, Token::StringLiteral }, "after 'import'").getString().str();
+        importTarget = parse({Token::Identifier, Token::StringLiteral}, "after 'import'").getString().str();
     }
 
     parseStmtTerminator("after 'import' declaration");
@@ -1416,7 +1416,7 @@ void Parser::parseIfdef(std::vector<Decl*>* activeDecls) {
 
     if (negate) condition = !condition;
 
-    while (!currentToken().is({ Token::HashElse, Token::HashEndif })) {
+    while (!currentToken().is({Token::HashElse, Token::HashEndif})) {
         parseIfdefBody(condition ? activeDecls : nullptr);
     }
 
@@ -1438,47 +1438,47 @@ Decl* Parser::parseTopLevelDecl(bool addToSymbolTable) {
 
 start:
     switch (currentToken()) {
-        case Token::Private:
-            if (accessLevel != AccessLevel::Default) WARN(getCurrentLocation(), "duplicate access specifier");
-            accessLevel = AccessLevel::Private;
-            consumeToken();
-            goto start;
-        case Token::Extern:
-            if (accessLevel != AccessLevel::Default) {
-                WARN(lookAhead(-1).getLocation(), "extern functions cannot have access specifiers");
-            }
-            consumeToken();
-            return parseTopLevelFunctionOrVariable(true, addToSymbolTable, accessLevel);
-        case Token::Struct:
-        case Token::Interface:
-            if (lookAhead(2) == Token::Less) {
-                decl = parseTypeTemplate(accessLevel);
-                if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<TypeTemplate>(*decl));
-            } else {
-                decl = parseTypeDecl(nullptr, accessLevel);
-                if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<TypeDecl>(*decl));
-            }
-            break;
-        case Token::Enum:
-            decl = parseEnumDecl(accessLevel);
-            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<EnumDecl>(*decl));
-            break;
-        case Token::Var:
-        case Token::Const:
-            // Determine if this is a constant declaration or if the const is part of a type.
-            if (currentToken() == Token::Const && lookAhead(2) != Token::Assignment) {
-                return parseTopLevelFunctionOrVariable(false, addToSymbolTable, accessLevel);
-            }
-            decl = parseVarDecl(nullptr, accessLevel);
-            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<VarDecl>(*decl));
-            break;
-        case Token::Import:
-            if (accessLevel != AccessLevel::Default) {
-                WARN(lookAhead(-1).getLocation(), "imports cannot have access specifiers");
-            }
-            return parseImportDecl();
-        default:
+    case Token::Private:
+        if (accessLevel != AccessLevel::Default) WARN(getCurrentLocation(), "duplicate access specifier");
+        accessLevel = AccessLevel::Private;
+        consumeToken();
+        goto start;
+    case Token::Extern:
+        if (accessLevel != AccessLevel::Default) {
+            WARN(lookAhead(-1).getLocation(), "extern functions cannot have access specifiers");
+        }
+        consumeToken();
+        return parseTopLevelFunctionOrVariable(true, addToSymbolTable, accessLevel);
+    case Token::Struct:
+    case Token::Interface:
+        if (lookAhead(2) == Token::Less) {
+            decl = parseTypeTemplate(accessLevel);
+            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<TypeTemplate>(*decl));
+        } else {
+            decl = parseTypeDecl(nullptr, accessLevel);
+            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<TypeDecl>(*decl));
+        }
+        break;
+    case Token::Enum:
+        decl = parseEnumDecl(accessLevel);
+        if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<EnumDecl>(*decl));
+        break;
+    case Token::Var:
+    case Token::Const:
+        // Determine if this is a constant declaration or if the const is part of a type.
+        if (currentToken() == Token::Const && lookAhead(2) != Token::Assignment) {
             return parseTopLevelFunctionOrVariable(false, addToSymbolTable, accessLevel);
+        }
+        decl = parseVarDecl(nullptr, accessLevel);
+        if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<VarDecl>(*decl));
+        break;
+    case Token::Import:
+        if (accessLevel != AccessLevel::Default) {
+            WARN(lookAhead(-1).getLocation(), "imports cannot have access specifiers");
+        }
+        return parseImportDecl();
+    default:
+        return parseTopLevelFunctionOrVariable(false, addToSymbolTable, accessLevel);
     }
 
     return decl;
@@ -1491,22 +1491,22 @@ Decl* Parser::parseTopLevelFunctionOrVariable(bool isExtern, bool addToSymbolTab
     auto name = parseFunctionName(nullptr);
 
     switch (currentToken()) {
-        case Token::LeftParen:
-            if (isExtern) {
-                decl = parseExternFunctionDecl(type, name, location);
-            } else {
-                decl = parseFunctionDecl(nullptr, accessLevel, false, type, name, location);
-            }
-            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<FunctionDecl>(*decl));
-            break;
-        case Token::Less:
-            decl = parseFunctionTemplate(nullptr, accessLevel, type, name, location);
-            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<FunctionTemplate>(*decl));
-            break;
-        default:
-            decl = parseVarDeclAfterName(nullptr, accessLevel, type, name, location);
-            if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<VarDecl>(*decl));
-            break;
+    case Token::LeftParen:
+        if (isExtern) {
+            decl = parseExternFunctionDecl(type, name, location);
+        } else {
+            decl = parseFunctionDecl(nullptr, accessLevel, false, type, name, location);
+        }
+        if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<FunctionDecl>(*decl));
+        break;
+    case Token::Less:
+        decl = parseFunctionTemplate(nullptr, accessLevel, type, name, location);
+        if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<FunctionTemplate>(*decl));
+        break;
+    default:
+        decl = parseVarDeclAfterName(nullptr, accessLevel, type, name, location);
+        if (addToSymbolTable) currentModule->addToSymbolTable(llvm::cast<VarDecl>(*decl));
+        break;
     }
 
     return decl;

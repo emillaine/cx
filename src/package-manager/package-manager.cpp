@@ -10,8 +10,8 @@
 #include <llvm/Support/Program.h>
 #include <llvm/Support/raw_ostream.h>
 #pragma warning(pop)
-#include "manifest.h"
 #include "../support/utility.h"
+#include "manifest.h"
 
 using namespace cx;
 
@@ -27,7 +27,7 @@ static std::string getGitPath() {
 
 static void cloneGitRepository(const std::string& repositoryUrl, const std::string& path) {
     auto gitPath = getGitPath();
-    llvm::StringRef args[] = { gitPath, "clone", repositoryUrl, path };
+    llvm::StringRef args[] = {gitPath, "clone", repositoryUrl, path};
 
     std::string error;
     int status = llvm::sys::ExecuteAndWait(gitPath, args, std::nullopt, {}, 0, 0, &error);
@@ -42,7 +42,7 @@ static void checkoutGitRevision(llvm::StringRef path, llvm::StringRef revision) 
     auto gitPath = getGitPath();
     auto gitDir = ("--git-dir=" + path + "/.git").str();
     auto workTree = ("--work-tree=" + path).str();
-    llvm::StringRef args[] = { gitPath, gitDir, workTree, "checkout", revision, "--quiet" };
+    llvm::StringRef args[] = {gitPath, gitDir, workTree, "checkout", revision, "--quiet"};
 
     std::string error;
     int status = llvm::sys::ExecuteAndWait(gitPath, args, std::nullopt, {}, 0, 0, &error);

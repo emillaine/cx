@@ -54,50 +54,50 @@ static void mangleGenericArgs(llvm::raw_string_ostream& stream, llvm::ArrayRef<T
 
 void cx::mangleType(llvm::raw_string_ostream& stream, Type type) {
     switch (type.getKind()) {
-        case TypeKind::BasicType:
-            if (type.isOptionalType()) {
-                stream << 'O';
-                mangleType(stream, type.getWrappedType());
-            } else {
-                mangleIdentifier(stream, type.getName());
-                mangleGenericArgs(stream, type.getGenericArgs());
-            }
+    case TypeKind::BasicType:
+        if (type.isOptionalType()) {
+            stream << 'O';
+            mangleType(stream, type.getWrappedType());
+        } else {
+            mangleIdentifier(stream, type.getName());
+            mangleGenericArgs(stream, type.getGenericArgs());
+        }
+        break;
+    case TypeKind::ArrayType:
+        stream << 'A';
+        switch (type.getArraySize()) {
+        case ArrayType::UnknownSize:
+            stream << 'U';
             break;
-        case TypeKind::ArrayType:
-            stream << 'A';
-            switch (type.getArraySize()) {
-                case ArrayType::UnknownSize:
-                    stream << 'U';
-                    break;
-                default:
-                    ASSERT(type.getArraySize() > 0);
-                    stream << type.getArraySize();
-                    break;
-            }
-            stream << '_';
-            mangleType(stream, type.getElementType());
+        default:
+            ASSERT(type.getArraySize() > 0);
+            stream << type.getArraySize();
             break;
-        case TypeKind::TupleType:
-            stream << 'T';
-            for (auto& element : type.getTupleElements()) {
-                mangleType(stream, element.type);
-            }
-            stream << '_'; // TODO: should this be removed?
-            break;
-        case TypeKind::FunctionType:
-            stream << 'F';
-            for (Type paramType : type.getParamTypes()) {
-                mangleType(stream, paramType);
-            }
-            stream << '_';
-            mangleType(stream, type.getReturnType());
-            break;
-        case TypeKind::PointerType:
-            stream << 'P';
-            mangleType(stream, type.getPointee());
-            break;
-        case TypeKind::UnresolvedType:
-            llvm_unreachable("invalid unresolved type");
+        }
+        stream << '_';
+        mangleType(stream, type.getElementType());
+        break;
+    case TypeKind::TupleType:
+        stream << 'T';
+        for (auto& element : type.getTupleElements()) {
+            mangleType(stream, element.type);
+        }
+        stream << '_'; // TODO: should this be removed?
+        break;
+    case TypeKind::FunctionType:
+        stream << 'F';
+        for (Type paramType : type.getParamTypes()) {
+            mangleType(stream, paramType);
+        }
+        stream << '_';
+        mangleType(stream, type.getReturnType());
+        break;
+    case TypeKind::PointerType:
+        stream << 'P';
+        mangleType(stream, type.getPointee());
+        break;
+    case TypeKind::UnresolvedType:
+        llvm_unreachable("invalid unresolved type");
     }
 }
 

@@ -81,35 +81,36 @@ bool FunctionTemplate::isReferenced() const {
     return false;
 }
 
-MethodDecl::MethodDecl(DeclKind kind, FunctionProto proto, TypeDecl& typeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel, SourceLocation location)
+MethodDecl::MethodDecl(DeclKind kind, FunctionProto proto, TypeDecl& typeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel,
+                       SourceLocation location)
 : FunctionDecl(kind, std::move(proto), std::move(genericArgs), accessLevel, *typeDecl.getModule(), location), typeDecl(&typeDecl) {}
 
 MethodDecl* MethodDecl::instantiate(const llvm::StringMap<Type>& genericArgs, llvm::ArrayRef<Type> genericArgsArray, TypeDecl& typeDecl) {
     switch (getKind()) {
-        case DeclKind::MethodDecl: {
-            auto* methodDecl = llvm::cast<MethodDecl>(this);
-            auto proto = methodDecl->getProto().instantiate(genericArgs);
-            auto instantiation = new MethodDecl(std::move(proto), typeDecl, genericArgsArray, getAccessLevel(), methodDecl->getLocation());
-            if (methodDecl->hasBody()) {
-                instantiation->setBody(::instantiate(methodDecl->getBody(), genericArgs));
-            }
-            return instantiation;
+    case DeclKind::MethodDecl: {
+        auto* methodDecl = llvm::cast<MethodDecl>(this);
+        auto proto = methodDecl->getProto().instantiate(genericArgs);
+        auto instantiation = new MethodDecl(std::move(proto), typeDecl, genericArgsArray, getAccessLevel(), methodDecl->getLocation());
+        if (methodDecl->hasBody()) {
+            instantiation->setBody(::instantiate(methodDecl->getBody(), genericArgs));
         }
-        case DeclKind::ConstructorDecl: {
-            auto* constructorDecl = llvm::cast<ConstructorDecl>(this);
-            auto params = instantiateParams(constructorDecl->getParams(), genericArgs);
-            auto instantiation = new ConstructorDecl(typeDecl, std::move(params), getAccessLevel(), constructorDecl->getLocation());
-            instantiation->setBody(::instantiate(constructorDecl->getBody(), genericArgs));
-            return instantiation;
-        }
-        case DeclKind::DestructorDecl: {
-            auto* destructorDecl = llvm::cast<DestructorDecl>(this);
-            auto instantiation = new DestructorDecl(typeDecl, destructorDecl->getLocation());
-            instantiation->setBody(::instantiate(destructorDecl->getBody(), genericArgs));
-            return instantiation;
-        }
-        default:
-            llvm_unreachable("invalid method decl");
+        return instantiation;
+    }
+    case DeclKind::ConstructorDecl: {
+        auto* constructorDecl = llvm::cast<ConstructorDecl>(this);
+        auto params = instantiateParams(constructorDecl->getParams(), genericArgs);
+        auto instantiation = new ConstructorDecl(typeDecl, std::move(params), getAccessLevel(), constructorDecl->getLocation());
+        instantiation->setBody(::instantiate(constructorDecl->getBody(), genericArgs));
+        return instantiation;
+    }
+    case DeclKind::DestructorDecl: {
+        auto* destructorDecl = llvm::cast<DestructorDecl>(this);
+        auto instantiation = new DestructorDecl(typeDecl, destructorDecl->getLocation());
+        instantiation->setBody(::instantiate(destructorDecl->getBody(), genericArgs));
+        return instantiation;
+    }
+    default:
+        llvm_unreachable("invalid method decl");
     }
 }
 
@@ -120,7 +121,8 @@ FieldDecl FieldDecl::instantiate(const llvm::StringMap<Type>& genericArgs, TypeD
 }
 
 std::vector<ParamDecl> cx::instantiateParams(llvm::ArrayRef<ParamDecl> params, const llvm::StringMap<Type>& genericArgs) {
-    return map(params, [&](auto& param) { return ParamDecl(param.getType().resolve(genericArgs), param.getName().str(), param.isPublic, param.getLocation()); });
+    return map(params,
+               [&](auto& param) { return ParamDecl(param.getType().resolve(genericArgs), param.getName().str(), param.isPublic, param.getLocation()); });
 }
 
 std::string TypeDecl::getQualifiedName() const {
@@ -243,88 +245,88 @@ std::string FieldDecl::getQualifiedName() const {
 
 bool Decl::hasBeenMoved() const {
     switch (getKind()) {
-        case DeclKind::ParamDecl:
-            return llvm::cast<ParamDecl>(this)->isMoved();
-        case DeclKind::VarDecl:
-            return llvm::cast<VarDecl>(this)->isMoved();
-        default:
-            return false;
+    case DeclKind::ParamDecl:
+        return llvm::cast<ParamDecl>(this)->isMoved();
+    case DeclKind::VarDecl:
+        return llvm::cast<VarDecl>(this)->isMoved();
+    default:
+        return false;
     }
 }
 
 // TODO: Ensure that the same decl isn't instantiated multiple times with same generic args, to avoid duplicate work.
 Decl* Decl::instantiate(const llvm::StringMap<Type>& genericArgs, llvm::ArrayRef<Type> genericArgsArray) const {
     switch (getKind()) {
-        case DeclKind::ParamDecl:
-            llvm_unreachable("handled in FunctionProto::instantiate()");
+    case DeclKind::ParamDecl:
+        llvm_unreachable("handled in FunctionProto::instantiate()");
 
-        case DeclKind::GenericParamDecl:
-            llvm_unreachable("cannot instantiate GenericParamDecl");
+    case DeclKind::GenericParamDecl:
+        llvm_unreachable("cannot instantiate GenericParamDecl");
 
-        case DeclKind::FunctionDecl:
-            llvm_unreachable("handled by FunctionDecl::instantiate()");
+    case DeclKind::FunctionDecl:
+        llvm_unreachable("handled by FunctionDecl::instantiate()");
 
-        case DeclKind::MethodDecl:
-        case DeclKind::ConstructorDecl:
-        case DeclKind::DestructorDecl:
-            llvm_unreachable("handled via TypeDecl");
+    case DeclKind::MethodDecl:
+    case DeclKind::ConstructorDecl:
+    case DeclKind::DestructorDecl:
+        llvm_unreachable("handled via TypeDecl");
 
-        case DeclKind::FunctionTemplate:
-            llvm_unreachable("handled via FunctionTemplate::instantiate()");
+    case DeclKind::FunctionTemplate:
+        llvm_unreachable("handled via FunctionTemplate::instantiate()");
 
-        case DeclKind::TypeDecl: {
-            auto* typeDecl = llvm::cast<TypeDecl>(this);
-            auto interfaces = map(typeDecl->getInterfaces(), [&](Type type) { return type.resolve(genericArgs); });
-            auto instantiation = new TypeDecl(typeDecl->getTag(), typeDecl->getName().str(), genericArgsArray, std::move(interfaces), getAccessLevel(),
-                                              *typeDecl->getModule(), typeDecl, typeDecl->getLocation());
-            for (auto& field : typeDecl->getFields()) {
-                auto defaultValue = field.getDefaultValue() ? field.getDefaultValue()->instantiate(genericArgs) : nullptr;
-                instantiation->addField(FieldDecl(field.getType().resolve(genericArgs), field.getName().str(), defaultValue, *instantiation,
-                                                  field.getAccessLevel(), field.getLocation()));
-            }
+    case DeclKind::TypeDecl: {
+        auto* typeDecl = llvm::cast<TypeDecl>(this);
+        auto interfaces = map(typeDecl->getInterfaces(), [&](Type type) { return type.resolve(genericArgs); });
+        auto instantiation = new TypeDecl(typeDecl->getTag(), typeDecl->getName().str(), genericArgsArray, std::move(interfaces), getAccessLevel(),
+                                          *typeDecl->getModule(), typeDecl, typeDecl->getLocation());
+        for (auto& field : typeDecl->getFields()) {
+            auto defaultValue = field.getDefaultValue() ? field.getDefaultValue()->instantiate(genericArgs) : nullptr;
+            instantiation->addField(FieldDecl(field.getType().resolve(genericArgs), field.getName().str(), defaultValue, *instantiation, field.getAccessLevel(),
+                                              field.getLocation()));
+        }
 
-            for (auto& method : typeDecl->getMethods()) {
-                if (auto* nonTemplateMethod = llvm::dyn_cast<MethodDecl>(method)) {
-                    instantiation->addMethod(nonTemplateMethod->instantiate(genericArgs, {}, *instantiation));
-                } else {
-                    auto* functionTemplate = llvm::cast<FunctionTemplate>(method);
-                    auto* methodDecl = llvm::cast<MethodDecl>(functionTemplate->getFunctionDecl());
-                    auto methodInstantiation = methodDecl->instantiate(genericArgs, {}, *instantiation);
+        for (auto& method : typeDecl->getMethods()) {
+            if (auto* nonTemplateMethod = llvm::dyn_cast<MethodDecl>(method)) {
+                instantiation->addMethod(nonTemplateMethod->instantiate(genericArgs, {}, *instantiation));
+            } else {
+                auto* functionTemplate = llvm::cast<FunctionTemplate>(method);
+                auto* methodDecl = llvm::cast<MethodDecl>(functionTemplate->getFunctionDecl());
+                auto methodInstantiation = methodDecl->instantiate(genericArgs, {}, *instantiation);
 
-                    std::vector<GenericParamDecl> genericParams;
-                    genericParams.reserve(functionTemplate->getGenericParams().size());
+                std::vector<GenericParamDecl> genericParams;
+                genericParams.reserve(functionTemplate->getGenericParams().size());
 
-                    for (auto& genericParam : functionTemplate->getGenericParams()) {
-                        genericParams.emplace_back(genericParam.getName().str(), genericParam.getLocation());
-                        genericParams.back().setConstraints(genericParam.getConstraints());
-                    }
-
-                    auto accessLevel = methodInstantiation->getAccessLevel();
-                    instantiation->addMethod(new FunctionTemplate(std::move(genericParams), methodInstantiation, accessLevel));
+                for (auto& genericParam : functionTemplate->getGenericParams()) {
+                    genericParams.emplace_back(genericParam.getName().str(), genericParam.getLocation());
+                    genericParams.back().setConstraints(genericParam.getConstraints());
                 }
+
+                auto accessLevel = methodInstantiation->getAccessLevel();
+                instantiation->addMethod(new FunctionTemplate(std::move(genericParams), methodInstantiation, accessLevel));
             }
-
-            return instantiation;
         }
-        case DeclKind::TypeTemplate:
-            llvm_unreachable("handled via TypeTemplate::instantiate()");
 
-        case DeclKind::EnumDecl:
-        case DeclKind::EnumCase:
-            llvm_unreachable("EnumDecl cannot be generic or declared inside another generic type");
+        return instantiation;
+    }
+    case DeclKind::TypeTemplate:
+        llvm_unreachable("handled via TypeTemplate::instantiate()");
 
-        case DeclKind::VarDecl: {
-            auto* varDecl = llvm::cast<VarDecl>(this);
-            auto type = varDecl->getType().resolve(genericArgs);
-            auto initializer = varDecl->getInitializer() ? varDecl->getInitializer()->instantiate(genericArgs) : nullptr;
-            return new VarDecl(type, varDecl->getName().str(), initializer, varDecl->getParentDecl(), getAccessLevel(), *varDecl->getModule(),
-                               varDecl->getLocation());
-        }
-        case DeclKind::FieldDecl:
-            llvm_unreachable("handled via TypeDecl");
+    case DeclKind::EnumDecl:
+    case DeclKind::EnumCase:
+        llvm_unreachable("EnumDecl cannot be generic or declared inside another generic type");
 
-        case DeclKind::ImportDecl:
-            llvm_unreachable("cannot instantiate ImportDecl");
+    case DeclKind::VarDecl: {
+        auto* varDecl = llvm::cast<VarDecl>(this);
+        auto type = varDecl->getType().resolve(genericArgs);
+        auto initializer = varDecl->getInitializer() ? varDecl->getInitializer()->instantiate(genericArgs) : nullptr;
+        return new VarDecl(type, varDecl->getName().str(), initializer, varDecl->getParentDecl(), getAccessLevel(), *varDecl->getModule(),
+                           varDecl->getLocation());
+    }
+    case DeclKind::FieldDecl:
+        llvm_unreachable("handled via TypeDecl");
+
+    case DeclKind::ImportDecl:
+        llvm_unreachable("cannot instantiate ImportDecl");
     }
     llvm_unreachable("all cases handled");
 }
@@ -343,5 +345,5 @@ DestructorDecl::DestructorDecl(TypeDecl& receiverTypeDecl, SourceLocation locati
 : MethodDecl(DeclKind::DestructorDecl, FunctionProto("deinit", {}, Type::getVoid(), false, false), receiverTypeDecl, {}, AccessLevel::None, location) {}
 
 std::vector<Note> cx::getPreviousDefinitionNotes(llvm::ArrayRef<Decl*> decls) {
-    return map(decls, [](Decl* decl) { return Note { decl->getLocation(), "previous definition here" }; });
+    return map(decls, [](Decl* decl) { return Note{decl->getLocation(), "previous definition here"}; });
 }

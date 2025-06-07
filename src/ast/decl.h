@@ -7,15 +7,14 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Casting.h>
 #pragma warning(pop)
+#include "../support/utility.h"
 #include "expr.h"
 #include "location.h"
 #include "stmt.h"
 #include "type.h"
-#include "../support/utility.h"
 
 namespace std {
-template<>
-struct hash<std::vector<cx::Type>> {
+template<> struct hash<std::vector<cx::Type>> {
     size_t operator()(llvm::ArrayRef<cx::Type> types) const {
         // FIXME?: Doesn't include mutability into hash value.
         // Hash by name or string representation instead?
@@ -68,13 +67,13 @@ enum class AccessLevel {
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, AccessLevel accessLevel) {
     switch (accessLevel) {
-        case AccessLevel::None:
-            llvm_unreachable("invalid access level");
-        case AccessLevel::Private:
-            return stream << "private";
-        case AccessLevel::Default:
-            // TODO: Rename to "internal" when public access level is added.
-            return stream << "public";
+    case AccessLevel::None:
+        llvm_unreachable("invalid access level");
+    case AccessLevel::Private:
+        return stream << "private";
+    case AccessLevel::Default:
+        // TODO: Rename to "internal" when public access level is added.
+        return stream << "public";
     }
     llvm_unreachable("all cases handled");
 }
@@ -378,7 +377,8 @@ struct EnumCase : VariableDecl {
 };
 
 struct EnumDecl : TypeDecl {
-    EnumDecl(std::string&& name, std::vector<EnumCase>&& cases, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom, SourceLocation location)
+    EnumDecl(std::string&& name, std::vector<EnumCase>&& cases, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom,
+             SourceLocation location)
     : TypeDecl(DeclKind::EnumDecl, TypeTag::Enum, std::move(name), accessLevel, module, instantiatedFrom, location), cases(std::move(cases)) {
         for (auto& enumCase : this->cases) {
             enumCase.setParentDecl(this);

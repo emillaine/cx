@@ -112,20 +112,20 @@ void Typechecker::postProcess() {
 
         for (auto* decl : currentDeclsToTypecheck) {
             switch (decl->getKind()) {
-                case DeclKind::FunctionDecl:
-                case DeclKind::MethodDecl:
-                case DeclKind::ConstructorDecl:
-                case DeclKind::DestructorDecl:
-                    typecheckFunctionDecl(*llvm::cast<FunctionDecl>(decl));
-                    break;
-                case DeclKind::FunctionTemplate:
-                    typecheckFunctionTemplate(*llvm::cast<FunctionTemplate>(decl));
-                    break;
-                case DeclKind::TypeDecl:
-                    typecheckTypeDecl(*llvm::cast<TypeDecl>(decl));
-                    break;
-                default:
-                    llvm_unreachable("invalid deferred decl");
+            case DeclKind::FunctionDecl:
+            case DeclKind::MethodDecl:
+            case DeclKind::ConstructorDecl:
+            case DeclKind::DestructorDecl:
+                typecheckFunctionDecl(*llvm::cast<FunctionDecl>(decl));
+                break;
+            case DeclKind::FunctionTemplate:
+                typecheckFunctionTemplate(*llvm::cast<FunctionTemplate>(decl));
+                break;
+            case DeclKind::TypeDecl:
+                typecheckTypeDecl(*llvm::cast<TypeDecl>(decl));
+                break;
+            default:
+                llvm_unreachable("invalid deferred decl");
             }
         }
     }
@@ -157,7 +157,7 @@ void Typechecker::typecheckModule(Module& module, const PackageManifest* manifes
             currentSourceFile = &sourceFile;
 
             if (auto typeDecl = llvm::dyn_cast<TypeDecl>(decl)) {
-                llvm::StringMap<Type> genericArgs = { { "This", typeDecl->getType() } };
+                llvm::StringMap<Type> genericArgs = {{"This", typeDecl->getType()}};
 
                 for (Type interface : typeDecl->getInterfaces()) {
                     typecheckType(interface, typeDecl->getAccessLevel());

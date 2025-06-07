@@ -223,14 +223,14 @@ struct CallExpr : Expr {
     void setGenericArgs(std::vector<Type>&& types) { genericArgs = std::move(types); }
     static bool classof(const Expr* e) {
         switch (e->getKind()) {
-            case ExprKind::CallExpr:
-            case ExprKind::UnaryExpr:
-            case ExprKind::BinaryExpr:
-            case ExprKind::IndexExpr:
-            case ExprKind::IndexAssignmentExpr:
-                return true;
-            default:
-                return false;
+        case ExprKind::CallExpr:
+        case ExprKind::UnaryExpr:
+        case ExprKind::BinaryExpr:
+        case ExprKind::IndexExpr:
+        case ExprKind::IndexAssignmentExpr:
+            return true;
+        default:
+            return false;
         }
     }
 
@@ -247,7 +247,7 @@ protected:
 
 struct UnaryExpr : CallExpr {
     UnaryExpr(UnaryOperator op, Expr* operand, SourceLocation location)
-    : CallExpr(ExprKind::UnaryExpr, new VarExpr(toString(op.getKind()), location), { NamedValue(operand) }, location), op(op) {}
+    : CallExpr(ExprKind::UnaryExpr, new VarExpr(toString(op.getKind()), location), {NamedValue(operand)}, location), op(op) {}
     UnaryOperator getOperator() const { return op; }
     Expr& getOperand() { return *getArgs()[0].getValue(); }
     const Expr& getOperand() const { return *getArgs()[0].getValue(); }
@@ -259,7 +259,7 @@ struct UnaryExpr : CallExpr {
 
 struct BinaryExpr : CallExpr {
     BinaryExpr(BinaryOperator op, Expr* left, Expr* right, SourceLocation location)
-    : CallExpr(ExprKind::BinaryExpr, new VarExpr(cx::getFunctionName(op), location), { NamedValue(left), NamedValue(right) }, location), op(op) {}
+    : CallExpr(ExprKind::BinaryExpr, new VarExpr(cx::getFunctionName(op), location), {NamedValue(left), NamedValue(right)}, location), op(op) {}
     BinaryOperator getOperator() const { return op; }
     const Expr& getLHS() const { return *getArgs()[0].getValue(); }
     const Expr& getRHS() const { return *getArgs()[1].getValue(); }
@@ -302,7 +302,7 @@ struct MemberExpr : Expr {
 /// An element access expression using the element's index in brackets: 'base[index]'.
 struct IndexExpr : CallExpr {
     IndexExpr(Expr* base, Expr* index, SourceLocation location)
-    : CallExpr(ExprKind::IndexExpr, new MemberExpr(base, "[]", location), { NamedValue("", index) }, location) {}
+    : CallExpr(ExprKind::IndexExpr, new MemberExpr(base, "[]", location), {NamedValue("", index)}, location) {}
     const Expr* getBase() const { return getReceiver(); }
     const Expr* getIndex() const { return getArgs()[0].getValue(); }
     Expr* getBase() { return getReceiver(); }
@@ -312,7 +312,7 @@ struct IndexExpr : CallExpr {
 
 protected:
     IndexExpr(Expr* base, Expr* index, Expr* value, SourceLocation location)
-    : CallExpr(ExprKind::IndexAssignmentExpr, new MemberExpr(base, "[]=", location), { NamedValue("", index), NamedValue("", value) }, location) {}
+    : CallExpr(ExprKind::IndexAssignmentExpr, new MemberExpr(base, "[]=", location), {NamedValue("", index), NamedValue("", value)}, location) {}
 };
 
 /// An assignment to an indexed access: 'base[index] = value'.

@@ -158,41 +158,41 @@ void IRGenerator::emitCompoundStmt(const CompoundStmt& compoundStmt) {
 
 void IRGenerator::emitStmt(const Stmt& stmt) {
     switch (stmt.getKind()) {
-        case StmtKind::ReturnStmt:
-            emitReturnStmt(llvm::cast<ReturnStmt>(stmt));
-            break;
-        case StmtKind::VarStmt:
-            emitVarDecl(llvm::cast<VarStmt>(stmt).getDecl());
-            break;
-        case StmtKind::ExprStmt:
-            emitPlainExpr(llvm::cast<ExprStmt>(stmt).getExpr());
-            break;
-        case StmtKind::DeferStmt:
-            deferEvaluationOf(llvm::cast<DeferStmt>(stmt).getExpr());
-            break;
-        case StmtKind::IfStmt:
-            emitIfStmt(llvm::cast<IfStmt>(stmt));
-            break;
-        case StmtKind::SwitchStmt:
-            emitSwitchStmt(llvm::cast<SwitchStmt>(stmt));
-            break;
-        case StmtKind::WhileStmt:
-            llvm_unreachable("WhileStmt should be lowered into a ForStmt");
-            break;
-        case StmtKind::ForStmt:
-            emitForStmt(llvm::cast<ForStmt>(stmt));
-            break;
-        case StmtKind::ForEachStmt:
-            llvm_unreachable("ForEachStmt should be lowered into a ForStmt");
-            break;
-        case StmtKind::BreakStmt:
-            emitBreakStmt(llvm::cast<BreakStmt>(stmt));
-            break;
-        case StmtKind::ContinueStmt:
-            emitContinueStmt(llvm::cast<ContinueStmt>(stmt));
-            break;
-        case StmtKind::CompoundStmt:
-            emitCompoundStmt(llvm::cast<CompoundStmt>(stmt));
-            break;
+    case StmtKind::ReturnStmt:
+        emitReturnStmt(llvm::cast<ReturnStmt>(stmt));
+        break;
+    case StmtKind::VarStmt:
+        emitVarDecl(llvm::cast<VarStmt>(stmt).getDecl());
+        break;
+    case StmtKind::ExprStmt:
+        emitPlainExpr(llvm::cast<ExprStmt>(stmt).getExpr());
+        break;
+    case StmtKind::DeferStmt:
+        deferEvaluationOf(llvm::cast<DeferStmt>(stmt).getExpr());
+        break;
+    case StmtKind::IfStmt:
+        emitIfStmt(llvm::cast<IfStmt>(stmt));
+        break;
+    case StmtKind::SwitchStmt:
+        emitSwitchStmt(llvm::cast<SwitchStmt>(stmt));
+        break;
+    case StmtKind::WhileStmt:
+        llvm_unreachable("WhileStmt should be lowered into a ForStmt");
+        break;
+    case StmtKind::ForStmt:
+        emitForStmt(llvm::cast<ForStmt>(stmt));
+        break;
+    case StmtKind::ForEachStmt:
+        llvm_unreachable("ForEachStmt should be lowered into a ForStmt");
+        break;
+    case StmtKind::BreakStmt:
+        emitBreakStmt(llvm::cast<BreakStmt>(stmt));
+        break;
+    case StmtKind::ContinueStmt:
+        emitContinueStmt(llvm::cast<ContinueStmt>(stmt));
+        break;
+    case StmtKind::CompoundStmt:
+        emitCompoundStmt(llvm::cast<CompoundStmt>(stmt));
+        break;
     }
 }

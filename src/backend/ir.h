@@ -299,8 +299,7 @@ struct BasicBlock : Value {
     std::vector<BasicBlock*> predecessors;
 
     BasicBlock(std::string name, Function* parent = nullptr);
-    template<typename T>
-    T* add(T* inst) {
+    template<typename T> T* add(T* inst) {
         inst->parent = this;
         body.push_back(inst);
         return inst;

@@ -50,47 +50,47 @@ llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
 
 llvm::Type* LLVMGenerator::getLLVMType(IRType* type) {
     switch (type->kind) {
-        case IRTypeKind::IRBasicType: {
-            return NOTNULL(getBuiltinType(type->getName()));
-        }
-        case IRTypeKind::IRArrayType: {
-            auto arrayType = llvm::cast<IRArrayType>(type);
-            return llvm::ArrayType::get(getLLVMType(arrayType->elementType), arrayType->size);
-        }
-        case IRTypeKind::IRFunctionType: {
-            auto functionType = llvm::cast<IRFunctionType>(type);
-            auto returnType = getLLVMType(functionType->returnType);
-            auto paramTypes = map(functionType->paramTypes, [&](IRType* type) { return getLLVMType(type); });
-            return llvm::FunctionType::get(returnType, paramTypes, functionType->isVariadic);
-        }
-        case IRTypeKind::IRPointerType: {
-            auto pointerType = llvm::cast<IRPointerType>(type);
-            auto* pointeeType = getLLVMType(pointerType->pointee);
-            return llvm::PointerType::get(pointeeType->isVoidTy() ? llvm::Type::getInt8Ty(ctx) : pointeeType, 0);
-        }
-        case IRTypeKind::IRStructType: {
-            auto structType = llvm::cast<IRStructType>(type);
-            return getStructType(structType);
-        }
-        case IRTypeKind::IRUnionType: {
-            auto unionType = llvm::cast<IRUnionType>(type);
+    case IRTypeKind::IRBasicType: {
+        return NOTNULL(getBuiltinType(type->getName()));
+    }
+    case IRTypeKind::IRArrayType: {
+        auto arrayType = llvm::cast<IRArrayType>(type);
+        return llvm::ArrayType::get(getLLVMType(arrayType->elementType), arrayType->size);
+    }
+    case IRTypeKind::IRFunctionType: {
+        auto functionType = llvm::cast<IRFunctionType>(type);
+        auto returnType = getLLVMType(functionType->returnType);
+        auto paramTypes = map(functionType->paramTypes, [&](IRType* type) { return getLLVMType(type); });
+        return llvm::FunctionType::get(returnType, paramTypes, functionType->isVariadic);
+    }
+    case IRTypeKind::IRPointerType: {
+        auto pointerType = llvm::cast<IRPointerType>(type);
+        auto* pointeeType = getLLVMType(pointerType->pointee);
+        return llvm::PointerType::get(pointeeType->isVoidTy() ? llvm::Type::getInt8Ty(ctx) : pointeeType, 0);
+    }
+    case IRTypeKind::IRStructType: {
+        auto structType = llvm::cast<IRStructType>(type);
+        return getStructType(structType);
+    }
+    case IRTypeKind::IRUnionType: {
+        auto unionType = llvm::cast<IRUnionType>(type);
 
-            auto it = structs.find(unionType);
-            if (it != structs.end()) return it->second;
+        auto it = structs.find(unionType);
+        if (it != structs.end()) return it->second;
 
-            auto structType = unionType->name.empty() ? llvm::StructType::get(ctx) : llvm::StructType::create(ctx, unionType->name);
-            structs.try_emplace(unionType, structType);
+        auto structType = unionType->name.empty() ? llvm::StructType::get(ctx) : llvm::StructType::create(ctx, unionType->name);
+        structs.try_emplace(unionType, structType);
 
-            unsigned maxSize = 0;
-            for (auto* field : unionType->getElements()) {
-                if (!field) continue;
-                auto size = module->getDataLayout().getTypeAllocSize(getLLVMType(field));
-                if (size > maxSize) maxSize = size;
-            }
-
-            structType->setBody(llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), maxSize));
-            return structType;
+        unsigned maxSize = 0;
+        for (auto* field : unionType->getElements()) {
+            if (!field) continue;
+            auto size = module->getDataLayout().getTypeAllocSize(getLLVMType(field));
+            if (size > maxSize) maxSize = size;
         }
+
+        structType->setBody(llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), maxSize));
+        return structType;
+    }
     }
 
     llvm_unreachable("all cases handled");
@@ -246,58 +246,58 @@ llvm::Value* LLVMGenerator::codegenBinary(const BinaryInst* inst) {
     auto isSigned = inst->left->getType()->isSignedInteger();
 
     switch (inst->op) {
-        case Token::Plus:
-            if (isFloat) return builder.CreateFAdd(left, right);
-            return builder.CreateAdd(left, right);
-        case Token::Minus:
-            if (isFloat) return builder.CreateFSub(left, right);
-            return builder.CreateSub(left, right);
-        case Token::Star:
-            if (isFloat) return builder.CreateFMul(left, right);
-            return builder.CreateMul(left, right);
-        case Token::Slash:
-            if (isFloat) return builder.CreateFDiv(left, right);
-            if (isSigned) return builder.CreateSDiv(left, right);
-            return builder.CreateUDiv(left, right);
-        case Token::Equal:
-            if (isFloat) return builder.CreateFCmpOEQ(left, right);
-            return builder.CreateICmpEQ(left, right, inst->name);
-        case Token::NotEqual:
-            if (isFloat) return builder.CreateFCmpONE(left, right);
-            return builder.CreateICmpNE(left, right);
-        case Token::Less:
-            if (isFloat) return builder.CreateFCmpOLT(left, right);
-            if (isSigned) return builder.CreateICmpSLT(left, right);
-            return builder.CreateICmpULT(left, right);
-        case Token::LessOrEqual:
-            if (isFloat) return builder.CreateFCmpOLE(left, right);
-            if (isSigned) return builder.CreateICmpSLE(left, right);
-            return builder.CreateICmpULE(left, right);
-        case Token::Greater:
-            if (isFloat) return builder.CreateFCmpOGT(left, right);
-            if (isSigned) return builder.CreateICmpSGT(left, right);
-            return builder.CreateICmpUGT(left, right);
-        case Token::GreaterOrEqual:
-            if (isFloat) return builder.CreateFCmpOGE(left, right);
-            if (isSigned) return builder.CreateICmpSGE(left, right);
-            return builder.CreateICmpUGE(left, right);
-        case Token::Modulo:
-            if (isFloat) return builder.CreateFRem(left, right);
-            if (isSigned) return builder.CreateSRem(left, right);
-            return builder.CreateURem(left, right);
-        case Token::RightShift:
-            if (isSigned) return builder.CreateAShr(left, right);
-            return builder.CreateLShr(left, right);
-        case Token::And:
-            return builder.CreateAnd(left, right);
-        case Token::Or:
-            return builder.CreateOr(left, right);
-        case Token::Xor:
-            return builder.CreateXor(left, right);
-        case Token::LeftShift:
-            return builder.CreateShl(left, right);
-        default:
-            llvm_unreachable("invalid binary operation");
+    case Token::Plus:
+        if (isFloat) return builder.CreateFAdd(left, right);
+        return builder.CreateAdd(left, right);
+    case Token::Minus:
+        if (isFloat) return builder.CreateFSub(left, right);
+        return builder.CreateSub(left, right);
+    case Token::Star:
+        if (isFloat) return builder.CreateFMul(left, right);
+        return builder.CreateMul(left, right);
+    case Token::Slash:
+        if (isFloat) return builder.CreateFDiv(left, right);
+        if (isSigned) return builder.CreateSDiv(left, right);
+        return builder.CreateUDiv(left, right);
+    case Token::Equal:
+        if (isFloat) return builder.CreateFCmpOEQ(left, right);
+        return builder.CreateICmpEQ(left, right, inst->name);
+    case Token::NotEqual:
+        if (isFloat) return builder.CreateFCmpONE(left, right);
+        return builder.CreateICmpNE(left, right);
+    case Token::Less:
+        if (isFloat) return builder.CreateFCmpOLT(left, right);
+        if (isSigned) return builder.CreateICmpSLT(left, right);
+        return builder.CreateICmpULT(left, right);
+    case Token::LessOrEqual:
+        if (isFloat) return builder.CreateFCmpOLE(left, right);
+        if (isSigned) return builder.CreateICmpSLE(left, right);
+        return builder.CreateICmpULE(left, right);
+    case Token::Greater:
+        if (isFloat) return builder.CreateFCmpOGT(left, right);
+        if (isSigned) return builder.CreateICmpSGT(left, right);
+        return builder.CreateICmpUGT(left, right);
+    case Token::GreaterOrEqual:
+        if (isFloat) return builder.CreateFCmpOGE(left, right);
+        if (isSigned) return builder.CreateICmpSGE(left, right);
+        return builder.CreateICmpUGE(left, right);
+    case Token::Modulo:
+        if (isFloat) return builder.CreateFRem(left, right);
+        if (isSigned) return builder.CreateSRem(left, right);
+        return builder.CreateURem(left, right);
+    case Token::RightShift:
+        if (isSigned) return builder.CreateAShr(left, right);
+        return builder.CreateLShr(left, right);
+    case Token::And:
+        return builder.CreateAnd(left, right);
+    case Token::Or:
+        return builder.CreateOr(left, right);
+    case Token::Xor:
+        return builder.CreateXor(left, right);
+    case Token::LeftShift:
+        return builder.CreateShl(left, right);
+    default:
+        llvm_unreachable("invalid binary operation");
     }
 }
 
@@ -306,15 +306,15 @@ llvm::Value* LLVMGenerator::codegenUnary(const UnaryInst* inst) {
     auto isFloat = inst->operand->getType()->isFloatingPoint();
 
     switch (inst->op) {
-        case Token::Minus:
-            if (isFloat) return builder.CreateFNeg(operand);
-            return builder.CreateNeg(operand);
-        case Token::Not:
-            return builder.CreateNot(operand);
-        case Token::Star:
-            return operand;
-        default:
-            llvm_unreachable("invalid unary operation");
+    case Token::Minus:
+        if (isFloat) return builder.CreateFNeg(operand);
+        return builder.CreateNeg(operand);
+    case Token::Not:
+        return builder.CreateNot(operand);
+    case Token::Star:
+        return operand;
+    default:
+        llvm_unreachable("invalid unary operation");
     }
 }
 
@@ -418,60 +418,60 @@ llvm::Value* LLVMGenerator::getValue(const Value* value) {
 
 llvm::Value* LLVMGenerator::codegenInst(const Value* value) {
     switch (value->kind) {
-        case ValueKind::AllocaInst:
-            return codegenAlloca(llvm::cast<AllocaInst>(value));
-        case ValueKind::ReturnInst:
-            return codegenReturn(llvm::cast<ReturnInst>(value));
-        case ValueKind::BranchInst:
-            return codegenBranch(llvm::cast<BranchInst>(value));
-        case ValueKind::CondBranchInst:
-            return codegenCondBranch(llvm::cast<CondBranchInst>(value));
-        case ValueKind::SwitchInst:
-            return codegenSwitch(llvm::cast<SwitchInst>(value));
-        case ValueKind::LoadInst:
-            return codegenLoad(llvm::cast<LoadInst>(value));
-        case ValueKind::StoreInst:
-            return codegenStore(llvm::cast<StoreInst>(value));
-        case ValueKind::InsertInst:
-            return codegenInsert(llvm::cast<InsertInst>(value));
-        case ValueKind::ExtractInst:
-            return codegenExtract(llvm::cast<ExtractInst>(value));
-        case ValueKind::CallInst:
-            return codegenCall(llvm::cast<CallInst>(value));
-        case ValueKind::BinaryInst:
-            return codegenBinary(llvm::cast<BinaryInst>(value));
-        case ValueKind::UnaryInst:
-            return codegenUnary(llvm::cast<UnaryInst>(value));
-        case ValueKind::GEPInst:
-            return codegenGEP(llvm::cast<GEPInst>(value));
-        case ValueKind::ConstGEPInst:
-            return codegenConstGEP(llvm::cast<ConstGEPInst>(value));
-        case ValueKind::CastInst:
-            return codegenCast(llvm::cast<CastInst>(value));
-        case ValueKind::UnreachableInst:
-            return codegenUnreachable();
-        case ValueKind::SizeofInst:
-            return codegenSizeof(llvm::cast<SizeofInst>(value));
-        case ValueKind::BasicBlock:
-            return codegenBasicBlock(llvm::cast<BasicBlock>(value));
-        case ValueKind::Function:
-            return getFunction(llvm::cast<Function>(value));
-        case ValueKind::Parameter:
-            return generatedValues.at(value);
-        case ValueKind::GlobalVariable:
-            return codegenGlobalVariable(llvm::cast<GlobalVariable>(value));
-        case ValueKind::ConstantString:
-            return codegenConstantString(llvm::cast<ConstantString>(value));
-        case ValueKind::ConstantInt:
-            return codegenConstantInt(llvm::cast<ConstantInt>(value));
-        case ValueKind::ConstantFP:
-            return codegenConstantFP(llvm::cast<ConstantFP>(value));
-        case ValueKind::ConstantBool:
-            return codegenConstantBool(llvm::cast<ConstantBool>(value));
-        case ValueKind::ConstantNull:
-            return codegenConstantNull(llvm::cast<ConstantNull>(value));
-        case ValueKind::Undefined:
-            return codegenUndefined(llvm::cast<Undefined>(value));
+    case ValueKind::AllocaInst:
+        return codegenAlloca(llvm::cast<AllocaInst>(value));
+    case ValueKind::ReturnInst:
+        return codegenReturn(llvm::cast<ReturnInst>(value));
+    case ValueKind::BranchInst:
+        return codegenBranch(llvm::cast<BranchInst>(value));
+    case ValueKind::CondBranchInst:
+        return codegenCondBranch(llvm::cast<CondBranchInst>(value));
+    case ValueKind::SwitchInst:
+        return codegenSwitch(llvm::cast<SwitchInst>(value));
+    case ValueKind::LoadInst:
+        return codegenLoad(llvm::cast<LoadInst>(value));
+    case ValueKind::StoreInst:
+        return codegenStore(llvm::cast<StoreInst>(value));
+    case ValueKind::InsertInst:
+        return codegenInsert(llvm::cast<InsertInst>(value));
+    case ValueKind::ExtractInst:
+        return codegenExtract(llvm::cast<ExtractInst>(value));
+    case ValueKind::CallInst:
+        return codegenCall(llvm::cast<CallInst>(value));
+    case ValueKind::BinaryInst:
+        return codegenBinary(llvm::cast<BinaryInst>(value));
+    case ValueKind::UnaryInst:
+        return codegenUnary(llvm::cast<UnaryInst>(value));
+    case ValueKind::GEPInst:
+        return codegenGEP(llvm::cast<GEPInst>(value));
+    case ValueKind::ConstGEPInst:
+        return codegenConstGEP(llvm::cast<ConstGEPInst>(value));
+    case ValueKind::CastInst:
+        return codegenCast(llvm::cast<CastInst>(value));
+    case ValueKind::UnreachableInst:
+        return codegenUnreachable();
+    case ValueKind::SizeofInst:
+        return codegenSizeof(llvm::cast<SizeofInst>(value));
+    case ValueKind::BasicBlock:
+        return codegenBasicBlock(llvm::cast<BasicBlock>(value));
+    case ValueKind::Function:
+        return getFunction(llvm::cast<Function>(value));
+    case ValueKind::Parameter:
+        return generatedValues.at(value);
+    case ValueKind::GlobalVariable:
+        return codegenGlobalVariable(llvm::cast<GlobalVariable>(value));
+    case ValueKind::ConstantString:
+        return codegenConstantString(llvm::cast<ConstantString>(value));
+    case ValueKind::ConstantInt:
+        return codegenConstantInt(llvm::cast<ConstantInt>(value));
+    case ValueKind::ConstantFP:
+        return codegenConstantFP(llvm::cast<ConstantFP>(value));
+    case ValueKind::ConstantBool:
+        return codegenConstantBool(llvm::cast<ConstantBool>(value));
+    case ValueKind::ConstantNull:
+        return codegenConstantNull(llvm::cast<ConstantNull>(value));
+    case ValueKind::Undefined:
+        return codegenUndefined(llvm::cast<Undefined>(value));
     }
 
     llvm_unreachable("all cases handled");

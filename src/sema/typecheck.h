@@ -14,12 +14,9 @@
 
 namespace llvm {
 class StringRef;
-template<typename T>
-class ArrayRef;
-template<typename T, unsigned N>
-class SmallVector;
-template<typename T>
-class Optional;
+template<typename T> class ArrayRef;
+template<typename T, unsigned N> class SmallVector;
+template<typename T> class Optional;
 } // namespace llvm
 
 namespace cx {
@@ -38,11 +35,11 @@ struct ArgumentValidation {
     int index;
     bool didConvertArguments;
 
-    static ArgumentValidation success(bool didConvertArguments) { return { None, -1, didConvertArguments }; }
-    static ArgumentValidation tooFew() { return { TooFew, -1, false }; }
-    static ArgumentValidation tooMany() { return { TooMany, -1, false }; }
-    static ArgumentValidation invalidName(size_t index) { return { InvalidName, int(index), false }; }
-    static ArgumentValidation invalidType(size_t index) { return { InvalidType, int(index), false }; }
+    static ArgumentValidation success(bool didConvertArguments) { return {None, -1, didConvertArguments}; }
+    static ArgumentValidation tooFew() { return {TooFew, -1, false}; }
+    static ArgumentValidation tooMany() { return {TooMany, -1, false}; }
+    static ArgumentValidation invalidName(size_t index) { return {InvalidName, int(index), false}; }
+    static ArgumentValidation invalidType(size_t index) { return {InvalidType, int(index), false}; }
 };
 
 struct Match {

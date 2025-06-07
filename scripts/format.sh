@@ -3,8 +3,9 @@
 set -o pipefail
 
 ROOTDIR=$(cd "$(dirname "$0")/.."; pwd)
-FILES=$(echo $ROOTDIR/src/**/*.{h,cpp})
-CLANG_TOOLS_VERSION=20
+
+shopt -s nullglob
+FILES=$(echo $ROOTDIR/{docs,examples,scripts,src,std,test}/**/*.{h,cpp})
 
 while test $# -gt 0; do
     case "$1" in
@@ -21,7 +22,8 @@ while test $# -gt 0; do
 done
 
 check_version() {
-    if ! $1 --version | grep --quiet $CLANG_TOOLS_VERSION; then
+    CLANG_TOOLS_VERSION=20
+    if ! $1 --version | grep --quiet "version $CLANG_TOOLS_VERSION"; then
         echo "WARNING: Wrong $1 version, expected $CLANG_TOOLS_VERSION."
     fi
 }

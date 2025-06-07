@@ -121,51 +121,51 @@ void NullAnalyzer::analyze(IRModule* module) {
 
 void NullAnalyzer::analyze(Value* value) {
     switch (value->kind) {
-        case ValueKind::CallInst: {
-            auto call = llvm::cast<CallInst>(value);
-            if (call->expr) {
-                if (auto receiverType = call->expr->getReceiverType()) {
-                    // isConstructorDecl check filters out Optional() calls.
-                    if (receiverType.isOptionalType() && !call->expr->getCalleeDecl()->isConstructorDecl() &&
-                        analyzeNullability(call->args[0], call) == Nullability::DefinitelyNullable) {
-                        // TODO: Store the implicit 'this' receiver to the call expr during typechecking to simplify this code.
-                        auto location = call->expr->getReceiver() ? call->expr->getReceiver()->getLocation() : call->expr->getLocation();
-                        WARN(location, "receiver may be null; unwrap it with a postfix '!' to silence this warning");
-                    }
+    case ValueKind::CallInst: {
+        auto call = llvm::cast<CallInst>(value);
+        if (call->expr) {
+            if (auto receiverType = call->expr->getReceiverType()) {
+                // isConstructorDecl check filters out Optional() calls.
+                if (receiverType.isOptionalType() && !call->expr->getCalleeDecl()->isConstructorDecl() &&
+                    analyzeNullability(call->args[0], call) == Nullability::DefinitelyNullable) {
+                    // TODO: Store the implicit 'this' receiver to the call expr during typechecking to simplify this code.
+                    auto location = call->expr->getReceiver() ? call->expr->getReceiver()->getLocation() : call->expr->getLocation();
+                    WARN(location, "receiver may be null; unwrap it with a postfix '!' to silence this warning");
                 }
             }
-            break;
         }
-        case ValueKind::BinaryInst: {
-            auto binary = llvm::cast<BinaryInst>(value);
-            if (llvm::isa<ConstantNull>(binary->right) && !llvm::StringRef(binary->name).starts_with("__implicit_unwrap")) {
-                ASSERT(binary->op == Token::Equal || binary->op == Token::NotEqual);
-                if (binary->getExpr() && analyzeNullability(binary->left, binary) == Nullability::DefinitelyNotNull) {
-                    WARN(binary->getExpr()->getLocation(), "value cannot be null here; null check can be removed");
-                }
+        break;
+    }
+    case ValueKind::BinaryInst: {
+        auto binary = llvm::cast<BinaryInst>(value);
+        if (llvm::isa<ConstantNull>(binary->right) && !llvm::StringRef(binary->name).starts_with("__implicit_unwrap")) {
+            ASSERT(binary->op == Token::Equal || binary->op == Token::NotEqual);
+            if (binary->getExpr() && analyzeNullability(binary->left, binary) == Nullability::DefinitelyNotNull) {
+                WARN(binary->getExpr()->getLocation(), "value cannot be null here; null check can be removed");
             }
-            break;
         }
-        case ValueKind::LoadInst: {
-            auto load = llvm::cast<LoadInst>(value);
-            if (auto expr = llvm::dyn_cast_or_null<UnaryExpr>(load->expr)) {
-                if (expr->getOperand().getType().isOptionalType() && analyzeNullability(load->value, load) == Nullability::DefinitelyNullable) {
-                    WARN(expr->getLocation(), "dereferenced pointer may be null; unwrap it with a postfix '!' to silence this warning");
-                }
+        break;
+    }
+    case ValueKind::LoadInst: {
+        auto load = llvm::cast<LoadInst>(value);
+        if (auto expr = llvm::dyn_cast_or_null<UnaryExpr>(load->expr)) {
+            if (expr->getOperand().getType().isOptionalType() && analyzeNullability(load->value, load) == Nullability::DefinitelyNullable) {
+                WARN(expr->getLocation(), "dereferenced pointer may be null; unwrap it with a postfix '!' to silence this warning");
             }
-            break;
         }
-        case ValueKind::ConstGEPInst: {
-            auto gep = llvm::cast<ConstGEPInst>(value);
-            if (gep->expr) {
-                if (gep->expr->getBaseExpr()->getType().isOptionalType() && !gep->expr->getBaseExpr()->isThis() &&
-                    analyzeNullability(gep->pointer, gep) == Nullability::DefinitelyNullable) {
-                    WARN(gep->expr->getBaseExpr()->getLocation(), "value may be null; unwrap it with a postfix '!' to silence this warning");
-                }
+        break;
+    }
+    case ValueKind::ConstGEPInst: {
+        auto gep = llvm::cast<ConstGEPInst>(value);
+        if (gep->expr) {
+            if (gep->expr->getBaseExpr()->getType().isOptionalType() && !gep->expr->getBaseExpr()->isThis() &&
+                analyzeNullability(gep->pointer, gep) == Nullability::DefinitelyNullable) {
+                WARN(gep->expr->getBaseExpr()->getLocation(), "value may be null; unwrap it with a postfix '!' to silence this warning");
             }
-            break;
         }
-        default:
-            break;
+        break;
+    }
+    default:
+        break;
     }
 }

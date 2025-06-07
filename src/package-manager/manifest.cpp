@@ -1,12 +1,12 @@
 #include "manifest.h"
-#include <llvm/ADT/StringRef.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
-#include <llvm/Support/Process.h>
 #include "../ast/module.h"
 #include "../driver/driver.h"
 #include "../parser/parse.h"
 #include "../support/utility.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
+#include <llvm/Support/Process.h>
 
 using namespace cx;
 
@@ -24,8 +24,7 @@ std::string PackageManifest::Dependency::getFileSystemPath() const {
     return *home + "/.cx/dependencies/" + packageIdentifier + "@" + packageVersion;
 }
 
-template<typename DeclT, typename DefaultValueT>
-static auto getConfigValue(Decl* decl, DefaultValueT defaultValue) {
+template<typename DeclT, typename DefaultValueT> static auto getConfigValue(Decl* decl, DefaultValueT defaultValue) {
     return decl ? llvm::cast<DeclT>(llvm::cast<VarDecl>(decl)->getInitializer())->getValue() : defaultValue;
 }
 
@@ -56,7 +55,7 @@ PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::m
 }
 
 std::vector<std::string> PackageManifest::getTargetRootDirectories() const {
-    if (!isMultiTarget()) return { packageRoot };
+    if (!isMultiTarget()) return {packageRoot};
 
     std::string sourceDir = packageRoot;
     std::error_code error;

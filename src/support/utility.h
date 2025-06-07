@@ -25,18 +25,17 @@ class StringRef;
     }
 #else
 // Prevent unused variable warnings without evaluating the condition values.
-#define ASSERT(condition, ...) ((void) sizeof(condition))
+#define ASSERT(condition, ...) ((void)sizeof(condition))
 #define ASSERT_EQUAL(a, b) \
-    ((void) sizeof(a)); \
-    ((void) sizeof(b))
+    ((void)sizeof(a)); \
+    ((void)sizeof(b))
 #endif
 
 namespace cx {
 
 std::ostream& operator<<(std::ostream& stream, llvm::StringRef string);
 
-template<typename SourceContainer, typename Mapper>
-auto map(const SourceContainer& source, Mapper mapper) -> std::vector<decltype(mapper(*source.begin()))> {
+template<typename SourceContainer, typename Mapper> auto map(const SourceContainer& source, Mapper mapper) -> std::vector<decltype(mapper(*source.begin()))> {
     std::vector<decltype(mapper(*source.begin()))> result;
     result.reserve(source.size());
     for (auto& element : source) {
@@ -75,8 +74,7 @@ struct CompileError : std::exception {
     std::vector<Note> notes;
 };
 
-template<typename T>
-void printColored(const T& text, llvm::raw_ostream::Colors color) {
+template<typename T> void printColored(const T& text, llvm::raw_ostream::Colors color) {
     if (llvm::outs().has_colors()) llvm::outs().changeColor(color, true);
     llvm::outs() << text;
     if (llvm::outs().has_colors()) llvm::outs().resetColor();

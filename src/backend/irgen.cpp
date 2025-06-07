@@ -49,14 +49,14 @@ Value* IRGenerator::getValue(const Decl* decl) {
     }
 
     switch (decl->getKind()) {
-        case DeclKind::VarDecl:
-            return emitVarDecl(*llvm::cast<VarDecl>(decl));
-        case DeclKind::FieldDecl:
-            return emitMemberAccess(getThis(), llvm::cast<FieldDecl>(decl));
-        case DeclKind::FunctionDecl:
-            return getFunction(*llvm::cast<FunctionDecl>(decl));
-        default:
-            llvm_unreachable("all cases handled");
+    case DeclKind::VarDecl:
+        return emitVarDecl(*llvm::cast<VarDecl>(decl));
+    case DeclKind::FieldDecl:
+        return emitMemberAccess(getThis(), llvm::cast<FieldDecl>(decl));
+    case DeclKind::FunctionDecl:
+        return getFunction(*llvm::cast<FunctionDecl>(decl));
+    default:
+        llvm_unreachable("all cases handled");
     }
 }
 
@@ -113,7 +113,7 @@ void IRGenerator::deferDestructorCall(Value* receiver, const VariableDecl* decl)
     }
 
     if (function) {
-        scopes.back().destructorsToCall.push_back({ function, receiver, decl });
+        scopes.back().destructorsToCall.push_back({function, receiver, decl});
     }
 }
 
@@ -125,7 +125,7 @@ void IRGenerator::emitDeferredExprsAndDestructorCallsForReturn() {
 }
 
 AllocaInst* IRGenerator::createEntryBlockAlloca(IRType* type, const llvm::Twine& name) {
-    auto alloca = new AllocaInst { ValueKind::AllocaInst, type, name.str() };
+    auto alloca = new AllocaInst{ValueKind::AllocaInst, type, name.str()};
     auto& entryBlock = currentFunction->body.front()->body;
     auto insertPosition = entryBlock.end();
 
@@ -147,18 +147,18 @@ AllocaInst* IRGenerator::createTempAlloca(Value* value) {
 }
 
 Value* IRGenerator::createLoad(Value* value, const Expr* expr) {
-    return insertBlock->add(new LoadInst { ValueKind::LoadInst, value, expr, value->getName() + ".load" });
+    return insertBlock->add(new LoadInst{ValueKind::LoadInst, value, expr, value->getName() + ".load"});
 }
 
 void IRGenerator::createStore(Value* value, Value* pointer) {
     ASSERT(pointer->getType()->isPointerType());
     ASSERT(pointer->getType()->getPointee()->equals(value->getType()));
-    insertBlock->add(new StoreInst { ValueKind::StoreInst, value, pointer });
+    insertBlock->add(new StoreInst{ValueKind::StoreInst, value, pointer});
 }
 
 Value* IRGenerator::createCall(Value* function, llvm::ArrayRef<Value*> args, const CallExpr* expr) {
     ASSERT(function->kind == ValueKind::Function || (function->getType()->isPointerType() && function->getType()->getPointee()->isFunctionType()));
-    return insertBlock->add(new CallInst { ValueKind::CallInst, function, args, expr, "" });
+    return insertBlock->add(new CallInst{ValueKind::CallInst, function, args, expr, ""});
 }
 
 Value* IRGenerator::emitAssignmentLHS(const Expr& lhs) {
@@ -206,22 +206,22 @@ Value* IRGenerator::getFunctionForCall(const CallExpr& call) {
     if (!decl) return nullptr;
 
     switch (decl->getKind()) {
-        case DeclKind::FunctionDecl:
-        case DeclKind::MethodDecl:
-        case DeclKind::ConstructorDecl:
-        case DeclKind::DestructorDecl:
-            return getFunction(*llvm::cast<FunctionDecl>(decl));
-        case DeclKind::VarDecl:
-        case DeclKind::ParamDecl:
+    case DeclKind::FunctionDecl:
+    case DeclKind::MethodDecl:
+    case DeclKind::ConstructorDecl:
+    case DeclKind::DestructorDecl:
+        return getFunction(*llvm::cast<FunctionDecl>(decl));
+    case DeclKind::VarDecl:
+    case DeclKind::ParamDecl:
+        return getValue(decl);
+    case DeclKind::FieldDecl:
+        if (call.getReceiver()) {
+            return emitMemberAccess(emitLvalueExpr(*call.getReceiver()), llvm::cast<FieldDecl>(decl));
+        } else {
             return getValue(decl);
-        case DeclKind::FieldDecl:
-            if (call.getReceiver()) {
-                return emitMemberAccess(emitLvalueExpr(*call.getReceiver()), llvm::cast<FieldDecl>(decl));
-            } else {
-                return getValue(decl);
-            }
-        default:
-            llvm_unreachable("invalid callee decl");
+        }
+    default:
+        llvm_unreachable("invalid callee decl");
     }
 }
 

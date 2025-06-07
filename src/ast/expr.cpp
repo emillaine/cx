@@ -20,75 +20,75 @@ bool Expr::isReferenceExpr() const {
 
 bool Expr::isConstant() const {
     switch (getKind()) {
-        case ExprKind::VarExpr: {
-            auto* decl = llvm::cast<VarExpr>(this)->getDecl();
+    case ExprKind::VarExpr: {
+        auto* decl = llvm::cast<VarExpr>(this)->getDecl();
 
-            if (auto* varDecl = llvm::dyn_cast<VarDecl>(decl)) {
-                if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
-                    return varDecl->getInitializer()->isConstant();
-                }
+        if (auto* varDecl = llvm::dyn_cast<VarDecl>(decl)) {
+            if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
+                return varDecl->getInitializer()->isConstant();
             }
+        }
 
+        return false;
+    }
+
+    case ExprKind::StringLiteralExpr:
+    case ExprKind::CharacterLiteralExpr:
+    case ExprKind::IntLiteralExpr:
+    case ExprKind::FloatLiteralExpr:
+    case ExprKind::BoolLiteralExpr:
+    case ExprKind::NullLiteralExpr:
+        return true;
+
+    case ExprKind::ArrayLiteralExpr:
+        for (auto& element : llvm::cast<ArrayLiteralExpr>(this)->getElements()) {
+            if (!element->isConstant()) {
+                return false;
+            }
+        }
+        return true;
+
+    case ExprKind::TupleExpr:
+        for (auto& element : llvm::cast<TupleExpr>(this)->getElements()) {
+            if (!element.getValue()->isConstant()) {
+                return false;
+            }
+        }
+        return true;
+
+    case ExprKind::UnaryExpr: {
+        auto unaryExpr = llvm::cast<UnaryExpr>(this);
+        switch (unaryExpr->getOperator()) {
+        case Token::Plus:
+        case Token::Minus:
+        case Token::Tilde:
+            return unaryExpr->getOperand().isConstant();
+        default:
             return false;
         }
+    }
+    case ExprKind::BinaryExpr: {
+        auto binaryExpr = llvm::cast<BinaryExpr>(this);
+        return binaryExpr->getOperator() != Token::Assignment && binaryExpr->getLHS().isConstant() && binaryExpr->getRHS().isConstant();
+    }
 
-        case ExprKind::StringLiteralExpr:
-        case ExprKind::CharacterLiteralExpr:
-        case ExprKind::IntLiteralExpr:
-        case ExprKind::FloatLiteralExpr:
-        case ExprKind::BoolLiteralExpr:
-        case ExprKind::NullLiteralExpr:
-            return true;
+    case ExprKind::CallExpr:
+    case ExprKind::SizeofExpr: // TODO: sizeof should be a constant expression.
+    case ExprKind::MemberExpr:
+    case ExprKind::IndexExpr:
+    case ExprKind::IndexAssignmentExpr:
+    case ExprKind::UnwrapExpr:
+    case ExprKind::LambdaExpr:
+    case ExprKind::UndefinedLiteralExpr:
+    case ExprKind::VarDeclExpr:
+        return false;
 
-        case ExprKind::ArrayLiteralExpr:
-            for (auto& element : llvm::cast<ArrayLiteralExpr>(this)->getElements()) {
-                if (!element->isConstant()) {
-                    return false;
-                }
-            }
-            return true;
+    case ExprKind::ImplicitCastExpr:
+        return llvm::cast<ImplicitCastExpr>(this)->getOperand()->isConstant();
 
-        case ExprKind::TupleExpr:
-            for (auto& element : llvm::cast<TupleExpr>(this)->getElements()) {
-                if (!element.getValue()->isConstant()) {
-                    return false;
-                }
-            }
-            return true;
-
-        case ExprKind::UnaryExpr: {
-            auto unaryExpr = llvm::cast<UnaryExpr>(this);
-            switch (unaryExpr->getOperator()) {
-                case Token::Plus:
-                case Token::Minus:
-                case Token::Tilde:
-                    return unaryExpr->getOperand().isConstant();
-                default:
-                    return false;
-            }
-        }
-        case ExprKind::BinaryExpr: {
-            auto binaryExpr = llvm::cast<BinaryExpr>(this);
-            return binaryExpr->getOperator() != Token::Assignment && binaryExpr->getLHS().isConstant() && binaryExpr->getRHS().isConstant();
-        }
-
-        case ExprKind::CallExpr:
-        case ExprKind::SizeofExpr: // TODO: sizeof should be a constant expression.
-        case ExprKind::MemberExpr:
-        case ExprKind::IndexExpr:
-        case ExprKind::IndexAssignmentExpr:
-        case ExprKind::UnwrapExpr:
-        case ExprKind::LambdaExpr:
-        case ExprKind::UndefinedLiteralExpr:
-        case ExprKind::VarDeclExpr:
-            return false;
-
-        case ExprKind::ImplicitCastExpr:
-            return llvm::cast<ImplicitCastExpr>(this)->getOperand()->isConstant();
-
-        case ExprKind::IfExpr:
-            return llvm::cast<IfExpr>(this)->getCondition()->isConstant() && llvm::cast<IfExpr>(this)->getThenExpr()->isConstant() &&
-                   llvm::cast<IfExpr>(this)->getElseExpr()->isConstant();
+    case ExprKind::IfExpr:
+        return llvm::cast<IfExpr>(this)->getCondition()->isConstant() && llvm::cast<IfExpr>(this)->getThenExpr()->isConstant() &&
+               llvm::cast<IfExpr>(this)->getElseExpr()->isConstant();
     }
 
     llvm_unreachable("all cases handled");
@@ -96,159 +96,159 @@ bool Expr::isConstant() const {
 
 llvm::APSInt Expr::getConstantIntegerValue() const {
     switch (getKind()) {
-        case ExprKind::VarExpr:
-            if (auto* varDecl = llvm::dyn_cast<VarDecl>(llvm::cast<VarExpr>(this)->getDecl())) {
-                if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
-                    return varDecl->getInitializer()->getConstantIntegerValue();
-                }
+    case ExprKind::VarExpr:
+        if (auto* varDecl = llvm::dyn_cast<VarDecl>(llvm::cast<VarExpr>(this)->getDecl())) {
+            if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
+                return varDecl->getInitializer()->getConstantIntegerValue();
             }
-            llvm_unreachable("not a constant integer");
-        case ExprKind::CharacterLiteralExpr:
-            return llvm::APSInt::get(llvm::cast<CharacterLiteralExpr>(this)->getValue());
-        case ExprKind::IntLiteralExpr:
-            return llvm::cast<IntLiteralExpr>(this)->getValue();
-        case ExprKind::UnaryExpr:
-            return llvm::cast<UnaryExpr>(this)->getConstantIntegerValue();
-        case ExprKind::BinaryExpr:
-            return llvm::cast<BinaryExpr>(this)->getConstantIntegerValue();
-        case ExprKind::SizeofExpr:
-        case ExprKind::IfExpr:
-            llvm_unreachable("unimplemented");
-        default:
-            llvm_unreachable("not a constant integer");
+        }
+        llvm_unreachable("not a constant integer");
+    case ExprKind::CharacterLiteralExpr:
+        return llvm::APSInt::get(llvm::cast<CharacterLiteralExpr>(this)->getValue());
+    case ExprKind::IntLiteralExpr:
+        return llvm::cast<IntLiteralExpr>(this)->getValue();
+    case ExprKind::UnaryExpr:
+        return llvm::cast<UnaryExpr>(this)->getConstantIntegerValue();
+    case ExprKind::BinaryExpr:
+        return llvm::cast<BinaryExpr>(this)->getConstantIntegerValue();
+    case ExprKind::SizeofExpr:
+    case ExprKind::IfExpr:
+        llvm_unreachable("unimplemented");
+    default:
+        llvm_unreachable("not a constant integer");
     }
 }
 
 bool Expr::isLvalue() const {
     switch (getKind()) {
-        case ExprKind::VarExpr:
-        case ExprKind::MemberExpr:
-        case ExprKind::IndexExpr:
-            return true;
-        case ExprKind::UnaryExpr:
-            return llvm::cast<UnaryExpr>(this)->getOperator() == Token::Star;
-        default:
-            return false;
+    case ExprKind::VarExpr:
+    case ExprKind::MemberExpr:
+    case ExprKind::IndexExpr:
+        return true;
+    case ExprKind::UnaryExpr:
+        return llvm::cast<UnaryExpr>(this)->getOperator() == Token::Star;
+    default:
+        return false;
     }
 }
 
 Expr* Expr::instantiate(const llvm::StringMap<Type>& genericArgs) const {
     switch (getKind()) {
-        case ExprKind::VarExpr: {
-            auto* varExpr = llvm::cast<VarExpr>(this);
-            auto it = genericArgs.find(varExpr->getIdentifier());
-            auto identifier = it != genericArgs.end() ? it->second.getName() : varExpr->getIdentifier();
-            return new VarExpr(identifier.str(), varExpr->getLocation());
-        }
-        case ExprKind::StringLiteralExpr: {
-            auto* stringLiteralExpr = llvm::cast<StringLiteralExpr>(this);
-            return new StringLiteralExpr(stringLiteralExpr->getValue().str(), stringLiteralExpr->getLocation());
-        }
-        case ExprKind::CharacterLiteralExpr: {
-            auto* characterLiteralExpr = llvm::cast<CharacterLiteralExpr>(this);
-            return new CharacterLiteralExpr(characterLiteralExpr->getValue(), characterLiteralExpr->getLocation());
-        }
-        case ExprKind::IntLiteralExpr: {
-            auto* intLiteralExpr = llvm::cast<IntLiteralExpr>(this);
-            return new IntLiteralExpr(intLiteralExpr->getValue(), intLiteralExpr->getLocation());
-        }
-        case ExprKind::FloatLiteralExpr: {
-            auto* floatLiteralExpr = llvm::cast<FloatLiteralExpr>(this);
-            return new FloatLiteralExpr(floatLiteralExpr->getValue(), floatLiteralExpr->getLocation());
-        }
-        case ExprKind::BoolLiteralExpr: {
-            auto* boolLiteralExpr = llvm::cast<BoolLiteralExpr>(this);
-            return new BoolLiteralExpr(boolLiteralExpr->getValue(), boolLiteralExpr->getLocation());
-        }
-        case ExprKind::NullLiteralExpr: {
-            auto* nullLiteralExpr = llvm::cast<NullLiteralExpr>(this);
-            return new NullLiteralExpr(nullLiteralExpr->getLocation());
-        }
-        case ExprKind::UndefinedLiteralExpr: {
-            auto* undefinedLiteralExpr = llvm::cast<UndefinedLiteralExpr>(this);
-            return new UndefinedLiteralExpr(undefinedLiteralExpr->getLocation());
-        }
-        case ExprKind::ArrayLiteralExpr: {
-            auto* arrayLiteralExpr = llvm::cast<ArrayLiteralExpr>(this);
-            auto elements = ::instantiate(arrayLiteralExpr->getElements(), genericArgs);
-            return new ArrayLiteralExpr(std::move(elements), arrayLiteralExpr->getLocation());
-        }
-        case ExprKind::TupleExpr: {
-            auto* tupleExpr = llvm::cast<TupleExpr>(this);
-            auto elements = map(tupleExpr->getElements(),
-                                [&](const NamedValue& element) { return NamedValue(element.getName().str(), element.getValue()->instantiate(genericArgs)); });
-            return new TupleExpr(std::move(elements), tupleExpr->getLocation());
-        }
-        case ExprKind::UnaryExpr: {
-            auto* unaryExpr = llvm::cast<UnaryExpr>(this);
-            auto operand = unaryExpr->getOperand().instantiate(genericArgs);
-            return new UnaryExpr(unaryExpr->getOperator(), operand, unaryExpr->getLocation());
-        }
-        case ExprKind::BinaryExpr: {
-            auto* binaryExpr = llvm::cast<BinaryExpr>(this);
-            auto lhs = binaryExpr->getLHS().instantiate(genericArgs);
-            auto rhs = binaryExpr->getRHS().instantiate(genericArgs);
-            return new BinaryExpr(binaryExpr->getOperator(), lhs, rhs, binaryExpr->getLocation());
-        }
-        case ExprKind::CallExpr: {
-            auto* callExpr = llvm::cast<CallExpr>(this);
-            auto callee = callExpr->getCallee().instantiate(genericArgs);
-            auto args = map(callExpr->getArgs(), [&](auto& arg) { return NamedValue(arg.getName().str(), arg.getValue()->instantiate(genericArgs)); });
-            auto callGenericArgs = map(callExpr->getGenericArgs(), [&](Type type) { return type.resolve(genericArgs); });
-            return new CallExpr(callee, std::move(args), std::move(callGenericArgs), callExpr->getLocation());
-        }
-        case ExprKind::SizeofExpr: {
-            auto* sizeofExpr = llvm::cast<SizeofExpr>(this);
-            auto type = sizeofExpr->getOperandType().resolve(genericArgs);
-            return new SizeofExpr(type, sizeofExpr->getLocation());
-        }
-        case ExprKind::MemberExpr: {
-            auto* memberExpr = llvm::cast<MemberExpr>(this);
-            auto base = memberExpr->getBaseExpr()->instantiate(genericArgs);
-            return new MemberExpr(base, memberExpr->getMemberName().str(), memberExpr->getLocation());
-        }
-        case ExprKind::IndexExpr: {
-            auto* indexExpr = llvm::cast<IndexExpr>(this);
-            auto base = indexExpr->getBase()->instantiate(genericArgs);
-            auto index = indexExpr->getIndex()->instantiate(genericArgs);
-            return new IndexExpr(base, index, indexExpr->getLocation());
-        }
-        case ExprKind::IndexAssignmentExpr: {
-            auto* indexAssignmentExpr = llvm::cast<IndexAssignmentExpr>(this);
-            auto base = indexAssignmentExpr->getBase()->instantiate(genericArgs);
-            auto index = indexAssignmentExpr->getIndex()->instantiate(genericArgs);
-            auto value = indexAssignmentExpr->getValue()->instantiate(genericArgs);
-            return new IndexAssignmentExpr(base, index, value, indexAssignmentExpr->getLocation());
-        }
-        case ExprKind::UnwrapExpr: {
-            auto* unwrapExpr = llvm::cast<UnwrapExpr>(this);
-            auto operand = unwrapExpr->getOperand().instantiate(genericArgs);
-            return new UnwrapExpr(operand, unwrapExpr->getLocation());
-        }
-        case ExprKind::LambdaExpr: {
-            auto* lambdaExpr = llvm::cast<LambdaExpr>(this);
-            auto params = instantiateParams(lambdaExpr->getFunctionDecl()->getParams(), genericArgs);
-            auto body = ::instantiate(lambdaExpr->getFunctionDecl()->getBody(), genericArgs);
-            auto lambda = new LambdaExpr(std::move(params), lambdaExpr->getFunctionDecl()->getModule(), lambdaExpr->getLocation());
-            lambda->functionDecl->setBody(std::move(body));
-            return lambda;
-        }
-        case ExprKind::IfExpr: {
-            auto* ifExpr = llvm::cast<IfExpr>(this);
-            auto condition = ifExpr->getCondition()->instantiate(genericArgs);
-            auto thenExpr = ifExpr->getThenExpr()->instantiate(genericArgs);
-            auto elseExpr = ifExpr->getElseExpr()->instantiate(genericArgs);
-            return new IfExpr(condition, thenExpr, elseExpr, ifExpr->getLocation());
-        }
-        case ExprKind::ImplicitCastExpr: {
-            auto implicitCastExpr = llvm::cast<ImplicitCastExpr>(this);
-            return new ImplicitCastExpr(implicitCastExpr->getOperand()->instantiate(genericArgs), implicitCastExpr->getType().resolve(genericArgs),
-                                        implicitCastExpr->getImplicitCastKind());
-        }
-        case ExprKind::VarDeclExpr: {
-            auto varDeclExpr = llvm::cast<VarDeclExpr>(this);
-            return new VarDeclExpr(llvm::cast<VarDecl>(varDeclExpr->varDecl->instantiate(genericArgs, {})));
-        }
+    case ExprKind::VarExpr: {
+        auto* varExpr = llvm::cast<VarExpr>(this);
+        auto it = genericArgs.find(varExpr->getIdentifier());
+        auto identifier = it != genericArgs.end() ? it->second.getName() : varExpr->getIdentifier();
+        return new VarExpr(identifier.str(), varExpr->getLocation());
+    }
+    case ExprKind::StringLiteralExpr: {
+        auto* stringLiteralExpr = llvm::cast<StringLiteralExpr>(this);
+        return new StringLiteralExpr(stringLiteralExpr->getValue().str(), stringLiteralExpr->getLocation());
+    }
+    case ExprKind::CharacterLiteralExpr: {
+        auto* characterLiteralExpr = llvm::cast<CharacterLiteralExpr>(this);
+        return new CharacterLiteralExpr(characterLiteralExpr->getValue(), characterLiteralExpr->getLocation());
+    }
+    case ExprKind::IntLiteralExpr: {
+        auto* intLiteralExpr = llvm::cast<IntLiteralExpr>(this);
+        return new IntLiteralExpr(intLiteralExpr->getValue(), intLiteralExpr->getLocation());
+    }
+    case ExprKind::FloatLiteralExpr: {
+        auto* floatLiteralExpr = llvm::cast<FloatLiteralExpr>(this);
+        return new FloatLiteralExpr(floatLiteralExpr->getValue(), floatLiteralExpr->getLocation());
+    }
+    case ExprKind::BoolLiteralExpr: {
+        auto* boolLiteralExpr = llvm::cast<BoolLiteralExpr>(this);
+        return new BoolLiteralExpr(boolLiteralExpr->getValue(), boolLiteralExpr->getLocation());
+    }
+    case ExprKind::NullLiteralExpr: {
+        auto* nullLiteralExpr = llvm::cast<NullLiteralExpr>(this);
+        return new NullLiteralExpr(nullLiteralExpr->getLocation());
+    }
+    case ExprKind::UndefinedLiteralExpr: {
+        auto* undefinedLiteralExpr = llvm::cast<UndefinedLiteralExpr>(this);
+        return new UndefinedLiteralExpr(undefinedLiteralExpr->getLocation());
+    }
+    case ExprKind::ArrayLiteralExpr: {
+        auto* arrayLiteralExpr = llvm::cast<ArrayLiteralExpr>(this);
+        auto elements = ::instantiate(arrayLiteralExpr->getElements(), genericArgs);
+        return new ArrayLiteralExpr(std::move(elements), arrayLiteralExpr->getLocation());
+    }
+    case ExprKind::TupleExpr: {
+        auto* tupleExpr = llvm::cast<TupleExpr>(this);
+        auto elements = map(tupleExpr->getElements(),
+                            [&](const NamedValue& element) { return NamedValue(element.getName().str(), element.getValue()->instantiate(genericArgs)); });
+        return new TupleExpr(std::move(elements), tupleExpr->getLocation());
+    }
+    case ExprKind::UnaryExpr: {
+        auto* unaryExpr = llvm::cast<UnaryExpr>(this);
+        auto operand = unaryExpr->getOperand().instantiate(genericArgs);
+        return new UnaryExpr(unaryExpr->getOperator(), operand, unaryExpr->getLocation());
+    }
+    case ExprKind::BinaryExpr: {
+        auto* binaryExpr = llvm::cast<BinaryExpr>(this);
+        auto lhs = binaryExpr->getLHS().instantiate(genericArgs);
+        auto rhs = binaryExpr->getRHS().instantiate(genericArgs);
+        return new BinaryExpr(binaryExpr->getOperator(), lhs, rhs, binaryExpr->getLocation());
+    }
+    case ExprKind::CallExpr: {
+        auto* callExpr = llvm::cast<CallExpr>(this);
+        auto callee = callExpr->getCallee().instantiate(genericArgs);
+        auto args = map(callExpr->getArgs(), [&](auto& arg) { return NamedValue(arg.getName().str(), arg.getValue()->instantiate(genericArgs)); });
+        auto callGenericArgs = map(callExpr->getGenericArgs(), [&](Type type) { return type.resolve(genericArgs); });
+        return new CallExpr(callee, std::move(args), std::move(callGenericArgs), callExpr->getLocation());
+    }
+    case ExprKind::SizeofExpr: {
+        auto* sizeofExpr = llvm::cast<SizeofExpr>(this);
+        auto type = sizeofExpr->getOperandType().resolve(genericArgs);
+        return new SizeofExpr(type, sizeofExpr->getLocation());
+    }
+    case ExprKind::MemberExpr: {
+        auto* memberExpr = llvm::cast<MemberExpr>(this);
+        auto base = memberExpr->getBaseExpr()->instantiate(genericArgs);
+        return new MemberExpr(base, memberExpr->getMemberName().str(), memberExpr->getLocation());
+    }
+    case ExprKind::IndexExpr: {
+        auto* indexExpr = llvm::cast<IndexExpr>(this);
+        auto base = indexExpr->getBase()->instantiate(genericArgs);
+        auto index = indexExpr->getIndex()->instantiate(genericArgs);
+        return new IndexExpr(base, index, indexExpr->getLocation());
+    }
+    case ExprKind::IndexAssignmentExpr: {
+        auto* indexAssignmentExpr = llvm::cast<IndexAssignmentExpr>(this);
+        auto base = indexAssignmentExpr->getBase()->instantiate(genericArgs);
+        auto index = indexAssignmentExpr->getIndex()->instantiate(genericArgs);
+        auto value = indexAssignmentExpr->getValue()->instantiate(genericArgs);
+        return new IndexAssignmentExpr(base, index, value, indexAssignmentExpr->getLocation());
+    }
+    case ExprKind::UnwrapExpr: {
+        auto* unwrapExpr = llvm::cast<UnwrapExpr>(this);
+        auto operand = unwrapExpr->getOperand().instantiate(genericArgs);
+        return new UnwrapExpr(operand, unwrapExpr->getLocation());
+    }
+    case ExprKind::LambdaExpr: {
+        auto* lambdaExpr = llvm::cast<LambdaExpr>(this);
+        auto params = instantiateParams(lambdaExpr->getFunctionDecl()->getParams(), genericArgs);
+        auto body = ::instantiate(lambdaExpr->getFunctionDecl()->getBody(), genericArgs);
+        auto lambda = new LambdaExpr(std::move(params), lambdaExpr->getFunctionDecl()->getModule(), lambdaExpr->getLocation());
+        lambda->functionDecl->setBody(std::move(body));
+        return lambda;
+    }
+    case ExprKind::IfExpr: {
+        auto* ifExpr = llvm::cast<IfExpr>(this);
+        auto condition = ifExpr->getCondition()->instantiate(genericArgs);
+        auto thenExpr = ifExpr->getThenExpr()->instantiate(genericArgs);
+        auto elseExpr = ifExpr->getElseExpr()->instantiate(genericArgs);
+        return new IfExpr(condition, thenExpr, elseExpr, ifExpr->getLocation());
+    }
+    case ExprKind::ImplicitCastExpr: {
+        auto implicitCastExpr = llvm::cast<ImplicitCastExpr>(this);
+        return new ImplicitCastExpr(implicitCastExpr->getOperand()->instantiate(genericArgs), implicitCastExpr->getType().resolve(genericArgs),
+                                    implicitCastExpr->getImplicitCastKind());
+    }
+    case ExprKind::VarDeclExpr: {
+        auto varDeclExpr = llvm::cast<VarDeclExpr>(this);
+        return new VarDeclExpr(llvm::cast<VarDecl>(varDeclExpr->varDecl->instantiate(genericArgs, {})));
+    }
     }
 
     llvm_unreachable("all cases handled");
@@ -256,12 +256,12 @@ Expr* Expr::instantiate(const llvm::StringMap<Type>& genericArgs) const {
 
 FieldDecl* Expr::getFieldDecl() const {
     switch (getKind()) {
-        case ExprKind::VarExpr:
-            return llvm::dyn_cast<FieldDecl>(llvm::cast<VarExpr>(this)->getDecl());
-        case ExprKind::MemberExpr:
-            return llvm::dyn_cast_or_null<FieldDecl>(llvm::cast<MemberExpr>(this)->getDecl());
-        default:
-            return nullptr;
+    case ExprKind::VarExpr:
+        return llvm::dyn_cast<FieldDecl>(llvm::cast<VarExpr>(this)->getDecl());
+    case ExprKind::MemberExpr:
+        return llvm::dyn_cast_or_null<FieldDecl>(llvm::cast<MemberExpr>(this)->getDecl());
+    default:
+        return nullptr;
     }
 }
 
@@ -278,12 +278,12 @@ bool Expr::isThis() const {
 
 llvm::StringRef CallExpr::getFunctionName() const {
     switch (getCallee().getKind()) {
-        case ExprKind::VarExpr:
-            return llvm::cast<VarExpr>(getCallee()).getIdentifier();
-        case ExprKind::MemberExpr:
-            return llvm::cast<MemberExpr>(getCallee()).getMemberName();
-        default:
-            return "(anonymous function)";
+    case ExprKind::VarExpr:
+        return llvm::cast<VarExpr>(getCallee()).getIdentifier();
+    case ExprKind::MemberExpr:
+        return llvm::cast<MemberExpr>(getCallee()).getMemberName();
+    default:
+        return "(anonymous function)";
     }
 }
 
@@ -323,14 +323,14 @@ llvm::APSInt UnaryExpr::getConstantIntegerValue() const {
     auto operand = getOperand().getConstantIntegerValue();
 
     switch (getOperator()) {
-        case Token::Plus:
-            return operand;
-        case Token::Minus:
-            return -operand;
-        case Token::Tilde:
-            return ~operand;
-        default:
-            llvm_unreachable("invalid constant integer prefix operator");
+    case Token::Plus:
+        return operand;
+    case Token::Minus:
+        return -operand;
+    case Token::Tilde:
+        return ~operand;
+    default:
+        llvm_unreachable("invalid constant integer prefix operator");
     }
 }
 
@@ -352,28 +352,28 @@ llvm::APSInt BinaryExpr::getConstantIntegerValue() const {
     auto rhs = getRHS().getConstantIntegerValue();
 
     switch (getOperator()) {
-        case Token::Plus:
-            return lhs + rhs;
-        case Token::Minus:
-            return lhs - rhs;
-        case Token::Star:
-            return lhs * rhs;
-        case Token::Slash:
-            return lhs / rhs;
-        case Token::Modulo:
-            return lhs % rhs;
-        case Token::And:
-            return lhs & rhs;
-        case Token::Or:
-            return lhs | rhs;
-        case Token::Xor:
-            return lhs ^ rhs;
-        case Token::LeftShift:
-            return lhs << static_cast<unsigned>(rhs.getZExtValue());
-        case Token::RightShift:
-            return lhs >> static_cast<unsigned>(rhs.getZExtValue());
-        default:
-            llvm_unreachable("invalid constant integer binary operator");
+    case Token::Plus:
+        return lhs + rhs;
+    case Token::Minus:
+        return lhs - rhs;
+    case Token::Star:
+        return lhs * rhs;
+    case Token::Slash:
+        return lhs / rhs;
+    case Token::Modulo:
+        return lhs % rhs;
+    case Token::And:
+        return lhs & rhs;
+    case Token::Or:
+        return lhs | rhs;
+    case Token::Xor:
+        return lhs ^ rhs;
+    case Token::LeftShift:
+        return lhs << static_cast<unsigned>(rhs.getZExtValue());
+    case Token::RightShift:
+        return lhs >> static_cast<unsigned>(rhs.getZExtValue());
+    default:
+        llvm_unreachable("invalid constant integer binary operator");
     }
 }
 

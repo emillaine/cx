@@ -5,8 +5,7 @@
 #pragma warning(pop)
 
 namespace llvm {
-template<typename T>
-class Optional;
+template<typename T> class Optional;
 }
 
 namespace cx {

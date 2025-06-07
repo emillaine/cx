@@ -111,39 +111,39 @@ struct IRGenerator {
     void createStore(Value* value, Value* pointer);
     Value* createCall(Value* function, llvm::ArrayRef<Value*> args, const CallExpr* expr);
     void createBr(BasicBlock* destination, Value* argument = nullptr) {
-        insertBlock->add(new BranchInst { ValueKind::BranchInst, destination, argument });
+        insertBlock->add(new BranchInst{ValueKind::BranchInst, destination, argument});
         destination->predecessors.push_back(insertBlock);
     }
     void createCondBr(Value* condition, BasicBlock* trueBlock, BasicBlock* falseBlock, Value* argument = nullptr) {
-        insertBlock->add(new CondBranchInst { ValueKind::CondBranchInst, condition, trueBlock, falseBlock, argument });
+        insertBlock->add(new CondBranchInst{ValueKind::CondBranchInst, condition, trueBlock, falseBlock, argument});
         trueBlock->predecessors.push_back(insertBlock);
         falseBlock->predecessors.push_back(insertBlock);
     }
     Value* createInsertValue(Value* aggregate, Value* value, int index) {
-        return insertBlock->add(new InsertInst { ValueKind::InsertInst, aggregate, value, index, "" });
+        return insertBlock->add(new InsertInst{ValueKind::InsertInst, aggregate, value, index, ""});
     }
     Value* createExtractValue(Value* aggregate, int index, const llvm::Twine& name = "") {
-        return insertBlock->add(new ExtractInst { ValueKind::ExtractInst, aggregate, index, name.str() });
+        return insertBlock->add(new ExtractInst{ValueKind::ExtractInst, aggregate, index, name.str()});
     }
-    Value* createConstantInt(IRType* type, llvm::APSInt value) { return new ConstantInt { ValueKind::ConstantInt, type, std::move(value) }; }
+    Value* createConstantInt(IRType* type, llvm::APSInt value) { return new ConstantInt{ValueKind::ConstantInt, type, std::move(value)}; }
     Value* createConstantInt(IRType* type, int64_t value) { return createConstantInt(type, llvm::APSInt::get(value)); }
     Value* createConstantInt(Type type, llvm::APSInt value) { return createConstantInt(getIRType(type), std::move(value)); }
     Value* createConstantInt(Type type, int64_t value) { return createConstantInt(getIRType(type), llvm::APSInt::get(value)); }
-    Value* createConstantFP(IRType* type, llvm::APFloat value) { return new ConstantFP { ValueKind::ConstantFP, type, std::move(value) }; }
+    Value* createConstantFP(IRType* type, llvm::APFloat value) { return new ConstantFP{ValueKind::ConstantFP, type, std::move(value)}; }
     Value* createConstantFP(IRType* type, double value) { return createConstantFP(type, llvm::APFloat(value)); }
     Value* createConstantFP(Type type, llvm::APFloat value) { return createConstantFP(getIRType(type), std::move(value)); }
     Value* createConstantFP(Type type, double value) { return createConstantFP(getIRType(type), llvm::APFloat(value)); }
-    Value* createConstantBool(bool value) { return new ConstantBool { ValueKind::ConstantBool, value }; }
+    Value* createConstantBool(bool value) { return new ConstantBool{ValueKind::ConstantBool, value}; }
     Value* createConstantNull(IRType* type) {
         ASSERT(type->isPointerType());
-        return new ConstantNull { ValueKind::ConstantNull, type };
+        return new ConstantNull{ValueKind::ConstantNull, type};
     }
     Value* createConstantNull(Type type) { return createConstantNull(getIRType(type)); }
-    Value* createUndefined(IRType* type) { return new Undefined { ValueKind::Undefined, type }; }
+    Value* createUndefined(IRType* type) { return new Undefined{ValueKind::Undefined, type}; }
     Value* createUndefined(Type type) { return createUndefined(getIRType(type)); }
     Value* createBinaryOp(BinaryOperator op, Value* left, Value* right, const Expr* expr, const llvm::Twine& name = "") {
         ASSERT(left->getType()->equals(right->getType()));
-        return insertBlock->add(new BinaryInst { ValueKind::BinaryInst, op, left, right, expr, name.str() });
+        return insertBlock->add(new BinaryInst{ValueKind::BinaryInst, op, left, right, expr, name.str()});
     }
     Value* createIsNull(Value* value, const Expr* expr, const llvm::Twine& name) {
         Value* nullValue;
@@ -163,10 +163,10 @@ struct IRGenerator {
 
         return createBinaryOp(Token::Equal, value, nullValue, expr, name);
     }
-    Value* createNeg(Value* value) { return insertBlock->add(new UnaryInst { ValueKind::UnaryInst, Token::Minus, value, nullptr, "" }); }
-    Value* createNot(Value* value) { return insertBlock->add(new UnaryInst { ValueKind::UnaryInst, Token::Not, value, nullptr, "" }); }
+    Value* createNeg(Value* value) { return insertBlock->add(new UnaryInst{ValueKind::UnaryInst, Token::Minus, value, nullptr, ""}); }
+    Value* createNot(Value* value) { return insertBlock->add(new UnaryInst{ValueKind::UnaryInst, Token::Not, value, nullptr, ""}); }
     Value* createGEP(Value* pointer, std::vector<Value*> indexes, const llvm::Twine& name = "") {
-        return insertBlock->add(new GEPInst { ValueKind::GEPInst, pointer, std::move(indexes), name.str() });
+        return insertBlock->add(new GEPInst{ValueKind::GEPInst, pointer, std::move(indexes), name.str()});
     }
     Value* createGEP(Value* pointer, int index, const MemberExpr* expr = nullptr, const llvm::Twine& name = "") {
         if (pointer->getType()->getPointee()->isArrayType()) {
@@ -174,11 +174,11 @@ struct IRGenerator {
         } else {
             ASSERT(index < pointer->getType()->getPointee()->getElements().size());
         }
-        return insertBlock->add(new ConstGEPInst { ValueKind::ConstGEPInst, pointer, index, expr, name.str() });
+        return insertBlock->add(new ConstGEPInst{ValueKind::ConstGEPInst, pointer, index, expr, name.str()});
     }
     Value* createCast(Value* value, IRType* type, const llvm::Twine& name = "") {
         ASSERT(!value->getType()->equals(type));
-        return insertBlock->add(new CastInst { ValueKind::CastInst, value, type, name.str() });
+        return insertBlock->add(new CastInst{ValueKind::CastInst, value, type, name.str()});
     }
     Value* createCast(Value* value, Type type, const llvm::Twine& name = "") { return createCast(value, getIRType(type), name); }
     Value* createCastIfNeeded(Value* value, IRType* type, const llvm::Twine& name = "") {
@@ -187,15 +187,15 @@ struct IRGenerator {
     }
     Value* createCastIfNeeded(Value* value, Type type, const llvm::Twine& name = "") { return createCastIfNeeded(value, getIRType(type), name); }
     Value* createGlobalVariable(Value* value, Type type, const llvm::Twine& name = "") {
-        return module->globalVariables.emplace_back(new GlobalVariable { ValueKind::GlobalVariable, getIRType(type), value, name.str() });
+        return module->globalVariables.emplace_back(new GlobalVariable{ValueKind::GlobalVariable, getIRType(type), value, name.str()});
     }
-    Value* createGlobalStringPtr(llvm::StringRef value) { return new ConstantString { ValueKind::ConstantString, value.str() }; }
-    Value* createSizeof(Type type) { return new SizeofInst { ValueKind::SizeofInst, getIRType(type), "" }; }
+    Value* createGlobalStringPtr(llvm::StringRef value) { return new ConstantString{ValueKind::ConstantString, value.str()}; }
+    Value* createSizeof(Type type) { return new SizeofInst{ValueKind::SizeofInst, getIRType(type), ""}; }
     SwitchInst* createSwitch(Value* condition, BasicBlock* defaultBlock) {
-        return insertBlock->add(new SwitchInst { ValueKind::SwitchInst, condition, defaultBlock, {} });
+        return insertBlock->add(new SwitchInst{ValueKind::SwitchInst, condition, defaultBlock, {}});
     }
-    void createUnreachable() { insertBlock->add(new UnreachableInst { ValueKind::UnreachableInst }); }
-    void createReturn(Value* value) { insertBlock->add(new ReturnInst { ValueKind::ReturnInst, value }); }
+    void createUnreachable() { insertBlock->add(new UnreachableInst{ValueKind::UnreachableInst}); }
+    void createReturn(Value* value) { insertBlock->add(new ReturnInst{ValueKind::ReturnInst, value}); }
     Value* getArrayLength(const Expr& object, Type objectType);
     Value* getArrayIterator(const Expr& object, Type objectType);
     void beginScope();

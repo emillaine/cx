@@ -4,13 +4,12 @@
 #pragma warning(push, 0)
 #include <llvm/Support/MemoryBuffer.h>
 #pragma warning(pop)
-#include "lex.h"
 #include "../ast/type.h"
+#include "lex.h"
 
 namespace llvm {
 class StringRef;
-template<typename T>
-class ArrayRef;
+template<typename T> class ArrayRef;
 } // namespace llvm
 
 namespace cx {

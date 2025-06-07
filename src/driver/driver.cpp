@@ -23,7 +23,6 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #pragma warning(pop)
-#include "clang.h"
 #include "../ast/module.h"
 #include "../backend/c-backend.h"
 #include "../backend/irgen.h"
@@ -34,6 +33,7 @@
 #include "../sema/null-analyzer.h"
 #include "../sema/typecheck.h"
 #include "../support/utility.h"
+#include "clang.h"
 
 #ifdef _MSC_VER
 #define popen _popen
@@ -92,7 +92,8 @@ cl::opt<std::string> specifiedOutputFileName("o", cl::desc("Specify output file 
 cl::OptionCategory diagnosticCategory("Diagnostic Options");
 cl::opt<bool> disableWarnings("w", cl::desc("Disable all warnings"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
 cl::opt<bool> warningsAsErrors("Werror", cl::desc("Treat warnings as errors"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
-cl::opt<bool> noUnusedWarnings("Wno-unused", cl::desc("Disable warnings about unused entities"), cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
+cl::opt<bool> noUnusedWarnings("Wno-unused", cl::desc("Disable warnings about unused entities"), cl::sub(cl::SubCommand::getAll()),
+                               cl::cat(diagnosticCategory));
 cl::opt<int> errorLimit("error-limit", cl::desc("Limit the number of reported errors (10 by default, 0 removes limit)"), cl::init(10),
                         cl::sub(cl::SubCommand::getAll()), cl::cat(diagnosticCategory));
 
@@ -234,7 +235,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     addPredefinedImportSearchPaths(buildParams.filePaths);
 
-    CompileOptions options = { noUnusedWarnings, importSearchPaths, frameworkSearchPaths, defines, cflags };
+    CompileOptions options = {noUnusedWarnings, importSearchPaths, frameworkSearchPaths, defines, cflags};
 
     if (!specifiedOutputFileName.empty()) {
         buildParams.outputFileName = specifiedOutputFileName;
@@ -293,72 +294,72 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     bool isMSVC = isWindows; // Assuming MSVC-compatible C compiler.
 
     switch (backend.getValue()) {
-        case Backend::C: {
-            CGenerator cGen;
-            for (auto* irModule : irGenerator.generatedModules) {
-                cGen.codegenModule(*irModule);
-            }
-            std::string cCode = cGen.finish();
-
-            if (printMode == PrintMode::C) {
-                llvm::outs() << cCode << "\n";
-                return 0;
-            }
-
-            // TODO: emitAssembly not supported, report to user
-            outputFileExtension = "c";
-            int fileDescriptor;
-            if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, fileDescriptor, temporaryOutputFilePath)) {
-                ABORT(error.message());
-            }
-
-            llvm::raw_fd_ostream file(fileDescriptor, /* shouldClose */ true);
-            file << cCode;
-            break;
+    case Backend::C: {
+        CGenerator cGen;
+        for (auto* irModule : irGenerator.generatedModules) {
+            cGen.codegenModule(*irModule);
         }
-        case Backend::LLVM:
-            LLVMGenerator llvmGenerator;
-            for (auto* irModule : irGenerator.generatedModules) {
-                llvmGenerator.codegenModule(*irModule);
-            }
-            llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
+        std::string cCode = cGen.finish();
 
-            if (printMode == PrintMode::LLVM) {
-                llvmModule->setModuleIdentifier("");
-                llvmModule->setSourceFileName("");
-                llvmModule->print(llvm::outs(), nullptr);
-                return 0;
-            }
+        if (printMode == PrintMode::C) {
+            llvm::outs() << cCode << "\n";
+            return 0;
+        }
 
-            llvm::Module linkedModule("", llvmGenerator.ctx);
-            llvm::Linker linker(linkedModule);
+        // TODO: emitAssembly not supported, report to user
+        outputFileExtension = "c";
+        int fileDescriptor;
+        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, fileDescriptor, temporaryOutputFilePath)) {
+            ABORT(error.message());
+        }
 
-            for (auto& module : llvmGenerator.generatedModules) {
-                bool error = linker.linkInModule(std::unique_ptr<llvm::Module>(module));
-                if (error) ABORT("LLVM module linking failed");
-            }
+        llvm::raw_fd_ostream file(fileDescriptor, /* shouldClose */ true);
+        file << cCode;
+        break;
+    }
+    case Backend::LLVM:
+        LLVMGenerator llvmGenerator;
+        for (auto* irModule : irGenerator.generatedModules) {
+            llvmGenerator.codegenModule(*irModule);
+        }
+        llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
 
-            if (emitBitcode) {
-                emitLLVMBitcode(linkedModule, "output.bc");
-                return 0;
-            }
+        if (printMode == PrintMode::LLVM) {
+            llvmModule->setModuleIdentifier("");
+            llvmModule->setSourceFileName("");
+            llvmModule->print(llvm::outs(), nullptr);
+            return 0;
+        }
 
-            if (emitAssembly) {
-                outputFileExtension = "s";
-            } else if (isWindows) {
-                outputFileExtension = buildParams.createSharedLib ? "dll" : "obj";
-            } else {
-                outputFileExtension = buildParams.createSharedLib ? "so" : "o";
-            }
+        llvm::Module linkedModule("", llvmGenerator.ctx);
+        llvm::Linker linker(linkedModule);
 
-            if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
-                ABORT(error.message());
-            }
+        for (auto& module : llvmGenerator.generatedModules) {
+            bool error = linker.linkInModule(std::unique_ptr<llvm::Module>(module));
+            if (error) ABORT("LLVM module linking failed");
+        }
 
-            auto fileType = emitAssembly ? llvm::CodeGenFileType::AssemblyFile : llvm::CodeGenFileType::ObjectFile;
-            auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
-            emitLLVMModuleToMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
-            break;
+        if (emitBitcode) {
+            emitLLVMBitcode(linkedModule, "output.bc");
+            return 0;
+        }
+
+        if (emitAssembly) {
+            outputFileExtension = "s";
+        } else if (isWindows) {
+            outputFileExtension = buildParams.createSharedLib ? "dll" : "obj";
+        } else {
+            outputFileExtension = buildParams.createSharedLib ? "so" : "o";
+        }
+
+        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
+            ABORT(error.message());
+        }
+
+        auto fileType = emitAssembly ? llvm::CodeGenFileType::AssemblyFile : llvm::CodeGenFileType::ObjectFile;
+        auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
+        emitLLVMModuleToMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
+        break;
     }
 
     if (!buildParams.outputDirectory.empty()) {
@@ -457,7 +458,8 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     }
 
     if (buildParams.outputFileName.empty()) {
-        buildParams.outputFileName = mainModule.fileBuffers.size() == 1 ? llvm::sys::path::stem(mainModule.fileBuffers[0]->getBufferIdentifier()).str() : "main";
+        buildParams.outputFileName =
+            mainModule.fileBuffers.size() == 1 ? llvm::sys::path::stem(mainModule.fileBuffers[0]->getBufferIdentifier()).str() : "main";
         if (buildParams.createSharedLib) {
             buildParams.outputFileName.append(isWindows ? ".dll" : ".so");
         } else {
@@ -532,7 +534,7 @@ static void addPlatformCompileOptions() {
 int cx::driverMain(int argc, const char** argv) {
     llvm::setBugReportMsg("Please submit a bug report to https://github.com/cx-language/cx/issues and include the crash backtrace.\n");
     llvm::InitLLVM x(argc, argv);
-    cl::HideUnrelatedOptions({ &stageSelectionCategory, &outputCategory, &dependencyCategory, &diagnosticCategory });
+    cl::HideUnrelatedOptions({&stageSelectionCategory, &outputCategory, &dependencyCategory, &diagnosticCategory});
     cl::ParseCommandLineOptions(argc, argv, "C* compiler\n");
     addPlatformCompileOptions();
 

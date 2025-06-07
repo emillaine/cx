@@ -38,7 +38,7 @@ void CGenerator::codegenAlloca(const AllocaInst* inst) {
     stream << name;
     codegenTypeSuffix(stream, inst->allocatedType, true);
     stream << ";\n";
-    emittedValues.insert({ inst, "(&" + std::move(name) + ")" });
+    emittedValues.insert({inst, "(&" + std::move(name) + ")"});
 }
 
 void CGenerator::codegenReturn(const ReturnInst* inst) {
@@ -110,7 +110,7 @@ void CGenerator::codegenLoad(const LoadInst* inst) {
     stream << "__auto_type " << name << " = *";
     codegenInst(inst->value);
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenStore(const StoreInst* inst) {
@@ -154,7 +154,7 @@ void CGenerator::codegenInsert(const InsertInst* inst) {
     }
     codegenInst(inst->value);
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenExtract(const ExtractInst* inst) {
@@ -164,7 +164,7 @@ void CGenerator::codegenExtract(const ExtractInst* inst) {
     codegenInst(inst->aggregate);
     stream << "._" << inst->index;
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenCall(const CallInst* inst) {
@@ -187,7 +187,7 @@ void CGenerator::codegenCall(const CallInst* inst) {
     }
     stream << ");\n";
     if (hasReturnValue) {
-        emittedValues.insert({ inst, std::move(name) });
+        emittedValues.insert({inst, std::move(name)});
     }
 }
 
@@ -198,61 +198,61 @@ void CGenerator::codegenBinary(const BinaryInst* inst) {
     codegenInst(inst->left);
     stream << ' ';
     switch (inst->op.getKind()) {
-        case Token::Plus:
-            stream << '+';
-            break;
-        case Token::Minus:
-            stream << '-';
-            break;
-        case Token::Star:
-            stream << '*';
-            break;
-        case Token::Slash:
-            stream << '/';
-            break;
-        case Token::Modulo:
-            stream << '%';
-            break;
-        case Token::LeftShift:
-            stream << "<<";
-            break;
-        case Token::RightShift:
-            stream << ">>";
-            break;
-        case Token::And:
-            stream << '&';
-            break;
-        case Token::Or:
-            stream << '|';
-            break;
-        case Token::Xor:
-            stream << '^';
-            break;
-        case Token::Equal:
-            stream << "==";
-            break;
-        case Token::NotEqual:
-            stream << "!=";
-            break;
-        case Token::Less:
-            stream << '<';
-            break;
-        case Token::LessOrEqual:
-            stream << "<=";
-            break;
-        case Token::Greater:
-            stream << '>';
-            break;
-        case Token::GreaterOrEqual:
-            stream << ">=";
-            break;
-        default:
-            llvm_unreachable("all cases handled");
+    case Token::Plus:
+        stream << '+';
+        break;
+    case Token::Minus:
+        stream << '-';
+        break;
+    case Token::Star:
+        stream << '*';
+        break;
+    case Token::Slash:
+        stream << '/';
+        break;
+    case Token::Modulo:
+        stream << '%';
+        break;
+    case Token::LeftShift:
+        stream << "<<";
+        break;
+    case Token::RightShift:
+        stream << ">>";
+        break;
+    case Token::And:
+        stream << '&';
+        break;
+    case Token::Or:
+        stream << '|';
+        break;
+    case Token::Xor:
+        stream << '^';
+        break;
+    case Token::Equal:
+        stream << "==";
+        break;
+    case Token::NotEqual:
+        stream << "!=";
+        break;
+    case Token::Less:
+        stream << '<';
+        break;
+    case Token::LessOrEqual:
+        stream << "<=";
+        break;
+    case Token::Greater:
+        stream << '>';
+        break;
+    case Token::GreaterOrEqual:
+        stream << ">=";
+        break;
+    default:
+        llvm_unreachable("all cases handled");
     }
     stream << ' ';
     codegenInst(inst->right);
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenUnary(const UnaryInst* inst) {
@@ -260,24 +260,24 @@ void CGenerator::codegenUnary(const UnaryInst* inst) {
     auto name = "_unary_op" + std::to_string(valueSuffixCounter++);
     stream << "__auto_type " << name << " = ";
     switch (inst->op.getKind()) {
-        case Token::Plus:
-            stream << '+';
-            break;
-        case Token::Minus:
-            stream << '-';
-            break;
-        case Token::Not:
-            stream << '!';
-            break;
-        case Token::Tilde:
-            stream << '~';
-            break;
-        default:
-            llvm_unreachable("all cases handled");
+    case Token::Plus:
+        stream << '+';
+        break;
+    case Token::Minus:
+        stream << '-';
+        break;
+    case Token::Not:
+        stream << '!';
+        break;
+    case Token::Tilde:
+        stream << '~';
+        break;
+    default:
+        llvm_unreachable("all cases handled");
     }
     codegenInst(inst->operand);
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenGEP(const GEPInst* inst) {
@@ -286,7 +286,7 @@ void CGenerator::codegenGEP(const GEPInst* inst) {
     codegenType(stream, inst->getType(), true);
     stream << " " << name << " = ";
     for (auto* index : inst->indexes) {
-        (void) index;
+        (void)index;
         stream << "&(";
     }
     codegenInst(inst->pointer);
@@ -296,7 +296,7 @@ void CGenerator::codegenGEP(const GEPInst* inst) {
         stream << ']';
     }
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenConstGEP(const ConstGEPInst* inst) {
@@ -305,7 +305,7 @@ void CGenerator::codegenConstGEP(const ConstGEPInst* inst) {
     stream << "__auto_type " << name << " = &";
     codegenInst(inst->pointer);
     stream << "->_" << inst->index << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenCast(const CastInst* inst) {
@@ -317,7 +317,7 @@ void CGenerator::codegenCast(const CastInst* inst) {
     stream << ") ";
     codegenInst(inst->value);
     stream << ";\n";
-    emittedValues.insert({ inst, std::move(name) });
+    emittedValues.insert({inst, std::move(name)});
 }
 
 void CGenerator::codegenUnreachable() {
@@ -345,7 +345,7 @@ void CGenerator::codegenGlobalVariable(const GlobalVariable* inst) {
     stream << ' ' << inst->name;
     codegenTypeSuffix(stream, inst->type, true);
     stream << ";\n";
-    emittedValues.insert({ inst, "(&" + inst->name + ")" });
+    emittedValues.insert({inst, "(&" + inst->name + ")"});
 }
 
 void CGenerator::codegenConstantString(const ConstantString* inst) {
@@ -385,7 +385,7 @@ const std::string& CGenerator::getBlockLabel(const BasicBlock* block) {
         std::replace(name.begin(), name.end(), '.', '_');
         llvm::raw_string_ostream os(name);
         os << valueSuffixCounter++;
-        return emittedValues.insert({ block, std::move(os.str()) }).first->second;
+        return emittedValues.insert({block, std::move(os.str())}).first->second;
     }
 }
 
@@ -400,64 +400,64 @@ void CGenerator::codegenInst(const Value* value) {
 
 void CGenerator::codegenInstImpl(const Value* value) {
     switch (value->kind) {
-        case ValueKind::AllocaInst:
-            return codegenAlloca(llvm::cast<AllocaInst>(value));
-        case ValueKind::ReturnInst:
-            return codegenReturn(llvm::cast<ReturnInst>(value));
-        case ValueKind::BranchInst:
-            return codegenBranch(llvm::cast<BranchInst>(value));
-        case ValueKind::CondBranchInst:
-            return codegenCondBranch(llvm::cast<CondBranchInst>(value));
-        case ValueKind::SwitchInst:
-            return codegenSwitch(llvm::cast<SwitchInst>(value));
-        case ValueKind::LoadInst:
-            return codegenLoad(llvm::cast<LoadInst>(value));
-        case ValueKind::StoreInst:
-            return codegenStore(llvm::cast<StoreInst>(value));
-        case ValueKind::InsertInst:
-            return codegenInsert(llvm::cast<InsertInst>(value));
-        case ValueKind::ExtractInst:
-            return codegenExtract(llvm::cast<ExtractInst>(value));
-        case ValueKind::CallInst:
-            return codegenCall(llvm::cast<CallInst>(value));
-        case ValueKind::BinaryInst:
-            return codegenBinary(llvm::cast<BinaryInst>(value));
-        case ValueKind::UnaryInst:
-            return codegenUnary(llvm::cast<UnaryInst>(value));
-        case ValueKind::GEPInst:
-            return codegenGEP(llvm::cast<GEPInst>(value));
-        case ValueKind::ConstGEPInst:
-            return codegenConstGEP(llvm::cast<ConstGEPInst>(value));
-        case ValueKind::CastInst:
-            return codegenCast(llvm::cast<CastInst>(value));
-        case ValueKind::UnreachableInst:
-            return codegenUnreachable();
-        case ValueKind::SizeofInst:
-            return codegenSizeof(llvm::cast<SizeofInst>(value));
-        case ValueKind::BasicBlock:
-            return codegenBasicBlock(llvm::cast<BasicBlock>(value));
-        case ValueKind::Function:
-            stream << llvm::cast<Function>(value)->mangledName;
-            break;
-        case ValueKind::Parameter: {
-            auto* param = llvm::cast<Parameter>(value);
-            stream << param->name;
-            break;
-        }
-        case ValueKind::GlobalVariable:
-            return codegenGlobalVariable(llvm::cast<GlobalVariable>(value));
-        case ValueKind::ConstantString:
-            return codegenConstantString(llvm::cast<ConstantString>(value));
-        case ValueKind::ConstantInt:
-            return codegenConstantInt(llvm::cast<ConstantInt>(value));
-        case ValueKind::ConstantFP:
-            return codegenConstantFP(llvm::cast<ConstantFP>(value));
-        case ValueKind::ConstantBool:
-            return codegenConstantBool(llvm::cast<ConstantBool>(value));
-        case ValueKind::ConstantNull:
-            return codegenConstantNull(llvm::cast<ConstantNull>(value));
-        case ValueKind::Undefined:
-            return codegenUndefined(llvm::cast<Undefined>(value));
+    case ValueKind::AllocaInst:
+        return codegenAlloca(llvm::cast<AllocaInst>(value));
+    case ValueKind::ReturnInst:
+        return codegenReturn(llvm::cast<ReturnInst>(value));
+    case ValueKind::BranchInst:
+        return codegenBranch(llvm::cast<BranchInst>(value));
+    case ValueKind::CondBranchInst:
+        return codegenCondBranch(llvm::cast<CondBranchInst>(value));
+    case ValueKind::SwitchInst:
+        return codegenSwitch(llvm::cast<SwitchInst>(value));
+    case ValueKind::LoadInst:
+        return codegenLoad(llvm::cast<LoadInst>(value));
+    case ValueKind::StoreInst:
+        return codegenStore(llvm::cast<StoreInst>(value));
+    case ValueKind::InsertInst:
+        return codegenInsert(llvm::cast<InsertInst>(value));
+    case ValueKind::ExtractInst:
+        return codegenExtract(llvm::cast<ExtractInst>(value));
+    case ValueKind::CallInst:
+        return codegenCall(llvm::cast<CallInst>(value));
+    case ValueKind::BinaryInst:
+        return codegenBinary(llvm::cast<BinaryInst>(value));
+    case ValueKind::UnaryInst:
+        return codegenUnary(llvm::cast<UnaryInst>(value));
+    case ValueKind::GEPInst:
+        return codegenGEP(llvm::cast<GEPInst>(value));
+    case ValueKind::ConstGEPInst:
+        return codegenConstGEP(llvm::cast<ConstGEPInst>(value));
+    case ValueKind::CastInst:
+        return codegenCast(llvm::cast<CastInst>(value));
+    case ValueKind::UnreachableInst:
+        return codegenUnreachable();
+    case ValueKind::SizeofInst:
+        return codegenSizeof(llvm::cast<SizeofInst>(value));
+    case ValueKind::BasicBlock:
+        return codegenBasicBlock(llvm::cast<BasicBlock>(value));
+    case ValueKind::Function:
+        stream << llvm::cast<Function>(value)->mangledName;
+        break;
+    case ValueKind::Parameter: {
+        auto* param = llvm::cast<Parameter>(value);
+        stream << param->name;
+        break;
+    }
+    case ValueKind::GlobalVariable:
+        return codegenGlobalVariable(llvm::cast<GlobalVariable>(value));
+    case ValueKind::ConstantString:
+        return codegenConstantString(llvm::cast<ConstantString>(value));
+    case ValueKind::ConstantInt:
+        return codegenConstantInt(llvm::cast<ConstantInt>(value));
+    case ValueKind::ConstantFP:
+        return codegenConstantFP(llvm::cast<ConstantFP>(value));
+    case ValueKind::ConstantBool:
+        return codegenConstantBool(llvm::cast<ConstantBool>(value));
+    case ValueKind::ConstantNull:
+        return codegenConstantNull(llvm::cast<ConstantNull>(value));
+    case ValueKind::Undefined:
+        return codegenUndefined(llvm::cast<Undefined>(value));
     }
 }
 
@@ -492,94 +492,94 @@ void CGenerator::codegenFunction(const Function* function) {
 
 void CGenerator::codegenType(llvm::raw_string_ostream& stream, IRType* type, bool needsTypeDefinition) {
     switch (type->kind) {
-        case IRTypeKind::IRBasicType: {
-            auto* basicType = llvm::cast<IRBasicType>(type);
-            llvm::StringRef cType = llvm::StringSwitch<llvm::StringRef>(basicType->name)
-                                        .Case("void", "void")
-                                        .Case("bool", "_Bool")
-                                        .Case("char", "char")
-                                        .Case("int", "int")
-                                        .Case("int8", "int8_t")
-                                        .Case("int16", "int16_t")
-                                        .Case("int32", "int32_t")
-                                        .Case("int64", "int64_t")
-                                        .Case("uint", "unsigned")
-                                        .Case("uint8", "uint8_t")
-                                        .Case("uint16", "uint16_t")
-                                        .Case("uint32", "uint32_t")
-                                        .Case("uint64", "uint64_t")
-                                        .Case("float", "float")
-                                        .Case("float32", "float")
-                                        .Case("float64", "double")
-                                        .Case("float80", "__float80")
-                                        .Default(llvm::StringRef());
-            if (cType.empty()) {
-                llvm_unreachable("unhandled type");
-            } else {
-                stream << cType;
-            }
-            break;
+    case IRTypeKind::IRBasicType: {
+        auto* basicType = llvm::cast<IRBasicType>(type);
+        llvm::StringRef cType = llvm::StringSwitch<llvm::StringRef>(basicType->name)
+                                    .Case("void", "void")
+                                    .Case("bool", "_Bool")
+                                    .Case("char", "char")
+                                    .Case("int", "int")
+                                    .Case("int8", "int8_t")
+                                    .Case("int16", "int16_t")
+                                    .Case("int32", "int32_t")
+                                    .Case("int64", "int64_t")
+                                    .Case("uint", "unsigned")
+                                    .Case("uint8", "uint8_t")
+                                    .Case("uint16", "uint16_t")
+                                    .Case("uint32", "uint32_t")
+                                    .Case("uint64", "uint64_t")
+                                    .Case("float", "float")
+                                    .Case("float32", "float")
+                                    .Case("float64", "double")
+                                    .Case("float80", "__float80")
+                                    .Default(llvm::StringRef());
+        if (cType.empty()) {
+            llvm_unreachable("unhandled type");
+        } else {
+            stream << cType;
         }
-        case IRTypeKind::IRPointerType: {
-            auto* pointerType = llvm::cast<IRPointerType>(type);
-            codegenType(stream, pointerType->pointee, false);
-            if (!pointerType->mutablePointee) stream << " const";
-            stream << '*';
-            break;
+        break;
+    }
+    case IRTypeKind::IRPointerType: {
+        auto* pointerType = llvm::cast<IRPointerType>(type);
+        codegenType(stream, pointerType->pointee, false);
+        if (!pointerType->mutablePointee) stream << " const";
+        stream << '*';
+        break;
+    }
+    case IRTypeKind::IRFunctionType: {
+        auto* functionType = llvm::cast<IRFunctionType>(type);
+        codegenType(stream, functionType->returnType, false);
+        stream << "(";
+        break;
+    }
+    case IRTypeKind::IRArrayType: {
+        auto* arrayType = llvm::cast<IRArrayType>(type);
+        codegenType(stream, arrayType->elementType, needsTypeDefinition);
+        // Array size will be generated by codegenTypeSuffix.
+        break;
+    }
+    case IRTypeKind::IRStructType: {
+        auto* irStruct = llvm::cast<IRStructType>(type);
+        if (irStruct->name == "never") {
+            stream << "void";
+        } else {
+            if (needsTypeDefinition) codegenTypeDefinition(preludeStream, type);
+            stream << "struct " << irStruct->mangledName;
         }
-        case IRTypeKind::IRFunctionType: {
-            auto* functionType = llvm::cast<IRFunctionType>(type);
-            codegenType(stream, functionType->returnType, false);
-            stream << "(";
-            break;
-        }
-        case IRTypeKind::IRArrayType: {
-            auto* arrayType = llvm::cast<IRArrayType>(type);
-            codegenType(stream, arrayType->elementType, needsTypeDefinition);
-            // Array size will be generated by codegenTypeSuffix.
-            break;
-        }
-        case IRTypeKind::IRStructType: {
-            auto* irStruct = llvm::cast<IRStructType>(type);
-            if (irStruct->name == "never") {
-                stream << "void";
-            } else {
-                if (needsTypeDefinition) codegenTypeDefinition(preludeStream, type);
-                stream << "struct " << irStruct->mangledName;
-            }
-            break;
-        }
-        case IRTypeKind::IRUnionType:
-            stream << "union " << llvm::cast<IRUnionType>(type)->name;
-            break;
+        break;
+    }
+    case IRTypeKind::IRUnionType:
+        stream << "union " << llvm::cast<IRUnionType>(type)->name;
+        break;
     }
 }
 
 void CGenerator::codegenTypeSuffix(llvm::raw_string_ostream& stream, IRType* type, bool) {
     switch (type->kind) {
-        case IRTypeKind::IRArrayType: {
-            auto* arrayType = llvm::cast<IRArrayType>(type);
-            stream << "[" << arrayType->size << "]";
-            break;
+    case IRTypeKind::IRArrayType: {
+        auto* arrayType = llvm::cast<IRArrayType>(type);
+        stream << "[" << arrayType->size << "]";
+        break;
+    }
+    case IRTypeKind::IRFunctionType: {
+        auto* functionType = llvm::cast<IRFunctionType>(type);
+        stream << ")(";
+        for (auto& paramType : functionType->paramTypes) {
+            codegenType(stream, paramType, false);
+            codegenTypeSuffix(stream, paramType, false);
+            if (&paramType != &functionType->paramTypes.back()) stream << ", ";
         }
-        case IRTypeKind::IRFunctionType: {
-            auto* functionType = llvm::cast<IRFunctionType>(type);
-            stream << ")(";
-            for (auto& paramType : functionType->paramTypes) {
-                codegenType(stream, paramType, false);
-                codegenTypeSuffix(stream, paramType, false);
-                if (&paramType != &functionType->paramTypes.back()) stream << ", ";
-            }
-            stream << ")";
-            break;
-        }
-        case IRTypeKind::IRPointerType: {
-            auto* pointerType = llvm::cast<IRPointerType>(type);
-            codegenTypeSuffix(stream, pointerType->pointee, false);
-            break;
-        }
-        default:
-            break;
+        stream << ")";
+        break;
+    }
+    case IRTypeKind::IRPointerType: {
+        auto* pointerType = llvm::cast<IRPointerType>(type);
+        codegenTypeSuffix(stream, pointerType->pointee, false);
+        break;
+    }
+    default:
+        break;
     }
 }
 
