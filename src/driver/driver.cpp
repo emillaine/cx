@@ -130,11 +130,11 @@ static void addHeaderSearchPathsFromEnvVar(const char* name) {
 }
 
 static void addHeaderSearchPathsFromCCompilerOutput() {
-    auto compilerPath = getCCompilerPath();
-    if (compilerPath.empty()) return;
+    auto cCompilerPath = findExternalCCompiler();
+    if (!cCompilerPath) return;
 
-    if (llvm::sys::path::filename(compilerPath) != "cl.exe") {
-        std::string command = "echo | " + compilerPath + " -E -v - 2>&1 | grep '^ /'";
+    if (llvm::sys::path::filename(*cCompilerPath) != "cl.exe") {
+        std::string command = "echo | " + *cCompilerPath + " -E -v - 2>&1 | grep '^ /'";
         std::string output;
         exec(command.c_str(), output);
 
@@ -286,9 +286,11 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     llvm::SmallString<128> temporaryOutputFilePath;
     const char* outputFileExtension;
-    std::string ccPath;
-    bool isMSVC;
-    bool isWindows;
+    // Prefer external C compiler for better system compatibility, fallback to embedded Clang.
+    std::string ccPath = findExternalCCompiler().value_or(buildParams.argv0);
+    bool useExternalCCompiler = ccPath != buildParams.argv0;
+    bool isWindows = llvm::sys::path::extension(ccPath) == ".exe";
+    bool isMSVC = isWindows; // Assuming MSVC-compatible C compiler.
 
     switch (backend.getValue()) {
         case Backend::C: {
@@ -302,9 +304,6 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
                 llvm::outs() << cCode << "\n";
                 return 0;
             }
-
-            ccPath = getCCompilerPath();
-            isWindows = isMSVC = llvm::sys::path::extension(ccPath) == ".exe";
 
             // TODO: emitAssembly not supported, report to user
             outputFileExtension = "c";
@@ -343,9 +342,6 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
                 emitLLVMBitcode(linkedModule, "output.bc");
                 return 0;
             }
-
-            ccPath = getCCompilerPath();
-            isWindows = isMSVC = llvm::sys::path::extension(ccPath) == ".exe";
 
             if (emitAssembly) {
                 outputFileExtension = "s";
@@ -386,17 +382,8 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     llvm::SmallString<128> temporaryExecutablePath;
     llvm::sys::fs::createUniquePath(isWindows ? "cx-%%%%%%%%.exe" : "cx-%%%%%%%%.out", temporaryExecutablePath, true);
 
-    // TODO: Use the embedded Clang by default even on Windows.
-    bool useExternalCCompiler = isMSVC || buildParams.argv0 == nullptr;
-
-    // FIXME: This is a workaround for the embedded Clang being outdated.
-    // TODO: Allow the user to choose whether to use the system C compiler instead of the embedded Clang.
-    if (buildParams.createSharedLib || backend == Backend::C) {
-        useExternalCCompiler = true;
-    }
-
     std::vector<const char*> ccArgs = {
-        useExternalCCompiler ? ccPath.c_str() : buildParams.argv0,
+        ccPath.c_str(),
         temporaryOutputFilePath.c_str(),
     };
 

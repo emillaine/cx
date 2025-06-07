@@ -91,7 +91,7 @@ void CompileError::print() const {
     reportError(location, s, notes);
 }
 
-std::string cx::getCCompilerPath() {
+std::optional<std::string> cx::findExternalCCompiler() {
 #ifdef _WIN32
     auto compilers = { "cl.exe", "clang-cl.exe" };
 #else
@@ -102,7 +102,7 @@ std::string cx::getCCompilerPath() {
             return std::move(*path);
         }
     }
-    return "";
+    return std::nullopt;
 }
 
 void cx::printStackTrace() {

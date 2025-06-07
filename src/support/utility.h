@@ -7,11 +7,13 @@
 #include <vector>
 #pragma warning(push, 0)
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/StringExtras.h>
-#include <llvm/ADT/StringRef.h>
 #include <llvm/Support/raw_ostream.h>
 #pragma warning(pop)
 #include "../ast/location.h"
+
+namespace llvm {
+class StringRef;
+}
 
 #ifndef NDEBUG
 #define ASSERT(condition, ...) assert(condition)
@@ -132,6 +134,6 @@ void reportWarning(SourceLocation location, StringFormatter& message);
         reportWarning(location, s); \
     }
 
-std::string getCCompilerPath();
+std::optional<std::string> findExternalCCompiler();
 
 } // namespace cx
