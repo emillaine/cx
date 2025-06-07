@@ -38,7 +38,7 @@ jobs:
             export LLVMDIR="$(echo "$PWD/clang+llvm-20.1.6-x86_64-pc-windows-msvc" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')"
           fi
           echo "LLVMDIR=$LLVMDIR" >> $GITHUB_ENV
-          echo "$LLVMDIR/bin" >> $GITHUB_PATH
+          #echo "$LLVMDIR/bin" >> $GITHUB_PATH
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{runner.workspace}}/build
