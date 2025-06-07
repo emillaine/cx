@@ -79,12 +79,12 @@ IRType* cx::getIRType(Type astType) {
                 std::move(paramTypes),
                 llvm::cast<FunctionType>(astType.getBase())->isVariadic,
             };
-            irType = new IRPointerType { IRTypeKind::IRPointerType, functionType };
+            irType = new IRPointerType { IRTypeKind::IRPointerType, functionType, astType.isMutable() };
             break;
         }
         case TypeKind::PointerType: {
             auto pointeeType = getIRType(astType.getPointee());
-            irType = new IRPointerType { IRTypeKind::IRPointerType, pointeeType };
+            irType = new IRPointerType { IRTypeKind::IRPointerType, pointeeType, astType.getPointee().isMutable() };
             break;
         }
         case TypeKind::UnresolvedType:
@@ -634,7 +634,7 @@ int IRType::getArraySize() {
 }
 
 IRType* IRType::getPointerTo() {
-    return new IRPointerType { IRTypeKind::IRPointerType, this };
+    return new IRPointerType { IRTypeKind::IRPointerType, this, true };
 }
 
 llvm::raw_ostream& cx::operator<<(llvm::raw_ostream& stream, IRType* type) {

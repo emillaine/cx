@@ -70,6 +70,7 @@ struct IRBasicType : IRType {
 
 struct IRPointerType : IRType {
     IRType* pointee;
+    bool mutablePointee;
 
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRPointerType; }
 };
