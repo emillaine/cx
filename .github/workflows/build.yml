@@ -25,20 +25,19 @@ jobs:
           if [ "$RUNNER_OS" == "Linux" ]; then
             wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.6/LLVM-20.1.6-Linux-X64.tar.xz
             tar -xf LLVM-20.1.6-Linux-X64.tar.xz
-            export LLVMDIR="$PWD/LLVM-20.1.6-Linux-X64"
+            echo LLVMDIR="$PWD/LLVM-20.1.6-Linux-X64" >> $GITHUB_ENV
           fi
+          
           if [ "$RUNNER_OS" == "macOS" ]; then
-            wget --no-verbose https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.4/LLVM-20.1.4-macOS-ARM64.tar.xz
-            tar -xf LLVM-20.1.4-macOS-ARM64.tar.xz
-            export LLVMDIR="$PWD/LLVM-20.1.4-macOS-ARM64"
+             brew install llvm@20
+             echo LLVMDIR=$(brew --prefix llvm@20) >> $GITHUB_ENV
           fi
+          
           if [ "$RUNNER_OS" == "Windows" ]; then
             curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.6/clang+llvm-20.1.6-x86_64-pc-windows-msvc.tar.xz" --output llvm.tar.xz && 7z x llvm.tar.xz && 7z x llvm.tar
             # The sed below converts the path to a Windows-style path
-            export LLVMDIR="$(echo "$PWD/clang+llvm-20.1.6-x86_64-pc-windows-msvc" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')"
+            echo LLVMDIR="$(echo "$PWD/clang+llvm-20.1.6-x86_64-pc-windows-msvc" | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')" >> $GITHUB_ENV
           fi
-          echo "LLVMDIR=$LLVMDIR" >> $GITHUB_ENV
-          #echo "$LLVMDIR/bin" >> $GITHUB_PATH
 
       - name: Create Build Environment
         run: cmake -E make_directory ${{runner.workspace}}/build
