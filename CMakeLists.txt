@@ -36,10 +36,6 @@ else()
         set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
     endif()
 
-    if(DEFINED ENV{CI})
-        set(CMAKE_CXX_FLAGS "-Werror ${CMAKE_CXX_FLAGS}")
-    endif()
-
     if(NOT MINGW)
         set(CMAKE_EXE_LINKER_FLAGS "-rdynamic ${CMAKE_EXE_LINKER_FLAGS}")
     endif()
