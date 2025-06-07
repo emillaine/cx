@@ -25,11 +25,11 @@ struct CompileOptions {
 };
 
 struct BuildParams {
-    llvm::ArrayRef<std::string> filePaths;
+    llvm::ArrayRef<std::string> filePaths = {};
     const PackageManifest* manifest = nullptr;
     const char* argv0 = nullptr;
-    llvm::StringRef outputDirectory;
-    std::string outputFileName;
+    llvm::StringRef outputDirectory = {};
+    std::string outputFileName = {};
     bool createSharedLib = false;
 };
 
