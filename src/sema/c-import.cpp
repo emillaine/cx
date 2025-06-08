@@ -11,6 +11,7 @@
 #include <clang/Basic/Builtins.h>
 #include <clang/Basic/TargetInfo.h>
 #include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Lex/HeaderSearch.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Lex/PreprocessorOptions.h>
@@ -19,6 +20,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/Path.h>
+#include <llvm/TargetParser/Host.h>
 #pragma warning(pop)
 #include "../ast/decl.h"
 #include "../ast/module.h"
@@ -210,10 +212,11 @@ static void addFloatConstantToSymbolTable(llvm::StringRef name, llvm::APFloat va
 }
 
 namespace {
-struct CToCxConverter : clang::ASTConsumer {
+
+struct CToCxConverter final : clang::ASTConsumer {
     CToCxConverter(Module& module, clang::SourceManager& sourceManager) : module(module), sourceManager(sourceManager) {}
 
-    bool HandleTopLevelDecl(clang::DeclGroupRef declGroup) final override {
+    bool HandleTopLevelDecl(clang::DeclGroupRef declGroup) override {
         for (clang::Decl* decl : declGroup) {
             switch (decl->getKind()) {
             case clang::Decl::Function: {
@@ -287,10 +290,10 @@ private:
     clang::SourceManager& sourceManager;
 };
 
-struct MacroImporter : clang::PPCallbacks {
+struct MacroImporter final : clang::PPCallbacks {
     MacroImporter(Module& module, clang::CompilerInstance& compilerInstance) : module(module), compilerInstance(compilerInstance) {}
 
-    void MacroDefined(const clang::Token& name, const clang::MacroDirective* macro) final override {
+    void MacroDefined(const clang::Token& name, const clang::MacroDirective* macro) override {
         if (macro->getMacroInfo()->getNumTokens() != 1) return;
         auto& token = macro->getMacroInfo()->getReplacementToken(0);
 
@@ -324,6 +327,21 @@ private:
     Module& module;
     clang::CompilerInstance& compilerInstance;
 };
+
+// Silently drops errors in system headers.
+struct ErrorIgnoringTextDiagPrinter final : clang::TextDiagnosticPrinter {
+    ErrorIgnoringTextDiagPrinter(llvm::raw_ostream& os, clang::DiagnosticOptions* diags, bool ownsOutputStream = false)
+    : clang::TextDiagnosticPrinter(os, diags, ownsOutputStream), srcManager(nullptr) {}
+
+    void HandleDiagnostic(clang::DiagnosticsEngine::Level level, const clang::Diagnostic& info) override {
+        auto loc = info.getLocation();
+        if (loc.isValid() && srcManager->isInSystemHeader(loc)) return;
+        TextDiagnosticPrinter::HandleDiagnostic(level, info);
+    }
+
+    clang::SourceManager* srcManager;
+};
+
 } // namespace
 
 bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const CompileOptions& options, SourceLocation importLocation) {
@@ -334,7 +352,10 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     }
 
     clang::CompilerInstance ci;
-    ci.createDiagnostics(*llvm::vfs::getRealFileSystem());
+
+    auto* diagClient = new ErrorIgnoringTextDiagPrinter(llvm::errs(), new clang::DiagnosticOptions());
+    ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), diagClient);
+
     auto args = map(options.cflags, [](auto& cflag) { return cflag.c_str(); });
     clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args, ci.getDiagnostics());
 
@@ -345,6 +366,7 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
 
     ci.createFileManager();
     ci.createSourceManager(ci.getFileManager());
+    diagClient->srcManager = &ci.getSourceManager();
     ci.getHeaderSearchOpts().AddPath(llvm::sys::path::parent_path(importer.getFilePath()), clang::frontend::Quoted, false, true);
 
     for (llvm::StringRef includePath : options.importSearchPaths) {
@@ -381,6 +403,7 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     ci.createSema(clang::TU_Complete, nullptr);
     pp.addPPCallbacks(std::make_unique<MacroImporter>(*module, ci));
 
+    // Treating all imported C headers as system code for now, since we have no proper way to differentiate them from normal user code.
     auto fileID = ci.getSourceManager().createFileID(*fileEntry, clang::SourceLocation(), clang::SrcMgr::C_System);
     ci.getSourceManager().setMainFileID(fileID);
     ci.getDiagnosticClient().BeginSourceFile(ci.getLangOpts(), &ci.getPreprocessor());

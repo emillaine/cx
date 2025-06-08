@@ -1,7 +1,8 @@
-// RUN: %not %cx -typecheck %s 2>&1 | %FileCheck %s
+// RUN: %cx -typecheck %s 2>&1 | %FileCheck %s -allow-empty
+// COM: Currently we ignore errors in imported C headers (both system and user headers).
 
-// CHECK: c-header-with-error.h:1:9: error: unknown type name 'foo'
-// CHECK: [[@LINE+1]]:8: error: couldn't import C header file 'c-header-with-error.h'
+// CHECK-NOT: c-header-with-error.h:1:9: error: unknown type name 'foo'
+// CHECK-NOT: [[@LINE+1]]:8: error: couldn't import C header file 'c-header-with-error.h'
 import "c-header-with-error.h";
 
 void main() {}
