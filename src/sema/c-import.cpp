@@ -77,6 +77,7 @@ static Type toCx(const clang::BuiltinType& type) {
     case clang::BuiltinType::ULongLong:
         return getIntTypeByWidth(targetInfo->getLongLongWidth(), false);
     case clang::BuiltinType::Float16:
+    case clang::BuiltinType::BFloat16:
         return Type::getFloat16();
     case clang::BuiltinType::Float:
         return Type::getFloat();
@@ -89,8 +90,9 @@ static Type toCx(const clang::BuiltinType& type) {
     case clang::BuiltinType::UInt128:
         return Type::getUInt128();
     default:
-        type.dump();
-        llvm_unreachable("unsupported clang::BuiltinType");
+        auto name = type.getName(clang::PrintingPolicy({}));
+        WARN(SourceLocation(), "unknown C built-in type '" << name << "', defaulting to 'int'");
+        return Type::getInt();
     }
 }
 
