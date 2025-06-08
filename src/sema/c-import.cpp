@@ -186,7 +186,7 @@ static TypeDecl* toCx(const clang::RecordDecl& decl, Module* currentModule) {
 
     for (auto* field : decl.fields()) {
         if (auto fieldDecl = toCx(*field, *typeDecl)) {
-            typeDecl->getFields().emplace_back(std::move(*fieldDecl));
+            typeDecl->fields.emplace_back(std::move(*fieldDecl));
         } else {
             return nullptr;
         }

@@ -24,8 +24,8 @@ bool Expr::isConstant() const {
         auto* decl = llvm::cast<VarExpr>(this)->getDecl();
 
         if (auto* varDecl = llvm::dyn_cast<VarDecl>(decl)) {
-            if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
-                return varDecl->getInitializer()->isConstant();
+            if (!varDecl->type.isMutable() && varDecl->initializer) {
+                return varDecl->initializer->isConstant();
             }
         }
 
@@ -98,8 +98,8 @@ llvm::APSInt Expr::getConstantIntegerValue() const {
     switch (getKind()) {
     case ExprKind::VarExpr:
         if (auto* varDecl = llvm::dyn_cast<VarDecl>(llvm::cast<VarExpr>(this)->getDecl())) {
-            if (!varDecl->getType().isMutable() && varDecl->getInitializer()) {
-                return varDecl->getInitializer()->getConstantIntegerValue();
+            if (!varDecl->type.isMutable() && varDecl->initializer) {
+                return varDecl->initializer->getConstantIntegerValue();
             }
         }
         llvm_unreachable("not a constant integer");
@@ -230,7 +230,7 @@ Expr* Expr::instantiate(const llvm::StringMap<Type>& genericArgs) const {
         auto params = instantiateParams(lambdaExpr->getFunctionDecl()->getParams(), genericArgs);
         auto body = ::instantiate(*lambdaExpr->getFunctionDecl()->body, genericArgs);
         auto lambda = new LambdaExpr(std::move(params), lambdaExpr->getFunctionDecl()->getModule(), lambdaExpr->getLocation());
-        lambda->functionDecl->setBody(std::move(body));
+        lambda->functionDecl->body = std::move(body);
         return lambda;
     }
     case ExprKind::IfExpr: {

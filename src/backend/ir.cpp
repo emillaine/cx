@@ -36,7 +36,7 @@ IRType* cx::getIRType(Type astType) {
                 auto unionType = new IRUnionType{IRTypeKind::IRUnionType, {}, ""};
                 irType = new IRStructType{IRTypeKind::IRStructType, {tagType, unionType}, astType.getQualifiedTypeName(), '_' + mangleType(astType), false};
                 irTypes.emplace(astType.getBase(), irType);
-                auto associatedTypes = map(enumDecl->getCases(), [](const EnumCase& c) { return getIRType(c.getAssociatedType()); });
+                auto associatedTypes = map(enumDecl->cases, [](const EnumCase& c) { return getIRType(c.associatedType); });
                 unionType->elementTypes = std::move(associatedTypes);
                 return irType;
             } else {
@@ -46,7 +46,7 @@ IRType* cx::getIRType(Type astType) {
             auto structType =
                 new IRStructType{IRTypeKind::IRStructType, {}, astType.getQualifiedTypeName(), '_' + mangleType(astType), astType.getDecl()->packed};
             irTypes.emplace(astType.getBase(), structType);
-            auto elementTypes = map(astType.getDecl()->getFields(), [](const FieldDecl& f) { return getIRType(f.getType()); });
+            auto elementTypes = map(astType.getDecl()->fields, [](const FieldDecl& f) { return getIRType(f.type); });
             structType->elementTypes = std::move(elementTypes);
             return structType;
         } else {

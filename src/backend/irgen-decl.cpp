@@ -15,7 +15,7 @@ Function* IRGenerator::getFunction(const FunctionDecl& decl) {
         }
     }
 
-    auto params = map(decl.getParams(), [](const ParamDecl& p) { return Parameter{ValueKind::Parameter, getIRType(p.getType()), p.getName().str()}; });
+    auto params = map(decl.getParams(), [](const ParamDecl& p) { return Parameter{ValueKind::Parameter, getIRType(p.type), p.getName().str()}; });
 
     if (decl.isMethodDecl()) {
         params.insert(params.begin(), Parameter{ValueKind::Parameter, getIRType(decl.getTypeDecl()->getType().getPointerTo()), "this"});
@@ -53,13 +53,13 @@ void IRGenerator::emitFunctionBody(const FunctionDecl& decl, Function& function)
     }
 
     if (decl.isDestructorDecl()) {
-        for (auto& field : decl.getTypeDecl()->getFields()) {
-            if (!field.getType().getDestructor()) continue;
+        for (auto& field : decl.getTypeDecl()->fields) {
+            if (!field.type.getDestructor()) continue;
             deferDestructorCall(emitMemberAccess(&function.params[0], &field), &field);
         }
     }
 
-    for (auto& stmt : decl.getBody()) {
+    for (auto& stmt : *decl.body) {
         emitStmt(*stmt);
     }
 
@@ -92,25 +92,25 @@ Value* IRGenerator::emitVarDecl(const VarDecl& decl) {
     }
 
     if (decl.isGlobal()) {
-        Value* value = decl.getInitializer() ? emitExpr(*decl.getInitializer()) : nullptr;
+        Value* value = decl.initializer ? emitExpr(*decl.initializer) : nullptr;
 
-        if (decl.getType().isMutable()) {
-            value = createGlobalVariable(value, decl.getType(), decl.getName());
+        if (decl.type.isMutable()) {
+            value = createGlobalVariable(value, decl.type, decl.getName());
         }
 
         auto it = globalScope().valuesByDecl.try_emplace(&decl, value);
         ASSERT(it.second);
         return value;
     } else {
-        auto* alloca = createEntryBlockAlloca(decl.getType(), decl.getName());
+        auto* alloca = createEntryBlockAlloca(decl.type, decl.getName());
         setLocalValue(alloca, &decl);
-        auto* initializer = decl.getInitializer();
+        auto* initializer = decl.initializer;
         if (!initializer) return alloca;
 
         if (auto* callExpr = llvm::dyn_cast<CallExpr>(initializer)) {
             if (callExpr->getCalleeDecl()) {
                 if (auto* constructorDecl = llvm::dyn_cast<ConstructorDecl>(callExpr->getCalleeDecl())) {
-                    if (constructorDecl->getTypeDecl()->getType() == decl.getType()) {
+                    if (constructorDecl->getTypeDecl()->getType() == decl.type) {
                         emitCallExpr(*callExpr, alloca);
                         return alloca;
                     }
@@ -129,7 +129,7 @@ Value* IRGenerator::emitVarDecl(const VarDecl& decl) {
 void IRGenerator::emitDecl(const Decl& decl) {
     llvm::SaveAndRestore setCurrentDecl(currentDecl, &decl);
 
-    switch (decl.getKind()) {
+    switch (decl.kind) {
     case DeclKind::ParamDecl:
         llvm_unreachable("handled via FunctionDecl");
     case DeclKind::FunctionDecl:

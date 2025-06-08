@@ -48,7 +48,7 @@ Value* IRGenerator::getValue(const Decl* decl) {
         return value;
     }
 
-    switch (decl->getKind()) {
+    switch (decl->kind) {
     case DeclKind::VarDecl:
         return emitVarDecl(*llvm::cast<VarDecl>(decl));
     case DeclKind::FieldDecl:
@@ -89,10 +89,10 @@ void IRGenerator::deferEvaluationOf(const Expr& expr) {
 DestructorDecl* IRGenerator::getDefaultDestructor(TypeDecl& typeDecl) {
     ASSERT(!typeDecl.getDestructor());
 
-    for (auto& field : typeDecl.getFields()) {
-        if (field.getType().getDestructor()) {
+    for (auto& field : typeDecl.fields) {
+        if (field.type.getDestructor()) {
             auto destructor = new DestructorDecl(typeDecl, typeDecl.getLocation());
-            destructor->setBody({});
+            destructor->body = std::vector<Stmt*>();
             return destructor;
         }
     }
@@ -101,12 +101,12 @@ DestructorDecl* IRGenerator::getDefaultDestructor(TypeDecl& typeDecl) {
 }
 
 void IRGenerator::deferDestructorCall(Value* receiver, const VariableDecl* decl) {
-    ASSERT(decl->getType());
+    ASSERT(decl->type);
     Function* function = nullptr;
 
-    if (auto* destructor = decl->getType().getDestructor()) {
+    if (auto* destructor = decl->type.getDestructor()) {
         function = getFunction(*destructor);
-    } else if (auto* typeDecl = decl->getType().getDecl()) {
+    } else if (auto* typeDecl = decl->type.getDecl()) {
         if (auto defaultDestructor = getDefaultDestructor(*typeDecl)) {
             function = getFunction(*defaultDestructor);
         }
@@ -205,7 +205,7 @@ Value* IRGenerator::getFunctionForCall(const CallExpr& call) {
     const Decl* decl = call.getCalleeDecl();
     if (!decl) return nullptr;
 
-    switch (decl->getKind()) {
+    switch (decl->kind) {
     case DeclKind::FunctionDecl:
     case DeclKind::MethodDecl:
     case DeclKind::ConstructorDecl:

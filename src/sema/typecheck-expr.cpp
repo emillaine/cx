@@ -17,16 +17,16 @@ using namespace cx;
 
 void Typechecker::checkHasAccess(const Decl& decl, Location location, AccessLevel userAccessLevel) {
     // FIXME: Compare SourceFile objects instead of file path strings.
-    if (decl.getAccessLevel() == AccessLevel::Private && strcmp(decl.getLocation().file, location.file) != 0) {
+    if (decl.accessLevel == AccessLevel::Private && strcmp(decl.getLocation().file, location.file) != 0) {
         WARN(location, "'" << decl.getName() << "' is private");
-    } else if (userAccessLevel != AccessLevel::None && decl.getAccessLevel() < userAccessLevel) {
-        WARN(location, "using " << decl.getAccessLevel() << " type '" << decl.getName() << "' in " << userAccessLevel << " declaration");
+    } else if (userAccessLevel != AccessLevel::None && decl.accessLevel < userAccessLevel) {
+        WARN(location, "using " << decl.accessLevel << " type '" << decl.getName() << "' in " << userAccessLevel << " declaration");
     }
 }
 
 void Typechecker::checkLambdaCapture(const VariableDecl& variableDecl, const VarExpr& varExpr) const {
     auto* parent = getCurrentModule()->getSymbolTable().getCurrentScope().parent;
-    if (parent && parent->isLambda() && variableDecl.getParentDecl() != parent) {
+    if (parent && parent->isLambda() && variableDecl.parent != parent) {
         ERROR(varExpr.getLocation(), "lambda capturing not implemented yet");
     }
 }
@@ -34,20 +34,20 @@ void Typechecker::checkLambdaCapture(const VariableDecl& variableDecl, const Var
 Type Typechecker::typecheckVarExpr(VarExpr& expr, bool useIsWriteOnly) {
     auto* decl = findDecl(expr.getIdentifier(), expr.getLocation());
     checkHasAccess(*decl, expr.getLocation(), AccessLevel::None);
-    decl->setReferenced(true);
+    decl->referenced = true;
     expr.setDecl(decl);
 
     if (auto variableDecl = llvm::dyn_cast<VariableDecl>(decl)) {
         checkLambdaCapture(*variableDecl, expr);
     }
 
-    switch (decl->getKind()) {
+    switch (decl->kind) {
     case DeclKind::VarDecl:
         if (!useIsWriteOnly) checkNotMoved(*decl, expr);
-        return llvm::cast<VarDecl>(decl)->getType();
+        return llvm::cast<VarDecl>(decl)->type;
     case DeclKind::ParamDecl:
         if (!useIsWriteOnly) checkNotMoved(*decl, expr);
-        return llvm::cast<ParamDecl>(decl)->getType();
+        return llvm::cast<ParamDecl>(decl)->type;
     case DeclKind::FunctionDecl:
     case DeclKind::MethodDecl:
         return Type(llvm::cast<FunctionDecl>(decl)->getFunctionType(), Mutability::Mutable, Location());
@@ -66,9 +66,9 @@ Type Typechecker::typecheckVarExpr(VarExpr& expr, bool useIsWriteOnly) {
     case DeclKind::EnumDecl:
         ERROR(expr.getLocation(), "'" << expr.getIdentifier() << "' is not a variable");
     case DeclKind::EnumCase:
-        return llvm::cast<EnumCase>(decl)->getType();
+        return llvm::cast<EnumCase>(decl)->type;
     case DeclKind::FieldDecl:
-        return llvm::cast<FieldDecl>(decl)->getType();
+        return llvm::cast<FieldDecl>(decl)->type;
     case DeclKind::ImportDecl:
         llvm_unreachable("import statement validation not implemented yet");
     }
@@ -351,7 +351,7 @@ static void checkRange(const Expr& expr, const llvm::APSInt& value, Type type) {
 }
 
 static bool hasField(TypeDecl& type, const FieldDecl& field) {
-    return llvm::any_of(type.getFields(), [&](const FieldDecl& f) { return f.getName() == field.getName() && f.getType() == field.getType(); });
+    return llvm::any_of(type.fields, [&](const FieldDecl& f) { return f.getName() == field.getName() && f.type == field.type; });
 }
 
 bool Typechecker::hasMethod(TypeDecl& type, FunctionDecl& functionDecl) const {
@@ -371,7 +371,7 @@ bool Typechecker::hasMethod(TypeDecl& type, FunctionDecl& functionDecl) const {
 bool Typechecker::providesInterfaceRequirements(TypeDecl& type, TypeDecl& interface, std::string* errorReason) const {
     auto thisTypeResolvedInterface = llvm::cast<TypeDecl>(interface.instantiate({{"This", type.getType()}}, {}));
 
-    for (auto& fieldRequirement : thisTypeResolvedInterface->getFields()) {
+    for (auto& fieldRequirement : thisTypeResolvedInterface->fields) {
         if (!hasField(type, fieldRequirement)) {
             if (errorReason) {
                 *errorReason = ("doesn't have field '" + fieldRequirement.getName() + "'").str();
@@ -380,9 +380,9 @@ bool Typechecker::providesInterfaceRequirements(TypeDecl& type, TypeDecl& interf
         }
     }
 
-    for (auto& requiredMethod : thisTypeResolvedInterface->getMethods()) {
+    for (auto& requiredMethod : thisTypeResolvedInterface->methods) {
         if (auto* functionDecl = llvm::dyn_cast<FunctionDecl>(requiredMethod)) {
-            if (functionDecl->hasBody()) continue;
+            if (functionDecl->body) continue;
 
             if (!hasMethod(type, *functionDecl)) {
                 if (errorReason) {
@@ -700,7 +700,7 @@ std::vector<Type> Typechecker::inferGenericArgsFromCallArgs(llvm::ArrayRef<Gener
         Expr* genericArgValue = nullptr;
 
         for (auto&& [param, arg] : llvm::zip_first(params, call.getArgs())) {
-            Type paramType = param.getType();
+            Type paramType = param.type;
 
             if (containsGenericParam(paramType, genericParam.getName())) {
                 // FIXME: The args will also be typechecked by validateAndConvertArguments() after this function. Get rid of this duplicated typechecking.
@@ -740,9 +740,9 @@ std::vector<Type> Typechecker::inferGenericArgsFromCallArgs(llvm::ArrayRef<Gener
     ASSERT(genericParams.size() == inferredGenericArgs.size());
 
     for (auto&& [genericParam, genericArg] : llvm::zip(genericParams, inferredGenericArgs)) {
-        if (!genericParam.getConstraints().empty()) {
-            ASSERT(genericParam.getConstraints().size() == 1, "cannot have multiple generic constraints yet");
-            auto* interface = getTypeDecl(*llvm::cast<BasicType>(genericParam.getConstraints()[0].getBase()));
+        if (!genericParam.constraints.empty()) {
+            ASSERT(genericParam.constraints.size() == 1, "cannot have multiple generic constraints yet");
+            auto* interface = getTypeDecl(*llvm::cast<BasicType>(genericParam.constraints[0].getBase()));
 
             if (auto basicType = llvm::dyn_cast<BasicType>(genericArg.getBase())) {
                 auto* typeDecl = getTypeDecl(*basicType);
@@ -832,7 +832,7 @@ static std::vector<Note> getCandidateNotes(llvm::ArrayRef<Decl*> unfilteredCandi
         FunctionDecl* functionDecl = llvm::dyn_cast<FunctionDecl>(candidate);
         if (!functionDecl) {
             auto functionTemplate = llvm::dyn_cast<FunctionTemplate>(candidate);
-            functionDecl = functionTemplate ? functionTemplate->getFunctionDecl() : nullptr;
+            functionDecl = functionTemplate ? functionTemplate->functionDecl : nullptr;
         }
 
         if (!functionDecl || functionDecl->getParams().size() == expr.getArgs().size()) {
@@ -857,7 +857,7 @@ static const Match* findMatchByPredicate(llvm::ArrayRef<Match> matches, const Ca
         if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(match.decl)) {
             params = functionDecl->getParams();
         } else if (auto variableDecl = llvm::dyn_cast<VariableDecl>(match.decl)) {
-            params = llvm::cast<FunctionType>(variableDecl->getType().getBase())->getParamDecls();
+            params = llvm::cast<FunctionType>(variableDecl->type.getBase())->getParamDecls();
         } else {
             llvm_unreachable("unhandled callee decl");
         }
@@ -865,7 +865,7 @@ static const Match* findMatchByPredicate(llvm::ArrayRef<Match> matches, const Ca
         if (params.size() == call.getArgs().size()) {
             if (llvm::all_of(llvm::zip_first(params, call.getArgs()), [&](auto&& pair) {
                     auto&& [param, arg] = pair;
-                    return predicate(param.getType(), arg.getValue()->getType());
+                    return predicate(param.type, arg.getValue()->getType());
                 })) {
                 if (result) return nullptr;
                 result = &match;
@@ -920,10 +920,10 @@ Decl* Typechecker::resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, 
     bool isConstructorCall = false;
 
     for (Decl* decl : decls) {
-        switch (decl->getKind()) {
+        switch (decl->kind) {
         case DeclKind::FunctionTemplate: {
             auto* functionTemplate = llvm::cast<FunctionTemplate>(decl);
-            auto genericParams = functionTemplate->getGenericParams();
+            auto genericParams = functionTemplate->genericParams;
 
             if (!expr.getGenericArgs().empty() && expr.getGenericArgs().size() != genericParams.size()) {
                 if (decls.size() == 1) {
@@ -932,7 +932,7 @@ Decl* Typechecker::resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, 
                 continue;
             }
 
-            auto genericArgs = getGenericArgsForCall(genericParams, expr, functionTemplate->getFunctionDecl(), decls.size() != 1, expectedType);
+            auto genericArgs = getGenericArgsForCall(genericParams, expr, functionTemplate->functionDecl, decls.size() != 1, expectedType);
             if (genericArgs.empty()) continue; // Couldn't infer generic arguments.
 
             auto* functionDecl = functionTemplate->instantiate(genericArgs);
@@ -990,14 +990,14 @@ Decl* Typechecker::resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, 
         case DeclKind::TypeTemplate: {
             auto* typeTemplate = llvm::cast<TypeTemplate>(decl);
             isConstructorCall = true;
-            constructorDecls = typeTemplate->getTypeDecl()->getConstructors();
+            constructorDecls = typeTemplate->typeDecl->getConstructors();
             ASSERT(decls.size() == 1);
             candidates = llvm::ArrayRef(reinterpret_cast<Decl**>(constructorDecls.data()), constructorDecls.size());
 
             std::vector<llvm::StringMap<Type>> genericArgSets;
 
             for (auto* constructorDecl : constructorDecls) {
-                auto genericArgs = getGenericArgsForCall(typeTemplate->getGenericParams(), expr, constructorDecl, constructorDecls.size() != 1, expectedType);
+                auto genericArgs = getGenericArgsForCall(typeTemplate->genericParams, expr, constructorDecl, constructorDecls.size() != 1, expectedType);
                 if (genericArgs.empty()) continue; // Couldn't infer generic arguments.
                 if (llvm::find_if(genericArgSets, [&](auto& set) { return equals(set, genericArgs); }) == genericArgSets.end()) {
                     genericArgSets.push_back(genericArgs);
@@ -1008,7 +1008,7 @@ Decl* Typechecker::resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, 
                 TypeDecl* typeDecl = nullptr;
 
                 auto genericArgTypes = map(genericArgs, [](auto& entry) { return entry.getValue(); });
-                auto typeDecls = findDecls(getQualifiedTypeName(typeTemplate->getTypeDecl()->getName(), genericArgTypes));
+                auto typeDecls = findDecls(getQualifiedTypeName(typeTemplate->typeDecl->getName(), genericArgTypes));
 
                 if (typeDecls.empty()) {
                     typeDecl = typeTemplate->instantiate(genericArgs);
@@ -1035,7 +1035,7 @@ Decl* Typechecker::resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, 
         case DeclKind::FieldDecl: {
             auto* variableDecl = llvm::cast<VariableDecl>(decl);
 
-            if (auto* functionType = llvm::dyn_cast<FunctionType>(variableDecl->getType().getBase())) {
+            if (auto* functionType = llvm::dyn_cast<FunctionType>(variableDecl->type.getBase())) {
                 auto paramDecls = functionType->getParamDecls(variableDecl->getLocation());
 
                 if (decls.size() == 1) {
@@ -1197,7 +1197,7 @@ Type Typechecker::typecheckCallExpr(CallExpr& expr, Type expectedType) {
             expr.setReceiverType(constructorDecl->getTypeDecl()->getType());
         } else if (decl->isMethodDecl()) {
             auto* varDecl = llvm::cast<VarDecl>(findDecl("this", expr.getCallee().getLocation()));
-            expr.setReceiverType(varDecl->getType());
+            expr.setReceiverType(varDecl->type);
         }
     }
 
@@ -1211,21 +1211,21 @@ Type Typechecker::typecheckCallExpr(CallExpr& expr, Type expectedType) {
     if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(decl)) {
         params = functionDecl->getParams();
     } else if (auto variableDecl = llvm::dyn_cast<VariableDecl>(decl)) {
-        params = llvm::cast<FunctionType>(variableDecl->getType().getBase())->getParamDecls();
+        params = llvm::cast<FunctionType>(variableDecl->type.getBase())->getParamDecls();
     } else {
-        auto type = llvm::cast<EnumCase>(decl)->getAssociatedType();
+        auto type = llvm::cast<EnumCase>(decl)->associatedType;
         params = map(type.getTupleElements(), [&](auto& e) { return ParamDecl(e.type, std::string(e.name), false, decl->getLocation()); });
         validateAndConvertArguments(expr, params, false, decl->getName(), expr.getLocation());
     }
 
     for (auto&& [param, arg] : llvm::zip_longest(params, expr.getArgs())) {
-        if (arg && !arg->getValue()->getType().isImplicitlyCopyable() && (!param || !param->getType().isImplicitlyCopyable())) {
+        if (arg && !arg->getValue()->getType().isImplicitlyCopyable() && (!param || !param->type.isImplicitlyCopyable())) {
             setMoved(arg->getValue(), true);
         }
     }
 
     expr.setCalleeDecl(decl);
-    decl->setReferenced(true);
+    decl->referenced = true;
 
     if (auto constructorDecl = llvm::dyn_cast<ConstructorDecl>(decl)) {
         if (constructorDecl->getTypeDecl()->isInterface()) {
@@ -1235,9 +1235,9 @@ Type Typechecker::typecheckCallExpr(CallExpr& expr, Type expectedType) {
     } else if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(decl)) {
         return functionDecl->getFunctionType()->getReturnType();
     } else if (auto variableDecl = llvm::dyn_cast<VariableDecl>(decl)) {
-        return llvm::cast<FunctionType>(variableDecl->getType().getBase())->getReturnType();
+        return llvm::cast<FunctionType>(variableDecl->type.getBase())->getReturnType();
     } else {
-        return llvm::cast<EnumCase>(decl)->getType();
+        return llvm::cast<EnumCase>(decl)->type;
     }
 }
 
@@ -1262,12 +1262,12 @@ ArgumentValidation Typechecker::getArgumentValidationResult(CallExpr& expr, llvm
             bool hadType = arg.getValue()->hasType();
 
             if (!arg.getValue()->hasType()) {
-                typecheckExpr(*arg.getValue(), false, param ? param->getType() : Type());
+                typecheckExpr(*arg.getValue(), false, param ? param->type : Type());
             }
 
             bool invalidType = false;
             std::optional<ImplicitCastExpr::Kind> implicitCastKind;
-            if (Type convertedType = isImplicitlyConvertible(arg.getValue(), arg.getValue()->getType(), param->getType(), true, &implicitCastKind)) {
+            if (Type convertedType = isImplicitlyConvertible(arg.getValue(), arg.getValue()->getType(), param->type, true, &implicitCastKind)) {
                 didConvertArguments = didConvertArguments || convertedType != arg.getValue()->getType() || implicitCastKind.has_value();
             } else {
                 invalidType = true;
@@ -1296,7 +1296,7 @@ void Typechecker::validateAndConvertArguments(CallExpr& expr, const Decl& callee
     if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(&calleeDecl)) {
         validateAndConvertArguments(expr, functionDecl->getParams(), functionDecl->isVariadic(), functionName, location);
     } else {
-        auto functionType = llvm::cast<FunctionType>(llvm::cast<VariableDecl>(calleeDecl).getType().getBase());
+        auto functionType = llvm::cast<FunctionType>(llvm::cast<VariableDecl>(calleeDecl).type.getBase());
         auto paramDecls = functionType->getParamDecls(calleeDecl.getLocation());
         validateAndConvertArguments(expr, paramDecls, false, functionName, location);
     }
@@ -1311,7 +1311,7 @@ void Typechecker::validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<Par
         auto* arg = i < expr.getArgs().size() ? &expr.getArgs()[i] : nullptr;
         auto* param = i < params.size() ? &params[i] : nullptr;
         if (!arg) continue;
-        if (!arg->getValue()->hasType()) typecheckExpr(*arg->getValue(), false, param ? param->getType() : Type());
+        if (!arg->getValue()->hasType()) typecheckExpr(*arg->getValue(), false, param ? param->type : Type());
     }
 
     switch (result.error) {
@@ -1320,7 +1320,7 @@ void Typechecker::validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<Par
             auto* arg = i < expr.getArgs().size() ? &expr.getArgs()[i] : nullptr;
             auto* param = i < params.size() ? &params[i] : nullptr;
             if (!arg) continue;
-            if (param) arg->setValue(convert(arg->getValue(), param->getType(), true));
+            if (param) arg->setValue(convert(arg->getValue(), param->type, true));
         }
         break;
     case ArgumentValidation::TooFew:
@@ -1339,7 +1339,7 @@ void Typechecker::validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<Par
         auto& arg = expr.getArgs()[result.index];
         auto* param = &params[result.index];
         ERROR(arg.getLocation(), "invalid argument #" << (result.index + 1) << " type '" << arg.getValue()->getType() << "' to '" << callee << "', expected '"
-                                                      << param->getType() << "'");
+                                                      << param->type << "'");
         break;
     }
     }
@@ -1435,7 +1435,7 @@ Type Typechecker::typecheckMemberExpr(MemberExpr& expr) {
     if (auto* enumCase = getEnumCase(expr)) {
         checkHasAccess(*enumCase->getEnumDecl(), expr.getBaseExpr()->getLocation(), AccessLevel::None);
         expr.setDecl(*enumCase);
-        return enumCase->getType();
+        return enumCase->type;
     }
 
     Type baseType = typecheckExpr(*expr.getBaseExpr());
@@ -1451,11 +1451,11 @@ Type Typechecker::typecheckMemberExpr(MemberExpr& expr) {
     }
 
     if (auto* typeDecl = baseType.getDecl()) {
-        for (auto& field : typeDecl->getFields()) {
+        for (auto& field : typeDecl->fields) {
             if (field.getName() == expr.getMemberName()) {
                 checkHasAccess(field, expr.getLocation(), AccessLevel::None);
                 expr.setDecl(field);
-                return field.getType().withMutability(baseType.getMutability());
+                return field.type.withMutability(baseType.getMutability());
             }
         }
     }
@@ -1537,12 +1537,12 @@ Type Typechecker::typecheckUnwrapExpr(UnwrapExpr& expr) {
 Type Typechecker::typecheckLambdaExpr(LambdaExpr& expr, Type expectedType) {
     for (size_t i = 0, e = expr.getFunctionDecl()->getParams().size(); i < e; ++i) {
         auto& param = expr.getFunctionDecl()->getParams()[i];
-        if (!param.getType()) {
+        if (!param.type) {
             auto inferredType = expectedType ? expectedType.getParamTypes()[i] : Type();
             if (!inferredType) {
                 ERROR(param.getLocation(), "couldn't infer type for parameter '" << param.getName() << "'");
             }
-            param.setType(inferredType);
+            param.type = NOTNULL(inferredType);
         }
     }
 
@@ -1638,7 +1638,7 @@ Type Typechecker::typecheckExpr(Expr& expr, bool useIsWriteOnly, Type expectedTy
         break;
     case ExprKind::VarDeclExpr:
         typecheckVarDecl(*llvm::cast<VarDeclExpr>(expr).varDecl);
-        type = llvm::cast<VarDeclExpr>(expr).varDecl->getType();
+        type = llvm::cast<VarDeclExpr>(expr).varDecl->type;
         break;
     }
 

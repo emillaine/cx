@@ -28,7 +28,7 @@ void Module::addToSymbolTableWithName(Decl& decl, llvm::StringRef name) {
 }
 
 void Module::addToSymbolTable(FunctionTemplate& decl) {
-    if (auto existing = getSymbolTable().findWithMatchingPrototype(*decl.getFunctionDecl())) {
+    if (auto existing = getSymbolTable().findWithMatchingPrototype(*decl.functionDecl)) {
         REPORT_ERROR_WITH_NOTES(decl.getLocation(), getPreviousDefinitionNotes(existing), "redefinition of '" << decl.getQualifiedName() << "'");
     }
     getSymbolTable().addGlobal(decl.getQualifiedName(), &decl);
@@ -42,15 +42,15 @@ void Module::addToSymbolTable(FunctionDecl& decl) {
 }
 
 void Module::addToSymbolTable(TypeTemplate& decl) {
-    llvm::cast<BasicType>(decl.getTypeDecl()->getType().getBase())->setDecl(decl.getTypeDecl());
-    addToSymbolTableWithName(decl, decl.getTypeDecl()->getName());
+    llvm::cast<BasicType>(decl.typeDecl->getType().getBase())->setDecl(decl.typeDecl);
+    addToSymbolTableWithName(decl, decl.typeDecl->getName());
 }
 
 void Module::addToSymbolTable(TypeDecl& decl) {
     llvm::cast<BasicType>(decl.getType().getBase())->setDecl(&decl);
     addToSymbolTableWithName(decl, decl.getQualifiedName());
 
-    for (auto& memberDecl : decl.getMethods()) {
+    for (auto& memberDecl : decl.methods) {
         if (auto* nonTemplateMethod = llvm::dyn_cast<MethodDecl>(memberDecl)) {
             addToSymbolTable(*nonTemplateMethod);
         }

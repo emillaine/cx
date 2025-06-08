@@ -25,7 +25,7 @@ std::string PackageManifest::Dependency::getFileSystemPath() const {
 }
 
 template<typename DeclT, typename DefaultValueT> static auto getConfigValue(Decl* decl, DefaultValueT defaultValue) {
-    return decl ? llvm::cast<DeclT>(llvm::cast<VarDecl>(decl)->getInitializer())->getValue() : defaultValue;
+    return decl ? llvm::cast<DeclT>(llvm::cast<VarDecl>(decl)->initializer)->getValue() : defaultValue;
 }
 
 PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::move(packageRoot)) {
@@ -44,7 +44,7 @@ PackageManifest::PackageManifest(std::string&& packageRoot) : packageRoot(std::m
     outputDirectory = getConfigValue<StringLiteralExpr>(symbols.findOne("outputDirectory"), "bin").str();
 
     if (auto* dependencies = symbols.findOne("dependencies")) {
-        auto* array = llvm::cast<ArrayLiteralExpr>(llvm::cast<VarDecl>(dependencies)->getInitializer());
+        auto* array = llvm::cast<ArrayLiteralExpr>(llvm::cast<VarDecl>(dependencies)->initializer);
         for (auto& element : array->getElements()) {
             auto* tuple = llvm::cast<TupleExpr>(&*element);
             auto* package = llvm::cast<StringLiteralExpr>(tuple->getElementByName("package"));

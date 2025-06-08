@@ -24,7 +24,7 @@ Value* IRGenerator::emitStringLiteralExpr(const StringLiteralExpr& expr) {
 
     for (auto* decl : Module::getStdlibModule()->getSymbolTable().find("string.init")) {
         auto params = llvm::cast<ConstructorDecl>(decl)->getParams();
-        if (params.size() == 2 && params[0].getType().isPointerType() && params[1].getType().isInt()) {
+        if (params.size() == 2 && params[0].type.isPointerType() && params[1].type.isInt()) {
             stringConstructor = getFunction(*llvm::cast<ConstructorDecl>(decl));
             break;
         }
@@ -339,7 +339,7 @@ Value* IRGenerator::emitEnumCase(const EnumCase& enumCase, llvm::ArrayRef<NamedV
 
     if (!associatedValueElements.empty()) {
         // TODO: This is duplicated in emitTupleExpr.
-        Value* associatedValue = createUndefined(enumCase.getAssociatedType());
+        Value* associatedValue = createUndefined(enumCase.associatedType);
         int index = 0;
         for (auto& element : associatedValueElements) {
             associatedValue = createInsertValue(associatedValue, emitExpr(*element.getValue()), index++);
@@ -458,7 +458,7 @@ Value* IRGenerator::emitMemberAccess(Value* baseValue, const FieldDecl* field, c
         }
 
         if (baseTypeDecl->isUnion()) {
-            return createCast(baseValue, field->getType().getPointerTo(), field->getName());
+            return createCast(baseValue, field->type.getPointerTo(), field->getName());
         } else {
             return createGEP(baseValue, baseTypeDecl->getFieldIndex(field), expr, field->getName());
         }

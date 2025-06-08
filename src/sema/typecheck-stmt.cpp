@@ -21,16 +21,16 @@ void Typechecker::checkReturnPointerToLocal(const Expr* returnValue) const {
     }
 
     if (auto varExpr = llvm::dyn_cast<VarExpr>(operand)) {
-        switch (varExpr->getDecl()->getKind()) {
+        switch (varExpr->getDecl()->kind) {
         case DeclKind::VarDecl: {
             auto* varDecl = llvm::cast<VarDecl>(varExpr->getDecl());
-            if (varDecl->getParentDecl() && varDecl->getParentDecl()->isFunctionDecl()) {
-                localVariableType = varDecl->getType();
+            if (varDecl->parent && varDecl->parent->isFunctionDecl()) {
+                localVariableType = varDecl->type;
             }
             break;
         }
         case DeclKind::ParamDecl:
-            localVariableType = llvm::cast<ParamDecl>(varExpr->getDecl())->getType();
+            localVariableType = llvm::cast<ParamDecl>(varExpr->getDecl())->type;
             break;
 
         default:
@@ -49,7 +49,7 @@ void Typechecker::typecheckReturnStmt(ReturnStmt& stmt) {
 
     if (!currentFunction->getReturnType()) {
         ASSERT(currentFunction->isLambda());
-        currentFunction->getProto().setReturnType(returnValueType);
+        currentFunction->proto.returnType = returnValueType;
     }
 
     if (!stmt.value) {
@@ -117,7 +117,7 @@ void Typechecker::typecheckSwitchStmt(SwitchStmt& stmt) {
 
         if (auto* associatedValue = switchCase.associatedValue) {
             auto* enumCase = llvm::cast<EnumCase>(llvm::cast<MemberExpr>(switchCase.value)->getDecl());
-            associatedValue->setType(enumCase->getAssociatedType());
+            associatedValue->type = NOTNULL(enumCase->associatedType);
             typecheckVarDecl(*associatedValue);
         }
 

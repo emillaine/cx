@@ -105,8 +105,8 @@ std::string cx::mangleFunctionDecl(const FunctionDecl& functionDecl) {
     std::string mangled;
     llvm::raw_string_ostream stream(mangled);
 
-    if (!functionDecl.getProto().asmLabel.empty()) {
-        stream << '\01' << functionDecl.getProto().asmLabel;
+    if (!functionDecl.proto.asmLabel.empty()) {
+        stream << '\01' << functionDecl.proto.asmLabel;
     } else if (functionDecl.isExtern() || functionDecl.isMain()) {
         stream << functionDecl.getName();
     } else {
@@ -117,7 +117,7 @@ std::string cx::mangleFunctionDecl(const FunctionDecl& functionDecl) {
 
         if (auto* typeDecl = functionDecl.getTypeDecl()) {
             mangleIdentifier(stream, typeDecl->getName());
-            mangleGenericArgs(stream, typeDecl->getGenericArgs());
+            mangleGenericArgs(stream, typeDecl->genericArgs);
         }
 
         if (isOperator(functionDecl)) {
@@ -135,7 +135,7 @@ std::string cx::mangleFunctionDecl(const FunctionDecl& functionDecl) {
             if (param.isPublic) {
                 mangleIdentifier(stream, param.getName());
             }
-            mangleType(stream, param.getType());
+            mangleType(stream, param.type);
         }
     }
 

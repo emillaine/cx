@@ -34,7 +34,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, llvm::ArrayRef<NamedVal
 }
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Decl& decl) {
-    switch (decl.getKind()) {
+    switch (decl.kind) {
     case DeclKind::GenericParamDecl: {
         //            auto& genericParamDecl = llvm::cast<GenericParamDecl>(decl);
         stream << "GenericParamDecl";
@@ -43,8 +43,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Decl& decl) {
     case DeclKind::FunctionDecl: {
         auto& functionDecl = llvm::cast<FunctionDecl>(decl);
         stream << "FunctionDecl " << functionDecl.getQualifiedName() << '\n';
-        if (functionDecl.hasBody()) {
-            stream << functionDecl.getBody();
+        if (functionDecl.body) {
+            stream << *functionDecl.body;
         }
         break;
     }
@@ -91,8 +91,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Decl& decl) {
     case DeclKind::VarDecl: {
         auto& varDecl = llvm::cast<VarDecl>(decl);
         stream << "VarDecl " << varDecl.getName() << " ";
-        if (varDecl.getInitializer()) {
-            stream << *varDecl.getInitializer();
+        if (varDecl.initializer) {
+            stream << *varDecl.initializer;
         }
         break;
     }
