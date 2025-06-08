@@ -3,23 +3,24 @@
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 
-
-def convert_newlines(string):
-    return string.replace("\r\n", "\n")
-
-
-test_file = sys.argv[2]
-checks = [
-    ('-print-ir', '.ir'),
-    ('-print-llvm', '.ll'),
+all_checks = [
+    SimpleNamespace(flag="-print-ast", extension=".ast", is_default=False),
+    SimpleNamespace(flag="-print-ir", extension=".ir", is_default=True),
+    SimpleNamespace(flag="-print-llvm", extension=".ll", is_default=True),
 ]
 
-for compiler_flag, extension in checks:
-    snapshot_path = test_file + extension
+cx, test_file, *cx_flags = sys.argv[1:]
+
+checks_to_run = ([c for c in all_checks if c.flag in cx_flags]
+                 or [c for c in all_checks if c.is_default])
+
+for check in checks_to_run:
+    snapshot_path = test_file + check.extension
 
     try:
-        output = subprocess.check_output(sys.argv[1:] + [compiler_flag], text=True)
+        output = subprocess.check_output(sys.argv[1:] + [check.flag], text=True)
     except subprocess.CalledProcessError as error:
         print(error.output)
         sys.exit(error.returncode)
@@ -31,7 +32,7 @@ for compiler_flag, extension in checks:
 
     try:
         with open(snapshot_path, "r") as snapshot_file:
-            snapshot = convert_newlines(snapshot_file.read())
+            snapshot = snapshot_file.read().replace("\r\n", "\n")
     except IOError:
         print("FAIL: snapshot file not found\n")
         print("Output:")

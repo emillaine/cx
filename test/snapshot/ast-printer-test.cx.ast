@@ -1,0 +1,9 @@
+TypeDecl
+TypeDecl
+FunctionDecl main
+    VarStmt VarDecl text CallExpr VarExpr readFile type=NULL
+        StringLiteralExpr
+
+    ExprStmt CallExpr MemberExpr
+
+

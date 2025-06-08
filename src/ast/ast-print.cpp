@@ -125,12 +125,12 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Stmt& stmt) {
     }
     case StmtKind::VarStmt: {
         auto& varStmt = llvm::cast<VarStmt>(stmt);
-        stream << "VarStmt " << varStmt.decl;
+        stream << "VarStmt " << *varStmt.decl;
         break;
     }
     case StmtKind::ExprStmt: {
         auto& exprStmt = llvm::cast<ExprStmt>(stmt);
-        stream << "ExprStmt " << exprStmt.expr;
+        stream << "ExprStmt " << *exprStmt.expr;
         break;
     }
     case StmtKind::DeferStmt: {
@@ -140,7 +140,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Stmt& stmt) {
     }
     case StmtKind::IfStmt: {
         auto& ifStmt = llvm::cast<IfStmt>(stmt);
-        stream << "IfStmt " << ifStmt.condition << "\n" << ifStmt.thenBody;
+        stream << "IfStmt " << *ifStmt.condition << "\n" << ifStmt.thenBody;
         break;
     }
     case StmtKind::SwitchStmt: {
