@@ -30,6 +30,7 @@
 #include "typecheck.h"
 
 using namespace cx;
+using namespace llvm::sys;
 
 static clang::TargetInfo* targetInfo;
 
@@ -354,7 +355,6 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     }
 
     clang::CompilerInstance ci;
-
     auto* diagClient = new ErrorIgnoringTextDiagPrinter(llvm::errs(), new clang::DiagnosticOptions());
     ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), diagClient);
 
@@ -370,7 +370,10 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     ci.createFileManager();
     ci.createSourceManager(ci.getFileManager());
     diagClient->srcManager = &ci.getSourceManager();
-    ci.getHeaderSearchOpts().AddPath(llvm::sys::path::parent_path(importer.getFilePath()), clang::frontend::Quoted, false, true);
+
+    llvm::SmallString<256> realPath;
+    fs::real_path(importer.getFilePath(), realPath);
+    ci.getHeaderSearchOpts().AddPath(path::parent_path(realPath), clang::frontend::Quoted, false, true);
 
     for (llvm::StringRef includePath : options.importSearchPaths) {
         ci.getHeaderSearchOpts().AddPath(includePath, clang::frontend::System, false, true);

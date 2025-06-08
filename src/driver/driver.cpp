@@ -306,7 +306,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     const char* outputFileExtension;
     // Prefer external C compiler for better system compatibility, fallback to embedded Clang.
     std::string ccPath = findExternalCCompiler().value_or(buildParams.argv0);
-    bool useExternalCCompiler = ccPath != buildParams.argv0;
+    bool useExternalCCompiler = buildParams.argv0 == nullptr || ccPath != buildParams.argv0;
     bool isWindows = llvm::sys::path::extension(ccPath) == ".exe";
     bool isMSVC = isWindows; // Assuming MSVC-compatible C compiler.
 
@@ -367,10 +367,8 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
         if (emitAssembly) {
             outputFileExtension = "s";
-        } else if (isWindows) {
-            outputFileExtension = buildParams.createSharedLib ? "dll" : "obj";
         } else {
-            outputFileExtension = buildParams.createSharedLib ? "so" : "o";
+            outputFileExtension = isWindows ? "obj" : "o";
         }
 
         if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
@@ -479,8 +477,13 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     }
 
     if (buildParams.outputFileName.empty()) {
-        buildParams.outputFileName =
-            mainModule.fileBuffers.size() == 1 ? llvm::sys::path::stem(mainModule.fileBuffers[0]->getBufferIdentifier()).str() : "main";
+        if (mainModule.fileBuffers.size() == 1) {
+            buildParams.outputFileName = llvm::sys::path::stem(mainModule.fileBuffers.front()->getBufferIdentifier()).str();
+        }
+        if (buildParams.outputFileName.empty()) {
+            buildParams.outputFileName = "main";
+        }
+
         if (buildParams.createSharedLib) {
             buildParams.outputFileName.append(isWindows ? ".dll" : ".so");
         } else {
