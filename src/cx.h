@@ -19,8 +19,7 @@ typedef struct cxFunction {
 
 API_EXPORT cxModule* cxCreateModule(const char* name);
 
-/// Script buffer must be null-terminated.
-API_EXPORT void cxLoadScript(cxModule* module, const char* script, int length);
+API_EXPORT void cxLoadScriptFromFile(cxModule* module, const char* filePath);
 
 /// Compiles all scripts loaded so far.
 API_EXPORT void cxCompileModule(cxModule* module);

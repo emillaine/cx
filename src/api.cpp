@@ -23,8 +23,13 @@ cxModule* cxCreateModule(const char* name) {
     return new cxModule { .module = Module(name) };
 }
 
-void cxLoadScript(cxModule* module, const char* script, int length) {
-    module->module.fileBuffers.push_back(llvm::MemoryBuffer::getMemBuffer({ script, static_cast<size_t>(length) }, "", /*RequiresNullTerminator*/ true));
+void cxLoadScriptFromFile(cxModule* module, const char* filePath) {
+    auto fileBuffer = llvm::MemoryBuffer::getFile(filePath);
+    if (!fileBuffer) {
+        llvm::errs() << "Error loading script from file '" << filePath << "': " << fileBuffer.getError().message();
+        abort();
+    }
+    module->module.fileBuffers.push_back(std::move(*fileBuffer));
 }
 
 void cxCompileModule(cxModule* module) {
