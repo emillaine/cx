@@ -363,7 +363,6 @@ struct TypeTemplate : Decl {
 struct EnumCase : VariableDecl {
     EnumCase(std::string&& name, Expr* value, Type associatedType, AccessLevel accessLevel, SourceLocation location);
     llvm::StringRef getName() const override { return name; }
-    Expr* getValue() const { return value; }
     Type getAssociatedType() const { return associatedType; }
     EnumDecl* getEnumDecl() const { return llvm::cast<EnumDecl>(getParentDecl()); }
     SourceLocation getLocation() const override { return location; }

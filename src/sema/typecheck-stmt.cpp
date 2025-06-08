@@ -45,49 +45,49 @@ void Typechecker::checkReturnPointerToLocal(const Expr* returnValue) const {
 }
 
 void Typechecker::typecheckReturnStmt(ReturnStmt& stmt) {
-    Type returnValueType = stmt.getReturnValue() ? typecheckExpr(*stmt.getReturnValue(), false, currentFunction->getReturnType()) : Type::getVoid();
+    Type returnValueType = stmt.value ? typecheckExpr(*stmt.value, false, currentFunction->getReturnType()) : Type::getVoid();
 
     if (!currentFunction->getReturnType()) {
         ASSERT(currentFunction->isLambda());
         currentFunction->getProto().setReturnType(returnValueType);
     }
 
-    if (!stmt.getReturnValue()) {
+    if (!stmt.value) {
         if (!currentFunction->getReturnType().isVoid()) {
-            ERROR(stmt.getLocation(), "expected return statement to return a value of type '" << currentFunction->getReturnType() << "'");
+            ERROR(stmt.location, "expected return statement to return a value of type '" << currentFunction->getReturnType() << "'");
         }
         return;
     }
 
-    if (auto converted = convert(stmt.getReturnValue(), currentFunction->getReturnType())) {
-        stmt.setReturnValue(converted);
+    if (auto converted = convert(stmt.value, currentFunction->getReturnType())) {
+        stmt.value = converted;
     } else {
-        ERROR(stmt.getLocation(), "mismatching return type '" << returnValueType << "', expected '" << currentFunction->getReturnType() << "'");
+        ERROR(stmt.location, "mismatching return type '" << returnValueType << "', expected '" << currentFunction->getReturnType() << "'");
     }
 
-    checkReturnPointerToLocal(stmt.getReturnValue());
-    setMoved(stmt.getReturnValue(), true);
+    checkReturnPointerToLocal(stmt.value);
+    setMoved(stmt.value, true);
 }
 
 void Typechecker::typecheckVarStmt(VarStmt& stmt) {
-    typecheckVarDecl(stmt.getDecl());
+    typecheckVarDecl(*stmt.decl);
 }
 
 void Typechecker::typecheckIfStmt(IfStmt& ifStmt) {
-    Type conditionType = typecheckExpr(ifStmt.getCondition());
-    typecheckImplicitlyBoolConvertibleExpr(conditionType, ifStmt.getCondition().getLocation());
+    Type conditionType = typecheckExpr(*ifStmt.condition);
+    typecheckImplicitlyBoolConvertibleExpr(conditionType, ifStmt.condition->location);
     currentControlStmts.push_back(&ifStmt);
 
     {
         llvm::SaveAndRestore thenMovedDecls(movedDecls);
-        for (auto& stmt : ifStmt.getThenBody()) {
+        for (auto& stmt : ifStmt.thenBody) {
             typecheckStmt(stmt);
         }
     }
 
     {
         llvm::SaveAndRestore elseMovedDecls(movedDecls);
-        for (auto& stmt : ifStmt.getElseBody()) {
+        for (auto& stmt : ifStmt.elseBody) {
             typecheckStmt(stmt);
         }
     }
@@ -96,37 +96,37 @@ void Typechecker::typecheckIfStmt(IfStmt& ifStmt) {
 }
 
 void Typechecker::typecheckSwitchStmt(SwitchStmt& stmt) {
-    Type conditionType = typecheckExpr(stmt.getCondition());
+    Type conditionType = typecheckExpr(*stmt.condition);
 
     if (!conditionType.isInteger() && !conditionType.isChar() && !conditionType.isEnumType()) {
-        ERROR(stmt.getCondition().getLocation(), "switch condition must have integer, char, or enum type, got '" << conditionType << "'");
+        ERROR(stmt.condition->location, "switch condition must have integer, char, or enum type, got '" << conditionType << "'");
     }
 
     currentControlStmts.push_back(&stmt);
 
-    for (auto& switchCase : stmt.getCases()) {
-        Type caseType = typecheckExpr(*switchCase.getValue());
+    for (auto& switchCase : stmt.cases) {
+        Type caseType = typecheckExpr(*switchCase.value);
 
-        if (auto converted = convert(switchCase.getValue(), conditionType)) {
-            switchCase.setValue(converted);
+        if (auto converted = convert(switchCase.value, conditionType)) {
+            switchCase.value = converted;
         } else {
-            ERROR(switchCase.getValue()->getLocation(), "case value type '" << caseType << "' doesn't match switch condition type '" << conditionType << "'");
+            ERROR(switchCase.value->location, "case value type '" << caseType << "' doesn't match switch condition type '" << conditionType << "'");
         }
 
         Scope scope(nullptr, &currentModule->getSymbolTable());
 
-        if (auto* associatedValue = switchCase.getAssociatedValue()) {
-            auto* enumCase = llvm::cast<EnumCase>(llvm::cast<MemberExpr>(switchCase.getValue())->getDecl());
+        if (auto* associatedValue = switchCase.associatedValue) {
+            auto* enumCase = llvm::cast<EnumCase>(llvm::cast<MemberExpr>(switchCase.value)->getDecl());
             associatedValue->setType(enumCase->getAssociatedType());
             typecheckVarDecl(*associatedValue);
         }
 
-        for (auto& caseStmt : switchCase.getStmts()) {
+        for (auto& caseStmt : switchCase.stmts) {
             typecheckStmt(caseStmt);
         }
     }
 
-    for (auto& defaultStmt : stmt.getDefaultStmts()) {
+    for (auto& defaultStmt : stmt.defaultStmts) {
         typecheckStmt(defaultStmt);
     }
 
@@ -136,51 +136,51 @@ void Typechecker::typecheckSwitchStmt(SwitchStmt& stmt) {
 void Typechecker::typecheckForStmt(ForStmt& forStmt) {
     Scope scope(currentFunction, &currentModule->getSymbolTable());
 
-    if (forStmt.getVariable()) {
-        typecheckVarStmt(*forStmt.getVariable());
+    if (forStmt.variable) {
+        typecheckVarStmt(*forStmt.variable);
     }
 
-    if (forStmt.getCondition()) {
-        Type conditionType = typecheckExpr(*forStmt.getCondition());
-        typecheckImplicitlyBoolConvertibleExpr(conditionType, forStmt.getCondition()->getLocation());
+    if (forStmt.condition) {
+        Type conditionType = typecheckExpr(*forStmt.condition);
+        typecheckImplicitlyBoolConvertibleExpr(conditionType, forStmt.condition->location);
     }
 
     currentControlStmts.push_back(&forStmt);
 
-    for (auto& stmt : forStmt.getBody()) {
+    for (auto& stmt : forStmt.body) {
         typecheckStmt(stmt);
     }
 
     currentControlStmts.pop_back();
 
-    if (auto* increment = forStmt.getIncrement()) {
+    if (auto* increment = forStmt.increment) {
         typecheckExpr(*increment);
     }
 }
 
 void Typechecker::typecheckBreakStmt(BreakStmt& breakStmt) {
     if (llvm::none_of(currentControlStmts, [](const Stmt* stmt) { return stmt->isBreakable(); })) {
-        ERROR(breakStmt.getLocation(), "'break' is only allowed inside 'while', 'for', and 'switch' statements");
+        ERROR(breakStmt.location, "'break' is only allowed inside 'while', 'for', and 'switch' statements");
     }
 }
 
 void Typechecker::typecheckContinueStmt(ContinueStmt& continueStmt) {
     if (llvm::none_of(currentControlStmts, [](const Stmt* stmt) { return stmt->isContinuable(); })) {
-        ERROR(continueStmt.getLocation(), "'continue' is only allowed inside 'while' and 'for' statements");
+        ERROR(continueStmt.location, "'continue' is only allowed inside 'while' and 'for' statements");
     }
 }
 
 void Typechecker::typecheckCompoundStmt(CompoundStmt& compoundStmt) {
     Scope scope(currentFunction, &currentModule->getSymbolTable());
 
-    for (auto& stmt : compoundStmt.getBody()) {
+    for (auto& stmt : compoundStmt.body) {
         typecheckStmt(stmt);
     }
 }
 
 bool Typechecker::typecheckStmt(Stmt*& stmt) {
     try {
-        switch (stmt->getKind()) {
+        switch (stmt->kind) {
         case StmtKind::ReturnStmt:
             typecheckReturnStmt(llvm::cast<ReturnStmt>(*stmt));
             break;
@@ -188,10 +188,10 @@ bool Typechecker::typecheckStmt(Stmt*& stmt) {
             typecheckVarStmt(llvm::cast<VarStmt>(*stmt));
             break;
         case StmtKind::ExprStmt:
-            typecheckExpr(llvm::cast<ExprStmt>(*stmt).getExpr());
+            typecheckExpr(*llvm::cast<ExprStmt>(stmt)->expr);
             break;
         case StmtKind::DeferStmt:
-            typecheckExpr(llvm::cast<DeferStmt>(*stmt).getExpr());
+            typecheckExpr(*llvm::cast<DeferStmt>(stmt)->expr);
             break;
         case StmtKind::IfStmt:
             typecheckIfStmt(llvm::cast<IfStmt>(*stmt));
@@ -210,7 +210,7 @@ bool Typechecker::typecheckStmt(Stmt*& stmt) {
             break;
         case StmtKind::ForEachStmt: {
             auto* forEachStmt = llvm::cast<ForEachStmt>(stmt);
-            typecheckExpr(forEachStmt->getRangeExpr());
+            typecheckExpr(*forEachStmt->range);
             auto nestLevel = llvm::count_if(currentControlStmts, [](auto* stmt) { return stmt->isForStmt(); });
             stmt = forEachStmt->lower(nestLevel);
             typecheckStmt(stmt);

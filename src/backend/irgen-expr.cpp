@@ -330,7 +330,7 @@ void IRGenerator::emitAssert(Value* condition, const Expr* expr, SourceLocation 
 
 Value* IRGenerator::emitEnumCase(const EnumCase& enumCase, llvm::ArrayRef<NamedValue> associatedValueElements) {
     auto enumDecl = enumCase.getEnumDecl();
-    auto tag = emitExpr(*enumCase.getValue());
+    auto tag = emitExpr(*enumCase.value);
     if (!enumDecl->hasAssociatedValues()) return tag;
 
     // TODO: Could reuse variable alloca instead of always creating a new one here.
@@ -685,7 +685,7 @@ Value* IRGenerator::emitExprAsPointer(const Expr& expr) {
 Value* IRGenerator::emitExprOrEnumTag(const Expr& expr, Value** enumValue) {
     if (auto* memberExpr = llvm::dyn_cast<MemberExpr>(&expr)) {
         if (auto* enumCase = llvm::dyn_cast_or_null<EnumCase>(memberExpr->getDecl())) {
-            return emitExpr(*enumCase->getValue());
+            return emitExpr(*enumCase->value);
         }
     }
 

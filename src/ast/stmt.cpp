@@ -5,7 +5,7 @@
 using namespace cx;
 
 bool Stmt::isBreakable() const {
-    switch (getKind()) {
+    switch (kind) {
     case StmtKind::WhileStmt:
     case StmtKind::ForStmt:
     case StmtKind::ForEachStmt:
@@ -17,7 +17,7 @@ bool Stmt::isBreakable() const {
 }
 
 bool Stmt::isContinuable() const {
-    switch (getKind()) {
+    switch (kind) {
     case StmtKind::WhileStmt:
     case StmtKind::ForStmt:
     case StmtKind::ForEachStmt:
@@ -28,77 +28,77 @@ bool Stmt::isContinuable() const {
 }
 
 Stmt* Stmt::instantiate(const llvm::StringMap<Type>& genericArgs) const {
-    switch (getKind()) {
+    switch (kind) {
     case StmtKind::ReturnStmt: {
         auto* returnStmt = llvm::cast<ReturnStmt>(this);
-        auto returnValue = returnStmt->getReturnValue() ? returnStmt->getReturnValue()->instantiate(genericArgs) : nullptr;
-        return new ReturnStmt(returnValue, returnStmt->getLocation());
+        auto returnValue = returnStmt->value ? returnStmt->value->instantiate(genericArgs) : nullptr;
+        return new ReturnStmt(returnValue, returnStmt->location);
     }
     case StmtKind::VarStmt: {
         auto* varStmt = llvm::cast<VarStmt>(this);
-        auto instantiation = varStmt->getDecl().instantiate(genericArgs, {});
+        auto instantiation = varStmt->decl->instantiate(genericArgs, {});
         return new VarStmt(llvm::cast<VarDecl>(instantiation));
     }
     case StmtKind::ExprStmt: {
         auto* exprStmt = llvm::cast<ExprStmt>(this);
-        return new ExprStmt(exprStmt->getExpr().instantiate(genericArgs));
+        return new ExprStmt(exprStmt->expr->instantiate(genericArgs));
     }
     case StmtKind::DeferStmt: {
         auto* deferStmt = llvm::cast<DeferStmt>(this);
-        return new DeferStmt(deferStmt->getExpr().instantiate(genericArgs));
+        return new DeferStmt(deferStmt->expr->instantiate(genericArgs));
     }
     case StmtKind::IfStmt: {
         auto* ifStmt = llvm::cast<IfStmt>(this);
-        auto condition = ifStmt->getCondition().instantiate(genericArgs);
-        auto thenBody = ::instantiate(ifStmt->getThenBody(), genericArgs);
-        auto elseBody = ::instantiate(ifStmt->getElseBody(), genericArgs);
+        auto condition = ifStmt->condition->instantiate(genericArgs);
+        auto thenBody = ::instantiate(ifStmt->thenBody, genericArgs);
+        auto elseBody = ::instantiate(ifStmt->elseBody, genericArgs);
         return new IfStmt(condition, std::move(thenBody), std::move(elseBody));
     }
     case StmtKind::SwitchStmt: {
         auto* switchStmt = llvm::cast<SwitchStmt>(this);
-        auto condition = switchStmt->getCondition().instantiate(genericArgs);
-        auto cases = map(switchStmt->getCases(), [&](const SwitchCase& switchCase) {
-            auto value = switchCase.getValue()->instantiate(genericArgs);
-            auto associatedValue = llvm::cast<VarDecl>(switchCase.getAssociatedValue()->instantiate(genericArgs, {}));
-            auto stmts = ::instantiate(switchCase.getStmts(), genericArgs);
+        auto condition = switchStmt->condition->instantiate(genericArgs);
+        auto cases = map(switchStmt->cases, [&](const SwitchCase& switchCase) {
+            auto value = switchCase.value->instantiate(genericArgs);
+            auto associatedValue = llvm::cast<VarDecl>(switchCase.associatedValue->instantiate(genericArgs, {}));
+            auto stmts = ::instantiate(switchCase.stmts, genericArgs);
             return SwitchCase(value, associatedValue, std::move(stmts));
         });
-        auto defaultStmts = ::instantiate(switchStmt->getDefaultStmts(), genericArgs);
+        auto defaultStmts = ::instantiate(switchStmt->defaultStmts, genericArgs);
         return new SwitchStmt(condition, std::move(cases), std::move(defaultStmts));
     }
     case StmtKind::WhileStmt: {
         auto* whileStmt = llvm::cast<WhileStmt>(this);
-        auto condition = whileStmt->getCondition().instantiate(genericArgs);
-        auto body = ::instantiate(whileStmt->getBody(), genericArgs);
-        return new WhileStmt(condition, std::move(body), whileStmt->getLocation());
+        auto condition = whileStmt->condition->instantiate(genericArgs);
+        auto body = ::instantiate(whileStmt->body, genericArgs);
+        return new WhileStmt(condition, std::move(body), whileStmt->location);
     }
     case StmtKind::ForStmt: {
         auto* forStmt = llvm::cast<ForStmt>(this);
-        auto variable = forStmt->getVariable() ? llvm::cast<VarStmt>(forStmt->getVariable()->instantiate(genericArgs)) : nullptr;
-        auto condition = forStmt->getCondition() ? forStmt->getCondition()->instantiate(genericArgs) : nullptr;
-        auto increment = forStmt->getIncrement() ? forStmt->getIncrement()->instantiate(genericArgs) : nullptr;
-        auto body = ::instantiate(forStmt->getBody(), genericArgs);
-        return new ForStmt(variable, condition, increment, std::move(body), forStmt->getLocation());
+        auto variable = forStmt->variable ? llvm::cast<VarStmt>(forStmt->variable->instantiate(genericArgs)) : nullptr;
+        auto condition = forStmt->condition ? forStmt->condition->instantiate(genericArgs) : nullptr;
+        auto increment = forStmt->increment ? forStmt->increment->instantiate(genericArgs) : nullptr;
+        auto body = ::instantiate(forStmt->body, genericArgs);
+        return new ForStmt(variable, condition, increment, std::move(body), forStmt->location);
     }
     case StmtKind::ForEachStmt: {
         auto* forEachStmt = llvm::cast<ForEachStmt>(this);
         // The second argument can be empty because VarDecl instantiation doesn't use it.
-        auto variable = llvm::cast<VarDecl>(forEachStmt->getVariable()->instantiate(genericArgs, {}));
-        auto range = forEachStmt->getRangeExpr().instantiate(genericArgs);
-        auto body = ::instantiate(forEachStmt->getBody(), genericArgs);
-        return new ForEachStmt(variable, range, std::move(body), forEachStmt->getLocation());
+        auto variable = llvm::cast<VarDecl>(forEachStmt->variable->instantiate(genericArgs, {}));
+        auto range = forEachStmt->range->instantiate(genericArgs);
+        auto body = ::instantiate(forEachStmt->body, genericArgs);
+        return new ForEachStmt(variable, range, std::move(body), forEachStmt->location);
     }
     case StmtKind::BreakStmt: {
         auto* breakStmt = llvm::cast<BreakStmt>(this);
-        return new BreakStmt(breakStmt->getLocation());
+        return new BreakStmt(breakStmt->location);
     }
     case StmtKind::ContinueStmt: {
         auto* continueStmt = llvm::cast<ContinueStmt>(this);
-        return new ContinueStmt(continueStmt->getLocation());
+        return new ContinueStmt(continueStmt->location);
     }
     case StmtKind::CompoundStmt: {
         auto* compoundStmt = llvm::cast<CompoundStmt>(this);
-        auto body = ::instantiate(compoundStmt->getBody(), genericArgs);
+        auto body = ::instantiate(compoundStmt->body, genericArgs);
         return new CompoundStmt(std::move(body));
     }
     }

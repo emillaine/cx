@@ -8,7 +8,7 @@ namespace cx {
 
 struct Type;
 
-template<typename T> std::vector<T> instantiate(llvm::ArrayRef<T> elements, const llvm::StringMap<Type>& genericArgs) {
+template<typename T> std::vector<T> instantiate(const std::vector<T>& elements, const llvm::StringMap<Type>& genericArgs) {
     return map(elements, [&](const T& element) { return element->instantiate(genericArgs); });
 }
 

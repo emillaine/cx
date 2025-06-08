@@ -92,21 +92,21 @@ void Typechecker::typecheckParamDecl(ParamDecl& decl, AccessLevel userAccessLeve
 static bool allPathsReturn(llvm::ArrayRef<Stmt*> block) {
     if (block.empty()) return false;
 
-    switch (block.back()->getKind()) {
+    switch (block.back()->kind) {
     case StmtKind::ReturnStmt:
         return true;
     case StmtKind::ExprStmt: {
         auto& exprStmt = llvm::cast<ExprStmt>(*block.back());
-        auto call = llvm::dyn_cast<CallExpr>(&exprStmt.getExpr());
+        auto call = llvm::dyn_cast<CallExpr>(exprStmt.expr);
         return call && call->getType().isNeverType();
     }
     case StmtKind::IfStmt: {
         auto& ifStmt = llvm::cast<IfStmt>(*block.back());
-        return allPathsReturn(ifStmt.getThenBody()) && allPathsReturn(ifStmt.getElseBody());
+        return allPathsReturn(ifStmt.thenBody) && allPathsReturn(ifStmt.elseBody);
     }
     case StmtKind::SwitchStmt: {
         auto& switchStmt = llvm::cast<SwitchStmt>(*block.back());
-        return llvm::all_of(switchStmt.getCases(), [](auto& c) { return allPathsReturn(c.getStmts()); }) && allPathsReturn(switchStmt.getDefaultStmts());
+        return llvm::all_of(switchStmt.cases, [](SwitchCase& c) { return allPathsReturn(c.stmts); }) && allPathsReturn(switchStmt.defaultStmts);
     }
     default:
         return false;
@@ -179,7 +179,7 @@ void Typechecker::typecheckFunctionDecl(FunctionDecl& decl) {
 
                 if (decl.isConstructorDecl()) {
                     if (auto* exprStmt = llvm::dyn_cast<ExprStmt>(stmt)) {
-                        if (auto* callExpr = llvm::dyn_cast<CallExpr>(&exprStmt->getExpr())) {
+                        if (auto* callExpr = llvm::dyn_cast<CallExpr>(exprStmt->expr)) {
                             if (auto* constructorDecl = llvm::dyn_cast_or_null<ConstructorDecl>(callExpr->getCalleeDecl())) {
                                 if (constructorDecl->getTypeDecl() == receiverTypeDecl || receiverTypeDecl->hasInterface(*constructorDecl->getTypeDecl())) {
                                     delegatedInit = true;
@@ -281,7 +281,7 @@ void Typechecker::typecheckEnumDecl(EnumDecl& decl) {
     }
 
     for (auto& enumCase : decl.getCases()) {
-        typecheckExpr(*enumCase.getValue());
+        typecheckExpr(*enumCase.value);
 
         if (enumCase.getAssociatedType()) {
             typecheckType(enumCase.getAssociatedType(), enumCase.getAccessLevel());

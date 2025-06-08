@@ -8,7 +8,7 @@ void IRGenerator::emitReturnStmt(const ReturnStmt& stmt) {
     // the values that the deferred expressions and/or destructor calls could deallocate.
     emitDeferredExprsAndDestructorCallsForReturn();
 
-    if (auto* returnValue = stmt.getReturnValue()) {
+    if (auto* returnValue = stmt.value) {
         createReturn(emitExprForPassing(*returnValue, insertBlock->parent->returnType));
     } else {
         createReturn(currentDecl->isMain() ? createConstantInt(Type::getInt(), 0) : nullptr);
@@ -31,12 +31,12 @@ void IRGenerator::emitBlock(llvm::ArrayRef<Stmt*> stmts, BasicBlock* continuatio
 }
 
 void IRGenerator::emitIfStmt(const IfStmt& ifStmt) {
-    auto* condition = emitExpr(ifStmt.getCondition());
+    auto* condition = emitExpr(*ifStmt.condition);
 
     // FIXME: Lower implicit null checks such as `if (ptr)` and `if (!ptr)` to null comparisons.
     if (condition->getType()->isPointerType()) {
         condition = emitImplicitNullComparison(condition);
-    } else if (ifStmt.getCondition().getType().isOptionalType() && !ifStmt.getCondition().getType().getWrappedType().isPointerType()) {
+    } else if (ifStmt.condition->getType().isOptionalType() && !ifStmt.condition->getType().getWrappedType().isPointerType()) {
         condition = createExtractValue(condition, optionalHasValueFieldIndex);
     }
 
@@ -47,24 +47,24 @@ void IRGenerator::emitIfStmt(const IfStmt& ifStmt) {
     createCondBr(condition, thenBlock, elseBlock);
 
     setInsertPoint(thenBlock);
-    emitBlock(ifStmt.getThenBody(), endIfBlock);
+    emitBlock(ifStmt.thenBody, endIfBlock);
 
     setInsertPoint(elseBlock);
-    emitBlock(ifStmt.getElseBody(), endIfBlock);
+    emitBlock(ifStmt.elseBody, endIfBlock);
 
     setInsertPoint(endIfBlock);
 }
 
 void IRGenerator::emitSwitchStmt(const SwitchStmt& switchStmt) {
     Value* enumValue = nullptr;
-    Value* condition = emitExprOrEnumTag(switchStmt.getCondition(), &enumValue);
+    Value* condition = emitExprOrEnumTag(*switchStmt.condition, &enumValue);
 
     auto* function = insertBlock->parent;
     auto* insertBlockBackup = insertBlock;
     auto caseIndex = 0;
 
-    auto cases = map(switchStmt.getCases(), [&](const SwitchCase& switchCase) {
-        auto* value = emitExprOrEnumTag(*switchCase.getValue(), nullptr);
+    auto cases = map(switchStmt.cases, [&](const SwitchCase& switchCase) {
+        auto* value = emitExprOrEnumTag(*switchCase.value, nullptr);
         auto* block = new BasicBlock("switch.case." + std::to_string(caseIndex++), function);
         return std::make_pair(value, block);
     });
@@ -76,35 +76,35 @@ void IRGenerator::emitSwitchStmt(const SwitchStmt& switchStmt) {
     auto* switchInst = createSwitch(condition, defaultBlock);
 
     auto casesIterator = cases.begin();
-    for (auto& switchCase : switchStmt.getCases()) {
+    for (auto& switchCase : switchStmt.cases) {
         auto* value = casesIterator->first;
         auto* block = casesIterator->second;
         setInsertPoint(block);
 
-        if (auto* associatedValue = switchCase.getAssociatedValue()) {
+        if (auto* associatedValue = switchCase.associatedValue) {
             auto type = associatedValue->getType().getPointerTo();
             auto* associatedValuePtr = createCast(createGEP(enumValue, 1), type, associatedValue->getName());
             setLocalValue(associatedValuePtr, associatedValue);
         }
 
-        emitBlock(switchCase.getStmts(), end);
+        emitBlock(switchCase.stmts, end);
         switchInst->cases.emplace_back(value, block);
         ++casesIterator;
     }
 
     setInsertPoint(defaultBlock);
-    emitBlock(switchStmt.getDefaultStmts(), end);
+    emitBlock(switchStmt.defaultStmts, end);
 
     breakTargets.pop_back();
     setInsertPoint(end);
 }
 
 void IRGenerator::emitForStmt(const ForStmt& forStmt) {
-    if (forStmt.getVariable()) {
-        emitVarDecl(forStmt.getVariable()->getDecl());
+    if (forStmt.variable) {
+        emitVarDecl(*forStmt.variable->decl);
     }
 
-    auto* increment = forStmt.getIncrement();
+    auto* increment = forStmt.increment;
     auto* function = insertBlock->parent;
     auto* condition = new BasicBlock("loop.condition", function);
     auto* body = new BasicBlock("loop.body", function);
@@ -116,14 +116,14 @@ void IRGenerator::emitForStmt(const ForStmt& forStmt) {
     createBr(condition);
 
     setInsertPoint(condition);
-    auto* conditionValue = emitExpr(*forStmt.getCondition());
+    auto* conditionValue = emitExpr(*forStmt.condition);
     if (conditionValue->getType()->isPointerType()) {
         conditionValue = emitImplicitNullComparison(conditionValue);
     }
     createCondBr(conditionValue, body, end);
 
     setInsertPoint(body);
-    emitBlock(forStmt.getBody(), afterBody);
+    emitBlock(forStmt.body, afterBody);
 
     if (increment) {
         setInsertPoint(afterBody);
@@ -149,7 +149,7 @@ void IRGenerator::emitContinueStmt(const ContinueStmt&) {
 void IRGenerator::emitCompoundStmt(const CompoundStmt& compoundStmt) {
     beginScope();
 
-    for (auto& stmt : compoundStmt.getBody()) {
+    for (auto& stmt : compoundStmt.body) {
         emitStmt(*stmt);
     }
 
@@ -157,18 +157,18 @@ void IRGenerator::emitCompoundStmt(const CompoundStmt& compoundStmt) {
 }
 
 void IRGenerator::emitStmt(const Stmt& stmt) {
-    switch (stmt.getKind()) {
+    switch (stmt.kind) {
     case StmtKind::ReturnStmt:
         emitReturnStmt(llvm::cast<ReturnStmt>(stmt));
         break;
     case StmtKind::VarStmt:
-        emitVarDecl(llvm::cast<VarStmt>(stmt).getDecl());
+        emitVarDecl(*llvm::cast<VarStmt>(stmt).decl);
         break;
     case StmtKind::ExprStmt:
-        emitPlainExpr(llvm::cast<ExprStmt>(stmt).getExpr());
+        emitPlainExpr(*llvm::cast<ExprStmt>(stmt).expr);
         break;
     case StmtKind::DeferStmt:
-        deferEvaluationOf(llvm::cast<DeferStmt>(stmt).getExpr());
+        deferEvaluationOf(*llvm::cast<DeferStmt>(stmt).expr);
         break;
     case StmtKind::IfStmt:
         emitIfStmt(llvm::cast<IfStmt>(stmt));

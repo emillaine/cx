@@ -62,7 +62,7 @@ FunctionDecl* FunctionDecl::instantiate(const llvm::StringMap<Type>& genericArgs
     } else {
         auto proto = getProto().instantiate(genericArgs);
         auto instantiation = new FunctionDecl(std::move(proto), genericArgsArray, getAccessLevel(), module, location);
-        instantiation->setBody(::instantiate(getBody(), genericArgs));
+        instantiation->setBody(::instantiate(*body, genericArgs));
         return instantiation;
     }
 }
@@ -92,7 +92,7 @@ MethodDecl* MethodDecl::instantiate(const llvm::StringMap<Type>& genericArgs, ll
         auto proto = methodDecl->getProto().instantiate(genericArgs);
         auto instantiation = new MethodDecl(std::move(proto), typeDecl, genericArgsArray, getAccessLevel(), methodDecl->getLocation());
         if (methodDecl->hasBody()) {
-            instantiation->setBody(::instantiate(methodDecl->getBody(), genericArgs));
+            instantiation->setBody(::instantiate(*methodDecl->body, genericArgs));
         }
         return instantiation;
     }
@@ -100,13 +100,13 @@ MethodDecl* MethodDecl::instantiate(const llvm::StringMap<Type>& genericArgs, ll
         auto* constructorDecl = llvm::cast<ConstructorDecl>(this);
         auto params = instantiateParams(constructorDecl->getParams(), genericArgs);
         auto instantiation = new ConstructorDecl(typeDecl, std::move(params), getAccessLevel(), constructorDecl->getLocation());
-        instantiation->setBody(::instantiate(constructorDecl->getBody(), genericArgs));
+        instantiation->setBody(::instantiate(*constructorDecl->body, genericArgs));
         return instantiation;
     }
     case DeclKind::DestructorDecl: {
         auto* destructorDecl = llvm::cast<DestructorDecl>(this);
         auto instantiation = new DestructorDecl(typeDecl, destructorDecl->getLocation());
-        instantiation->setBody(::instantiate(destructorDecl->getBody(), genericArgs));
+        instantiation->setBody(::instantiate(*destructorDecl->body, genericArgs));
         return instantiation;
     }
     default:

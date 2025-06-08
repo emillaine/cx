@@ -898,7 +898,7 @@ Stmt* Parser::parseForOrForEachStmt(Decl* parent) {
     if (parens) consumeToken();
     auto varStmt = currentToken() == Token::Semicolon ? (consumeToken(), nullptr) : parseVarStmt(parent);
 
-    if (!varStmt || varStmt->getDecl().getInitializer()) {
+    if (!varStmt || varStmt->decl->getInitializer()) {
         // Semicolon is parsed inside parseVarDecl
         auto condition = parseExpr();
         parse(Token::Semicolon);
@@ -911,7 +911,7 @@ Stmt* Parser::parseForOrForEachStmt(Decl* parent) {
         auto range = parseExpr();
         if (parens) parse(Token::RightParen);
         auto body = parseBlockOrStmt(parent);
-        return new ForEachStmt(&varStmt->getDecl(), range, std::move(body), location);
+        return new ForEachStmt(varStmt->decl, range, std::move(body), location);
     }
 }
 

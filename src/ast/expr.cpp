@@ -170,7 +170,7 @@ Expr* Expr::instantiate(const llvm::StringMap<Type>& genericArgs) const {
     }
     case ExprKind::ArrayLiteralExpr: {
         auto* arrayLiteralExpr = llvm::cast<ArrayLiteralExpr>(this);
-        auto elements = ::instantiate(arrayLiteralExpr->getElements(), genericArgs);
+        auto elements = ::instantiate(arrayLiteralExpr->elements, genericArgs);
         return new ArrayLiteralExpr(std::move(elements), arrayLiteralExpr->getLocation());
     }
     case ExprKind::TupleExpr: {
@@ -228,7 +228,7 @@ Expr* Expr::instantiate(const llvm::StringMap<Type>& genericArgs) const {
     case ExprKind::LambdaExpr: {
         auto* lambdaExpr = llvm::cast<LambdaExpr>(this);
         auto params = instantiateParams(lambdaExpr->getFunctionDecl()->getParams(), genericArgs);
-        auto body = ::instantiate(lambdaExpr->getFunctionDecl()->getBody(), genericArgs);
+        auto body = ::instantiate(*lambdaExpr->getFunctionDecl()->body, genericArgs);
         auto lambda = new LambdaExpr(std::move(params), lambdaExpr->getFunctionDecl()->getModule(), lambdaExpr->getLocation());
         lambda->functionDecl->setBody(std::move(body));
         return lambda;
