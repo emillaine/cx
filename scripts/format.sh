@@ -3,9 +3,8 @@
 set -o pipefail
 
 ROOTDIR=$(cd "$(dirname "$0")/.."; pwd)
-
-shopt -s nullglob
-FILES=$(echo $ROOTDIR/{docs,examples,scripts,src,std,test}/**/*.{h,cpp})
+cd $ROOTDIR
+FILES=$(find docs examples scripts src std \( -name '*.h' -o -name '*.cpp' \))
 
 while test $# -gt 0; do
     case "$1" in

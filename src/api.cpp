@@ -20,7 +20,7 @@ struct cxModule {
 };
 
 cxModule* cxCreateModule(const char* name) {
-    return new cxModule { .module = Module(name) };
+    return new cxModule{.module = Module(name)};
 }
 
 void cxLoadScriptFromFile(cxModule* module, const char* filePath) {
@@ -33,7 +33,7 @@ void cxLoadScriptFromFile(cxModule* module, const char* filePath) {
 }
 
 void cxCompileModule(cxModule* module) {
-    buildModule(module->module, { .createSharedLib = true });
+    buildModule(module->module, {.createSharedLib = true});
 }
 
 cxFunction cxGetFunction(cxModule* module, const char* name) {
