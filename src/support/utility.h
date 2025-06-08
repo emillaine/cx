@@ -17,18 +17,9 @@ class StringRef;
 
 #ifndef NDEBUG
 #define ASSERT(condition, ...) assert(condition)
-#define ASSERT_EQUAL(a, b) \
-    if (!((a) == (b))) { \
-        llvm::errs() << "ASSERTION FAILED: " << #a << " == " << #b << " at " << __FILE__ << ":" << __LINE__ << '\n'; \
-        DEBUG_PRINT(a); \
-        DEBUG_PRINT(b); \
-    }
 #else
 // Prevent unused variable warnings without evaluating the condition values.
 #define ASSERT(condition, ...) ((void)sizeof(condition))
-#define ASSERT_EQUAL(a, b) \
-    ((void)sizeof(a)); \
-    ((void)sizeof(b))
 #endif
 
 namespace cx {
@@ -45,7 +36,6 @@ template<typename SourceContainer, typename Mapper> auto map(const SourceContain
 }
 
 #define NOTNULL(x) (ASSERT(x), x)
-#define DEBUG_PRINT(x) llvm::errs() << #x << " = " << (x) << '\n'
 
 struct StringFormatter : llvm::raw_string_ostream {
     StringFormatter() : llvm::raw_string_ostream(message) {}
