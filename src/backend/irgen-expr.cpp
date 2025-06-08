@@ -313,7 +313,7 @@ Value* IRGenerator::emitExprForPassing(const Expr& expr, IRType* targetType) {
     }
 }
 
-void IRGenerator::emitAssert(Value* condition, const Expr* expr, SourceLocation location, llvm::StringRef message, const llvm::Twine& name) {
+void IRGenerator::emitAssert(Value* condition, const Expr* expr, Location location, llvm::StringRef message, const llvm::Twine& name) {
     condition = createIsNull(condition, expr, name + ".condition");
     auto* function = insertBlock->parent;
     auto* failBlock = new BasicBlock((name + ".fail").str(), function);

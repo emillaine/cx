@@ -87,7 +87,7 @@ struct Expr {
     bool isConstant() const;
     llvm::APSInt getConstantIntegerValue() const;
     bool isLvalue() const;
-    SourceLocation getLocation() const { return location; }
+    Location getLocation() const { return location; }
     Expr* instantiate(const llvm::StringMap<Type>& genericArgs) const;
     FieldDecl* getFieldDecl() const;
     const Expr* withoutImplicitCast() const;
@@ -96,16 +96,16 @@ struct Expr {
     ExprKind kind;
     Type type;
     Type assignableType;
-    SourceLocation location;
+    Location location;
 
 protected:
-    Expr(ExprKind kind, SourceLocation location) : kind(kind), location(location) {}
+    Expr(ExprKind kind, Location location) : kind(kind), location(location) {}
 };
 
 inline Expr::~Expr() {}
 
 struct VarExpr : Expr {
-    VarExpr(std::string&& identifier, SourceLocation location) : Expr(ExprKind::VarExpr, location), decl(nullptr), identifier(std::move(identifier)) {}
+    VarExpr(std::string&& identifier, Location location) : Expr(ExprKind::VarExpr, location), decl(nullptr), identifier(std::move(identifier)) {}
     Decl* getDecl() const { return decl; }
     void setDecl(Decl* newDecl) { decl = newDecl; }
     llvm::StringRef getIdentifier() const { return identifier; }
@@ -116,7 +116,7 @@ struct VarExpr : Expr {
 };
 
 struct StringLiteralExpr : Expr {
-    StringLiteralExpr(std::string&& value, SourceLocation location) : Expr(ExprKind::StringLiteralExpr, location), value(std::move(value)) {}
+    StringLiteralExpr(std::string&& value, Location location) : Expr(ExprKind::StringLiteralExpr, location), value(std::move(value)) {}
     llvm::StringRef getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::StringLiteralExpr; }
 
@@ -124,7 +124,7 @@ struct StringLiteralExpr : Expr {
 };
 
 struct CharacterLiteralExpr : Expr {
-    CharacterLiteralExpr(char value, SourceLocation location) : Expr(ExprKind::CharacterLiteralExpr, location), value(value) {}
+    CharacterLiteralExpr(char value, Location location) : Expr(ExprKind::CharacterLiteralExpr, location), value(value) {}
     char getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::CharacterLiteralExpr; }
 
@@ -132,7 +132,7 @@ struct CharacterLiteralExpr : Expr {
 };
 
 struct IntLiteralExpr : Expr {
-    IntLiteralExpr(llvm::APSInt value, SourceLocation location) : Expr(ExprKind::IntLiteralExpr, location), value(std::move(value)) {}
+    IntLiteralExpr(llvm::APSInt value, Location location) : Expr(ExprKind::IntLiteralExpr, location), value(std::move(value)) {}
     const llvm::APSInt& getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::IntLiteralExpr; }
 
@@ -140,7 +140,7 @@ struct IntLiteralExpr : Expr {
 };
 
 struct FloatLiteralExpr : Expr {
-    FloatLiteralExpr(llvm::APFloat value, SourceLocation location) : Expr(ExprKind::FloatLiteralExpr, location), value(std::move(value)) {}
+    FloatLiteralExpr(llvm::APFloat value, Location location) : Expr(ExprKind::FloatLiteralExpr, location), value(std::move(value)) {}
     const llvm::APFloat& getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::FloatLiteralExpr; }
 
@@ -148,7 +148,7 @@ struct FloatLiteralExpr : Expr {
 };
 
 struct BoolLiteralExpr : Expr {
-    BoolLiteralExpr(bool value, SourceLocation location) : Expr(ExprKind::BoolLiteralExpr, location), value(value) {}
+    BoolLiteralExpr(bool value, Location location) : Expr(ExprKind::BoolLiteralExpr, location), value(value) {}
     bool getValue() const { return value; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::BoolLiteralExpr; }
 
@@ -156,17 +156,17 @@ struct BoolLiteralExpr : Expr {
 };
 
 struct NullLiteralExpr : Expr {
-    NullLiteralExpr(SourceLocation location) : Expr(ExprKind::NullLiteralExpr, location) {}
+    NullLiteralExpr(Location location) : Expr(ExprKind::NullLiteralExpr, location) {}
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::NullLiteralExpr; }
 };
 
 struct UndefinedLiteralExpr : Expr {
-    UndefinedLiteralExpr(SourceLocation location) : Expr(ExprKind::UndefinedLiteralExpr, location) {}
+    UndefinedLiteralExpr(Location location) : Expr(ExprKind::UndefinedLiteralExpr, location) {}
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::UndefinedLiteralExpr; }
 };
 
 struct ArrayLiteralExpr : Expr {
-    ArrayLiteralExpr(std::vector<Expr*>&& elements, SourceLocation location) : Expr(ExprKind::ArrayLiteralExpr, location), elements(std::move(elements)) {}
+    ArrayLiteralExpr(std::vector<Expr*>&& elements, Location location) : Expr(ExprKind::ArrayLiteralExpr, location), elements(std::move(elements)) {}
     llvm::ArrayRef<Expr*> getElements() const { return elements; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::ArrayLiteralExpr; }
 
@@ -175,22 +175,22 @@ struct ArrayLiteralExpr : Expr {
 
 struct NamedValue {
     NamedValue(Expr* value) : NamedValue("", NOTNULL(value)) {}
-    NamedValue(std::string&& name, Expr* value, SourceLocation location = SourceLocation())
+    NamedValue(std::string&& name, Expr* value, Location location = Location())
     : name(std::move(name)), value(value), location(location.isValid() ? location : this->value->getLocation()) {}
     llvm::StringRef getName() const { return name; }
     void setName(std::string&& newName) { name = newName; }
     Expr* getValue() { return value; }
     const Expr* getValue() const { return value; }
     void setValue(Expr* expr) { value = NOTNULL(expr); }
-    SourceLocation getLocation() const { return location; }
+    Location getLocation() const { return location; }
 
     std::string name; // Empty if no name specified.
     Expr* value;
-    SourceLocation location;
+    Location location;
 };
 
 struct TupleExpr : Expr {
-    TupleExpr(std::vector<NamedValue>&& elements, SourceLocation location) : Expr(ExprKind::TupleExpr, location), elements(std::move(elements)) {}
+    TupleExpr(std::vector<NamedValue>&& elements, Location location) : Expr(ExprKind::TupleExpr, location), elements(std::move(elements)) {}
     llvm::ArrayRef<NamedValue> getElements() const { return elements; }
     llvm::MutableArrayRef<NamedValue> getElements() { return elements; }
     const Expr* getElementByName(llvm::StringRef name) const;
@@ -200,7 +200,7 @@ struct TupleExpr : Expr {
 };
 
 struct CallExpr : Expr {
-    CallExpr(Expr* callee, std::vector<NamedValue>&& args, std::vector<Type>&& genericArgs, SourceLocation location)
+    CallExpr(Expr* callee, std::vector<NamedValue>&& args, std::vector<Type>&& genericArgs, Location location)
     : Expr(ExprKind::CallExpr, location), callee(callee), args(std::move(args)), genericArgs(std::move(genericArgs)), calleeDecl(nullptr) {}
     bool callsNamedFunction() const { return callee->isVarExpr() || callee->isMemberExpr(); }
     llvm::StringRef getFunctionName() const;
@@ -241,12 +241,12 @@ struct CallExpr : Expr {
     Decl* calleeDecl;
 
 protected:
-    CallExpr(ExprKind kind, Expr* callee, std::vector<NamedValue>&& args, SourceLocation location)
+    CallExpr(ExprKind kind, Expr* callee, std::vector<NamedValue>&& args, Location location)
     : Expr(kind, location), callee(callee), args(std::move(args)), calleeDecl(nullptr) {}
 };
 
 struct UnaryExpr : CallExpr {
-    UnaryExpr(UnaryOperator op, Expr* operand, SourceLocation location)
+    UnaryExpr(UnaryOperator op, Expr* operand, Location location)
     : CallExpr(ExprKind::UnaryExpr, new VarExpr(toString(op.getKind()), location), {NamedValue(operand)}, location), op(op) {}
     UnaryOperator getOperator() const { return op; }
     Expr& getOperand() { return *getArgs()[0].getValue(); }
@@ -258,7 +258,7 @@ struct UnaryExpr : CallExpr {
 };
 
 struct BinaryExpr : CallExpr {
-    BinaryExpr(BinaryOperator op, Expr* left, Expr* right, SourceLocation location)
+    BinaryExpr(BinaryOperator op, Expr* left, Expr* right, Location location)
     : CallExpr(ExprKind::BinaryExpr, new VarExpr(cx::getFunctionName(op), location), {NamedValue(left), NamedValue(right)}, location), op(op) {}
     BinaryOperator getOperator() const { return op; }
     const Expr& getLHS() const { return *getArgs()[0].getValue(); }
@@ -277,7 +277,7 @@ bool isBuiltinOp(Token::Kind op, Type lhs, Type rhs);
 
 /// A compile-time expression returning the size of a given type in bytes, e.g. 'sizeof(int)'.
 struct SizeofExpr : Expr {
-    SizeofExpr(Type operandType, SourceLocation location) : Expr(ExprKind::SizeofExpr, location), operandType(operandType) {}
+    SizeofExpr(Type operandType, Location location) : Expr(ExprKind::SizeofExpr, location), operandType(operandType) {}
     Type getOperandType() const { return operandType; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::SizeofExpr; }
 
@@ -286,7 +286,7 @@ struct SizeofExpr : Expr {
 
 /// A member access expression using the dot syntax, such as 'a.b'.
 struct MemberExpr : Expr {
-    MemberExpr(Expr* base, std::string&& member, SourceLocation location) : Expr(ExprKind::MemberExpr, location), base(base), member(std::move(member)) {}
+    MemberExpr(Expr* base, std::string&& member, Location location) : Expr(ExprKind::MemberExpr, location), base(base), member(std::move(member)) {}
     const Expr* getBaseExpr() const { return base; }
     Expr* getBaseExpr() { return base; }
     llvm::StringRef getMemberName() const { return member; }
@@ -301,7 +301,7 @@ struct MemberExpr : Expr {
 
 /// An element access expression using the element's index in brackets: 'base[index]'.
 struct IndexExpr : CallExpr {
-    IndexExpr(Expr* base, Expr* index, SourceLocation location)
+    IndexExpr(Expr* base, Expr* index, Location location)
     : CallExpr(ExprKind::IndexExpr, new MemberExpr(base, "[]", location), {NamedValue("", index)}, location) {}
     const Expr* getBase() const { return getReceiver(); }
     const Expr* getIndex() const { return getArgs()[0].getValue(); }
@@ -311,13 +311,13 @@ struct IndexExpr : CallExpr {
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::IndexExpr; }
 
 protected:
-    IndexExpr(Expr* base, Expr* index, Expr* value, SourceLocation location)
+    IndexExpr(Expr* base, Expr* index, Expr* value, Location location)
     : CallExpr(ExprKind::IndexAssignmentExpr, new MemberExpr(base, "[]=", location), {NamedValue("", index), NamedValue("", value)}, location) {}
 };
 
 /// An assignment to an indexed access: 'base[index] = value'.
 struct IndexAssignmentExpr : IndexExpr {
-    IndexAssignmentExpr(Expr* base, Expr* index, Expr* value, SourceLocation location) : IndexExpr(base, index, value, location) {}
+    IndexAssignmentExpr(Expr* base, Expr* index, Expr* value, Location location) : IndexExpr(base, index, value, location) {}
     const Expr* getValue() const { return getArgs()[1].getValue(); }
     Expr* getValue() { return getArgs()[1].getValue(); }
     void setValue(Expr* expr) { getArgs()[1].setValue(expr); }
@@ -328,7 +328,7 @@ struct IndexAssignmentExpr : IndexExpr {
 /// the optional, for example 'foo!'. If the optional is null, the operation triggers an assertion
 /// error (by default), or causes undefined behavior (in unchecked mode).
 struct UnwrapExpr : Expr {
-    UnwrapExpr(Expr* operand, SourceLocation location) : Expr(ExprKind::UnwrapExpr, location), operand(operand) {}
+    UnwrapExpr(Expr* operand, Location location) : Expr(ExprKind::UnwrapExpr, location), operand(operand) {}
     Expr& getOperand() const { return *operand; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::UnwrapExpr; }
 
@@ -336,7 +336,7 @@ struct UnwrapExpr : Expr {
 };
 
 struct LambdaExpr : Expr {
-    LambdaExpr(std::vector<ParamDecl>&& params, Module* module, SourceLocation location);
+    LambdaExpr(std::vector<ParamDecl>&& params, Module* module, Location location);
     FunctionDecl* getFunctionDecl() const { return functionDecl; }
     static bool classof(const Expr* e) { return e->getKind() == ExprKind::LambdaExpr; }
 
@@ -344,7 +344,7 @@ struct LambdaExpr : Expr {
 };
 
 struct IfExpr : Expr {
-    IfExpr(Expr* condition, Expr* thenExpr, Expr* elseExpr, SourceLocation location)
+    IfExpr(Expr* condition, Expr* thenExpr, Expr* elseExpr, Location location)
     : Expr(ExprKind::IfExpr, location), condition(condition), thenExpr(thenExpr), elseExpr(elseExpr) {}
     Expr* getCondition() { return condition; }
     Expr* getThenExpr() { return thenExpr; }

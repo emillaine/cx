@@ -321,7 +321,7 @@ struct Function : Value {
     std::vector<BasicBlock*> body;
     bool isExtern;
     bool isVariadic;
-    SourceLocation location;
+    Location location;
 
     static bool classof(const Value* v) { return v->kind == ValueKind::Function; }
 };

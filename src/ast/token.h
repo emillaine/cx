@@ -107,12 +107,12 @@ struct Token {
         TokenCount
     };
 
-    Token(Token::Kind kind, SourceLocation location, llvm::StringRef string = {});
-    Token(SourceLocation location, uint64_t val);
+    Token(Token::Kind kind, Location location, llvm::StringRef string = {});
+    Token(Location location, uint64_t val);
     Token::Kind getKind() const { return kind; }
     operator Token::Kind() const { return kind; }
     llvm::StringRef getString() const { return src.string; }
-    SourceLocation getLocation() const { return location; }
+    Location getLocation() const { return location; }
     bool is(Token::Kind kind) const { return this->kind == kind; }
     bool is(llvm::ArrayRef<Token::Kind> kinds) const;
     llvm::APSInt getIntegerValue() const;
@@ -124,7 +124,7 @@ private:
         llvm::StringRef string; ///< The substring in the source code representing this token.
         uint64_t integer;       ///< The parsed integer literal value (only valid if this is a IntegerLiteral token)
     } src;
-    SourceLocation location;
+    Location location;
 };
 
 struct UnaryOperator {

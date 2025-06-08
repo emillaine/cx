@@ -72,8 +72,7 @@ struct IRGenerator {
     Value* emitExprForPassing(const Expr& expr, IRType* targetType);
     Value* emitOptionalConstruction(Type wrappedType, Expr* arg);
     Value* emitOptionalUnwrap(Expr& operand, const Expr& expr, const llvm::Twine& name);
-    void emitAssert(Value* condition, const Expr* expr, SourceLocation location, llvm::StringRef message = "Assertion failed",
-                    const llvm::Twine& name = "assert");
+    void emitAssert(Value* condition, const Expr* expr, Location location, llvm::StringRef message = "Assertion failed", const llvm::Twine& name = "assert");
     Value* emitEnumCase(const EnumCase& enumCase, llvm::ArrayRef<NamedValue> associatedValueElements);
     Value* emitCallExpr(const CallExpr& expr, AllocaInst* thisAllocaForInit = nullptr);
     Value* emitBuiltinCast(const CallExpr& expr);

@@ -13,7 +13,7 @@ using namespace cx;
 static std::vector<TypeBase*> typeBases;
 
 #define DEFINE_BUILTIN_TYPE_GET_AND_IS(TYPE, NAME) \
-    Type Type::get##TYPE(Mutability mutability, SourceLocation location) { \
+    Type Type::get##TYPE(Mutability mutability, Location location) { \
         return BasicType::get(#NAME, {}, mutability, location); \
     } \
     bool Type::is##TYPE() const { \
@@ -124,7 +124,7 @@ Type Type::resolve(const llvm::StringMap<Type>& replacements) const {
     llvm_unreachable("all cases handled");
 }
 
-template<typename T> static Type getType(T&& typeBase, Mutability mutability, SourceLocation location) {
+template<typename T> static Type getType(T&& typeBase, Mutability mutability, Location location) {
     Type newType(&typeBase, mutability, location);
 
     for (auto& existingTypeBase : typeBases) {
@@ -138,31 +138,31 @@ template<typename T> static Type getType(T&& typeBase, Mutability mutability, So
     return Type(&*typeBases.back(), mutability, location);
 }
 
-Type BasicType::get(llvm::StringRef name, llvm::ArrayRef<Type> genericArgs, Mutability mutability, SourceLocation location) {
+Type BasicType::get(llvm::StringRef name, llvm::ArrayRef<Type> genericArgs, Mutability mutability, Location location) {
     return getType(BasicType(name, genericArgs), mutability, location);
 }
 
-Type ArrayType::get(Type elementType, int64_t size, SourceLocation location) {
+Type ArrayType::get(Type elementType, int64_t size, Location location) {
     return getType(ArrayType(elementType, size), elementType.getMutability(), location);
 }
 
-Type TupleType::get(std::vector<TupleElement>&& elements, Mutability mutability, SourceLocation location) {
+Type TupleType::get(std::vector<TupleElement>&& elements, Mutability mutability, Location location) {
     return getType(TupleType(std::move(elements)), mutability, location);
 }
 
-Type FunctionType::get(Type returnType, std::vector<Type>&& paramTypes, bool isVariadic, Mutability mutability, SourceLocation location) {
+Type FunctionType::get(Type returnType, std::vector<Type>&& paramTypes, bool isVariadic, Mutability mutability, Location location) {
     return getType(FunctionType(returnType, std::move(paramTypes), isVariadic), mutability, location);
 }
 
-Type PointerType::get(Type pointeeType, Mutability mutability, SourceLocation location) {
+Type PointerType::get(Type pointeeType, Mutability mutability, Location location) {
     return getType(PointerType(pointeeType), mutability, location);
 }
 
-Type OptionalType::get(Type wrappedType, Mutability mutability, SourceLocation location) {
+Type OptionalType::get(Type wrappedType, Mutability mutability, Location location) {
     return BasicType::get("Optional", wrappedType, mutability, location);
 }
 
-Type UnresolvedType::get(Mutability mutability, SourceLocation location) {
+Type UnresolvedType::get(Mutability mutability, Location location) {
     return getType(UnresolvedType(), mutability, location);
 }
 
@@ -187,7 +187,7 @@ std::string cx::getQualifiedTypeName(llvm::StringRef typeName, llvm::ArrayRef<Ty
     return result;
 }
 
-std::vector<ParamDecl> FunctionType::getParamDecls(SourceLocation location) const {
+std::vector<ParamDecl> FunctionType::getParamDecls(Location location) const {
     return map(paramTypes, [&](Type paramType) { return ParamDecl(paramType, "", false, location); });
 }
 

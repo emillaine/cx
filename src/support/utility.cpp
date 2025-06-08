@@ -24,7 +24,7 @@ std::ostream& cx::operator<<(std::ostream& stream, llvm::StringRef string) {
     return stream.write(string.data(), string.size());
 }
 
-std::string cx::readLineFromFile(SourceLocation location) {
+std::string cx::readLineFromFile(Location location) {
     std::ifstream file(location.file);
 
     while (--location.line) {
@@ -52,7 +52,7 @@ void cx::renameFile(llvm::Twine sourcePath, llvm::Twine targetPath) {
     }
 }
 
-void cx::printDiagnostic(SourceLocation location, llvm::StringRef type, llvm::raw_ostream::Colors color, llvm::StringRef message) {
+void cx::printDiagnostic(Location location, llvm::StringRef type, llvm::raw_ostream::Colors color, llvm::StringRef message) {
     if (llvm::outs().has_colors()) {
         llvm::outs().changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
     }
@@ -80,7 +80,7 @@ void cx::printDiagnostic(SourceLocation location, llvm::StringRef type, llvm::ra
 
 CompileError::CompileError() = default;
 
-CompileError::CompileError(SourceLocation location, std::string&& message, std::vector<Note>&& notes)
+CompileError::CompileError(Location location, std::string&& message, std::vector<Note>&& notes)
 : location(location), message(std::move(message)), notes(std::move(notes)) {}
 
 void CompileError::print() const {
@@ -119,7 +119,7 @@ void cx::abort(StringFormatter& message) {
     exit(1);
 }
 
-void cx::reportError(SourceLocation location, StringFormatter& message, llvm::ArrayRef<Note> notes) {
+void cx::reportError(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes) {
     errors++;
     if (errorLimit > 0 && errors > errorLimit) exit(1);
 
@@ -130,7 +130,7 @@ void cx::reportError(SourceLocation location, StringFormatter& message, llvm::Ar
     }
 }
 
-void cx::reportWarning(SourceLocation location, StringFormatter& message) {
+void cx::reportWarning(Location location, StringFormatter& message) {
     if (disableWarnings) return;
 
     if (warningsAsErrors) {

@@ -54,22 +54,22 @@ private:
     std::string message;
 };
 
-std::string readLineFromFile(SourceLocation location);
+std::string readLineFromFile(Location location);
 void renameFile(llvm::Twine sourcePath, llvm::Twine targetPath);
-void printDiagnostic(SourceLocation location, llvm::StringRef type, llvm::raw_ostream::Colors color, llvm::StringRef message);
+void printDiagnostic(Location location, llvm::StringRef type, llvm::raw_ostream::Colors color, llvm::StringRef message);
 
 struct Note {
-    SourceLocation location;
+    Location location;
     std::string message;
 };
 
 struct CompileError : std::exception {
     CompileError();
-    CompileError(SourceLocation location, std::string&& message, std::vector<Note>&& notes = {});
+    CompileError(Location location, std::string&& message, std::vector<Note>&& notes = {});
     const char* what() const noexcept override { return message.c_str(); }
     void print() const;
 
-    SourceLocation location;
+    Location location;
     std::string message;
     std::vector<Note> notes;
 };
@@ -82,8 +82,8 @@ template<typename T> void printColored(const T& text, llvm::raw_ostream::Colors 
 
 void printStackTrace();
 [[noreturn]] void abort(StringFormatter& message);
-void reportError(SourceLocation location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
-void reportWarning(SourceLocation location, StringFormatter& message);
+void reportError(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
+void reportWarning(Location location, StringFormatter& message);
 
 #define ABORT(args) \
     { \

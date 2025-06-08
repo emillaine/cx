@@ -24,8 +24,8 @@ const char* Lexer::getFilePath() const {
     return buffer.getBufferIdentifier().data();
 }
 
-SourceLocation Lexer::getCurrentLocation() const {
-    return SourceLocation(getFilePath(), firstLocation.line, firstLocation.column);
+Location Lexer::getCurrentLocation() const {
+    return Location(getFilePath(), firstLocation.line, firstLocation.column);
 }
 
 char Lexer::readChar() {
@@ -49,7 +49,7 @@ void Lexer::unreadChar(char ch) {
     currentFilePosition--;
 }
 
-void Lexer::readBlockComment(SourceLocation startLocation) {
+void Lexer::readBlockComment(Location startLocation) {
     int nestLevel = 1;
 
     while (true) {
@@ -95,7 +95,7 @@ Token Lexer::readQuotedLiteral(char delimiter, Token::Kind literalKind) {
         } else if (ch == '\\') {
             escape = true;
         } else if (ch == '\n' || ch == '\r') {
-            SourceLocation newlineLocation = firstLocation;
+            Location newlineLocation = firstLocation;
             newlineLocation.column += end - begin - 1;
             ERROR(newlineLocation, "newline inside " << toString(literalKind));
         }

@@ -99,7 +99,7 @@ struct Decl {
 
     DeclKind getKind() const { return kind; }
     virtual Module* getModule() const = 0;
-    virtual SourceLocation getLocation() const = 0;
+    virtual Location getLocation() const = 0;
     virtual llvm::StringRef getName() const = 0;
     bool isMain() const { return getName() == "main"; }
     bool isLambda() const { return isFunctionDecl() && getName().starts_with("__lambda"); }
@@ -143,35 +143,34 @@ protected:
 };
 
 struct ParamDecl : VariableDecl, Movable {
-    ParamDecl(Type type, std::string&& name, bool isPublic, SourceLocation location)
+    ParamDecl(Type type, std::string&& name, bool isPublic, Location location)
     : VariableDecl(DeclKind::ParamDecl, AccessLevel::None, nullptr /* initialized by FunctionDecl constructor */, type), name(std::move(name)),
       location(location), isPublic(isPublic) {}
     llvm::StringRef getName() const override { return name; }
     Module* getModule() const override { return nullptr; }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::ParamDecl; }
     bool operator==(const ParamDecl& other) const { return getType() == other.getType() && getName() == other.getName(); }
 
     std::string name;
-    SourceLocation location;
+    Location location;
     bool isPublic;
 };
 
 std::vector<ParamDecl> instantiateParams(llvm::ArrayRef<ParamDecl> params, const llvm::StringMap<Type>& genericArgs);
 
 struct GenericParamDecl : Decl {
-    GenericParamDecl(std::string&& name, SourceLocation location)
-    : Decl(DeclKind::GenericParamDecl, AccessLevel::None), name(std::move(name)), location(location) {}
+    GenericParamDecl(std::string&& name, Location location) : Decl(DeclKind::GenericParamDecl, AccessLevel::None), name(std::move(name)), location(location) {}
     llvm::StringRef getName() const override { return name; }
     llvm::ArrayRef<Type> getConstraints() const { return constraints; }
     void setConstraints(llvm::ArrayRef<Type> c) { constraints.assign(c.begin(), c.end()); }
     Module* getModule() const override { return nullptr; }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::GenericParamDecl; }
 
     std::string name;
     llvm::SmallVector<Type, 1> constraints;
-    SourceLocation location;
+    Location location;
 };
 
 struct FunctionProto {
@@ -197,7 +196,7 @@ struct FunctionProto {
 std::string getQualifiedFunctionName(Type receiver, llvm::StringRef name, llvm::ArrayRef<Type> genericArgs);
 
 struct FunctionDecl : Decl {
-    FunctionDecl(FunctionProto&& proto, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Module& module, SourceLocation location)
+    FunctionDecl(FunctionProto&& proto, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Module& module, Location location)
     : FunctionDecl(DeclKind::FunctionDecl, std::move(proto), std::move(genericArgs), accessLevel, module, location) {
         for (auto& param : getParams()) {
             param.setParentDecl(this);
@@ -218,7 +217,7 @@ struct FunctionDecl : Decl {
     llvm::ArrayRef<Stmt*> getBody() const { return *body; }
     llvm::MutableArrayRef<Stmt*> getBody() { return *body; }
     void setBody(std::vector<Stmt*>&& body) { this->body = std::move(body); }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     FunctionType* getFunctionType() const;
     bool signatureMatches(const FunctionDecl& other, bool matchReceiver = true) const;
     Module* getModule() const override { return &module; }
@@ -230,17 +229,17 @@ struct FunctionDecl : Decl {
     FunctionProto proto;
     std::vector<Type> genericArgs;
     std::optional<std::vector<Stmt*>> body;
-    SourceLocation location;
+    Location location;
     Module& module;
     bool typechecked;
 
 protected:
-    FunctionDecl(DeclKind kind, FunctionProto&& proto, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Module& module, SourceLocation location)
+    FunctionDecl(DeclKind kind, FunctionProto&& proto, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Module& module, Location location)
     : Decl(kind, accessLevel), proto(std::move(proto)), genericArgs(std::move(genericArgs)), location(location), module(module), typechecked(false) {}
 };
 
 struct MethodDecl : FunctionDecl {
-    MethodDecl(FunctionProto proto, TypeDecl& receiverTypeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel, SourceLocation location)
+    MethodDecl(FunctionProto proto, TypeDecl& receiverTypeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Location location)
     : MethodDecl(DeclKind::MethodDecl, std::move(proto), receiverTypeDecl, std::move(genericArgs), accessLevel, location) {}
     TypeDecl* getTypeDecl() const override { return typeDecl; }
     MethodDecl* instantiate(const llvm::StringMap<Type>& genericArgs, llvm::ArrayRef<Type> genericArgsArray, TypeDecl& typeDecl);
@@ -248,16 +247,16 @@ struct MethodDecl : FunctionDecl {
     TypeDecl* typeDecl;
 
 protected:
-    MethodDecl(DeclKind kind, FunctionProto proto, TypeDecl& typeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel, SourceLocation location);
+    MethodDecl(DeclKind kind, FunctionProto proto, TypeDecl& typeDecl, std::vector<Type>&& genericArgs, AccessLevel accessLevel, Location location);
 };
 
 struct ConstructorDecl : MethodDecl {
-    ConstructorDecl(TypeDecl& receiverTypeDecl, std::vector<ParamDecl>&& params, AccessLevel accessLevel, SourceLocation location);
+    ConstructorDecl(TypeDecl& receiverTypeDecl, std::vector<ParamDecl>&& params, AccessLevel accessLevel, Location location);
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::ConstructorDecl; }
 };
 
 struct DestructorDecl : MethodDecl {
-    DestructorDecl(TypeDecl& receiverTypeDecl, SourceLocation location);
+    DestructorDecl(TypeDecl& receiverTypeDecl, Location location);
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::DestructorDecl; }
 };
 
@@ -272,7 +271,7 @@ struct FunctionTemplate : Decl {
     FunctionDecl* getFunctionDecl() const { return functionDecl; }
     FunctionDecl* instantiate(const llvm::StringMap<Type>& genericArgs);
     Module* getModule() const override { return functionDecl->getModule(); }
-    SourceLocation getLocation() const override { return functionDecl->getLocation(); }
+    Location getLocation() const override { return functionDecl->getLocation(); }
 
     std::vector<GenericParamDecl> genericParams;
     FunctionDecl* functionDecl;
@@ -280,19 +279,19 @@ struct FunctionTemplate : Decl {
 };
 
 struct FieldDecl : VariableDecl {
-    FieldDecl(Type type, std::string&& name, Expr* defaultValue, TypeDecl& parent, AccessLevel accessLevel, SourceLocation location);
+    FieldDecl(Type type, std::string&& name, Expr* defaultValue, TypeDecl& parent, AccessLevel accessLevel, Location location);
     llvm::StringRef getName() const override { return name; }
     std::string getQualifiedName() const;
     Expr* getDefaultValue() const { return defaultValue; }
     TypeDecl* getParentDecl() const { return llvm::cast<TypeDecl>(VariableDecl::getParentDecl()); }
     Module* getModule() const override;
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     FieldDecl instantiate(const llvm::StringMap<Type>& genericArgs, TypeDecl& typeDecl) const;
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::FieldDecl; }
 
     std::string name;
     Expr* defaultValue;
-    SourceLocation location;
+    Location location;
 };
 
 enum class TypeTag { Struct, Interface, Union, Enum };
@@ -300,7 +299,7 @@ enum class TypeTag { Struct, Interface, Union, Enum };
 /// A non-template function declaration or a function template instantiation.
 struct TypeDecl : Decl {
     TypeDecl(TypeTag tag, std::string&& name, std::vector<Type>&& genericArgs, std::vector<Type>&& interfaces, AccessLevel accessLevel, Module& module,
-             const TypeDecl* instantiatedFrom, SourceLocation location)
+             const TypeDecl* instantiatedFrom, Location location)
     : Decl(DeclKind::TypeDecl, accessLevel), tag(tag), name(std::move(name)), genericArgs(std::move(genericArgs)), interfaces(std::move(interfaces)),
       location(location), module(module), instantiatedFrom(instantiatedFrom) {}
     TypeTag getTag() const { return tag; }
@@ -313,7 +312,7 @@ struct TypeDecl : Decl {
     llvm::ArrayRef<Type> getInterfaces() const { return interfaces; }
     bool hasInterface(const TypeDecl& interface) const;
     bool isCopyable() const;
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     void addField(FieldDecl&& field);
     void addMethod(Decl* decl);
     std::vector<ConstructorDecl*> getConstructors() const;
@@ -328,7 +327,7 @@ struct TypeDecl : Decl {
     Module* getModule() const override { return &module; }
     const TypeDecl* getInstantiatedFrom() const { return instantiatedFrom; }
     static bool classof(const Decl* d) { return d->isTypeDecl(); }
-    TypeDecl(DeclKind kind, TypeTag tag, std::string&& name, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom, SourceLocation location)
+    TypeDecl(DeclKind kind, TypeTag tag, std::string&& name, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom, Location location)
     : Decl(kind, accessLevel), tag(tag), name(std::move(name)), location(location), module(module), instantiatedFrom(instantiatedFrom) {}
 
     TypeTag tag;
@@ -337,7 +336,7 @@ struct TypeDecl : Decl {
     std::vector<Type> interfaces;
     std::vector<FieldDecl> fields;
     std::vector<Decl*> methods;
-    SourceLocation location;
+    Location location;
     Module& module;
     const TypeDecl* instantiatedFrom;
     bool packed = false;
@@ -352,7 +351,7 @@ struct TypeTemplate : Decl {
     TypeDecl* instantiate(const llvm::StringMap<Type>& genericArgs);
     TypeDecl* instantiate(llvm::ArrayRef<Type> genericArgs);
     Module* getModule() const override { return typeDecl->getModule(); }
-    SourceLocation getLocation() const override { return typeDecl->getLocation(); }
+    Location getLocation() const override { return typeDecl->getLocation(); }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::TypeTemplate; }
 
     std::vector<GenericParamDecl> genericParams;
@@ -361,23 +360,22 @@ struct TypeTemplate : Decl {
 };
 
 struct EnumCase : VariableDecl {
-    EnumCase(std::string&& name, Expr* value, Type associatedType, AccessLevel accessLevel, SourceLocation location);
+    EnumCase(std::string&& name, Expr* value, Type associatedType, AccessLevel accessLevel, Location location);
     llvm::StringRef getName() const override { return name; }
     Type getAssociatedType() const { return associatedType; }
     EnumDecl* getEnumDecl() const { return llvm::cast<EnumDecl>(getParentDecl()); }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     Module* getModule() const override { return getParentDecl()->getModule(); }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::EnumCase; }
 
     std::string name;
     Expr* value;
     Type associatedType;
-    SourceLocation location;
+    Location location;
 };
 
 struct EnumDecl : TypeDecl {
-    EnumDecl(std::string&& name, std::vector<EnumCase>&& cases, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom,
-             SourceLocation location)
+    EnumDecl(std::string&& name, std::vector<EnumCase>&& cases, AccessLevel accessLevel, Module& module, const TypeDecl* instantiatedFrom, Location location)
     : TypeDecl(DeclKind::EnumDecl, TypeTag::Enum, std::move(name), accessLevel, module, instantiatedFrom, location), cases(std::move(cases)) {
         for (auto& enumCase : this->cases) {
             enumCase.setParentDecl(this);
@@ -395,32 +393,32 @@ struct EnumDecl : TypeDecl {
 };
 
 struct VarDecl : VariableDecl, Movable {
-    VarDecl(Type type, std::string&& name, Expr* initializer, Decl* parent, AccessLevel accessLevel, Module& module, SourceLocation location)
+    VarDecl(Type type, std::string&& name, Expr* initializer, Decl* parent, AccessLevel accessLevel, Module& module, Location location)
     : VariableDecl(DeclKind::VarDecl, accessLevel, parent, type), name(std::move(name)), initializer(initializer), location(location), module(module) {}
     llvm::StringRef getName() const override { return name; }
     Expr* getInitializer() const { return initializer; }
     void setInitializer(Expr* expr) { initializer = expr; }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     Module* getModule() const override { return &module; }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::VarDecl; }
 
     std::string name;
     Expr* initializer;
-    SourceLocation location;
+    Location location;
     Module& module;
 };
 
 struct ImportDecl : Decl {
-    ImportDecl(std::string&& target, Module& module, SourceLocation location)
+    ImportDecl(std::string&& target, Module& module, Location location)
     : Decl(DeclKind::ImportDecl, AccessLevel::None), target(std::move(target)), location(location), module(module) {}
     llvm::StringRef getName() const override { return ""; }
     llvm::StringRef getTarget() const { return target; }
-    SourceLocation getLocation() const override { return location; }
+    Location getLocation() const override { return location; }
     Module* getModule() const override { return &module; }
     static bool classof(const Decl* d) { return d->getKind() == DeclKind::ImportDecl; }
 
     std::string target;
-    SourceLocation location;
+    Location location;
     Module& module;
 };
 

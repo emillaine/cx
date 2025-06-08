@@ -64,7 +64,7 @@ struct EnumDecl;
 struct VarDecl;
 struct FieldDecl;
 struct ImportDecl;
-struct SourceLocation;
+struct Location;
 struct Token;
 struct Type;
 enum class AccessLevel;
@@ -76,7 +76,7 @@ struct Parser {
 
 private:
     Token currentToken();
-    SourceLocation getCurrentLocation();
+    Location getCurrentLocation();
     Token lookAhead(int offset);
     Token consumeToken();
     Token parse(llvm::ArrayRef<Token::Kind> expected, const char* contextInfo = nullptr);
@@ -120,7 +120,7 @@ private:
     std::vector<Expr*> parseExprList();
     ReturnStmt* parseReturnStmt();
     VarDecl* parseVarDecl(Decl* parent, AccessLevel accessLevel);
-    VarDecl* parseVarDeclAfterName(Decl* parent, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation nameLocation);
+    VarDecl* parseVarDeclAfterName(Decl* parent, AccessLevel accessLevel, Type type, llvm::StringRef name, Location nameLocation);
     VarStmt* parseVarStmt(Decl* parent);
     ExprStmt* parseExprStmt();
     DeferStmt* parseDeferStmt();
@@ -139,15 +139,14 @@ private:
     void parseGenericParamList(std::vector<GenericParamDecl>& genericParams);
     llvm::StringRef parseFunctionName(TypeDecl* receiverTypeDecl);
     FunctionDecl* parseFunctionProto(bool isExtern, TypeDecl* receiverTypeDecl, AccessLevel accessLevel, std::vector<GenericParamDecl>* genericParams,
-                                     Type returnType, llvm::StringRef name, SourceLocation location);
-    FunctionTemplate* parseFunctionTemplateProto(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation location);
-    FunctionDecl* parseFunctionDecl(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, bool requireBody, Type type, llvm::StringRef name,
-                                    SourceLocation location);
-    FunctionTemplate* parseFunctionTemplate(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation location);
-    FunctionDecl* parseExternFunctionDecl(Type type, llvm::StringRef name, SourceLocation location);
+                                     Type returnType, llvm::StringRef name, Location location);
+    FunctionTemplate* parseFunctionTemplateProto(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location);
+    FunctionDecl* parseFunctionDecl(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, bool requireBody, Type type, llvm::StringRef name, Location location);
+    FunctionTemplate* parseFunctionTemplate(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location);
+    FunctionDecl* parseExternFunctionDecl(Type type, llvm::StringRef name, Location location);
     ConstructorDecl* parseConstructorDecl(TypeDecl& receiverTypeDecl, AccessLevel accessLevel);
     DestructorDecl* parseDestructorDecl(TypeDecl& receiverTypeDecl);
-    FieldDecl parseFieldDecl(TypeDecl& typeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation location);
+    FieldDecl parseFieldDecl(TypeDecl& typeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location);
     TypeTemplate* parseTypeTemplate(AccessLevel accessLevel);
     Token parseTypeHeader(std::vector<Type>& interfaces, std::vector<GenericParamDecl>* genericParams);
     TypeDecl* parseTypeDecl(std::vector<GenericParamDecl>* genericParams, AccessLevel typeAccessLevel);

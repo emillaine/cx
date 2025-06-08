@@ -33,7 +33,7 @@ using namespace cx;
 
 static clang::TargetInfo* targetInfo;
 
-static Type getIntTypeByWidth(int widthInBits, bool asSigned) {
+static Type getIntTypeByWidth(unsigned widthInBits, bool asSigned) {
     switch (widthInBits) {
     case 8:
         return asSigned ? Type::getInt8() : Type::getUInt8();
@@ -91,7 +91,7 @@ static Type toCx(const clang::BuiltinType& type) {
         return Type::getUInt128();
     default:
         auto name = type.getName(clang::PrintingPolicy({}));
-        WARN(SourceLocation(), "unknown C built-in type '" << name << "', defaulting to 'int'");
+        WARN(Location(), "unknown C built-in type '" << name << "', defaulting to 'int'");
         return Type::getInt();
     }
 }
@@ -144,7 +144,7 @@ static Type toCx(clang::QualType qualtype) {
     case clang::Type::ConstantArray: {
         auto& constantArrayType = llvm::cast<clang::ConstantArrayType>(type);
         if (!constantArrayType.getSize().isIntN(64)) {
-            ERROR(SourceLocation(), "array is too large");
+            ERROR(Location(), "array is too large");
         }
         return ArrayType::get(toCx(constantArrayType.getElementType()), constantArrayType.getSize().getLimitedValue());
     }
@@ -169,19 +169,19 @@ static Type toCx(clang::QualType qualtype) {
         return ArrayType::get(toCx(vectorType.getElementType()), vectorType.getNumElements());
     }
     default:
-        WARN(SourceLocation(), "unhandled type class '" << type.getTypeClassName() << "' (importing type '" << qualtype.getAsString() << "')");
+        WARN(Location(), "unhandled type class '" << type.getTypeClassName() << "' (importing type '" << qualtype.getAsString() << "')");
         return Type::getInt();
     }
 }
 
 static std::optional<FieldDecl> toCx(const clang::FieldDecl& decl, TypeDecl& typeDecl) {
     if (decl.getName().empty()) return std::nullopt;
-    return FieldDecl(toCx(decl.getType()), decl.getNameAsString(), nullptr, typeDecl, AccessLevel::Default, SourceLocation());
+    return FieldDecl(toCx(decl.getType()), decl.getNameAsString(), nullptr, typeDecl, AccessLevel::Default, Location());
 }
 
 static TypeDecl* toCx(const clang::RecordDecl& decl, Module* currentModule) {
     auto tag = decl.isUnion() ? TypeTag::Union : TypeTag::Struct;
-    auto* typeDecl = new TypeDecl(tag, getName(decl).str(), {}, {}, AccessLevel::Default, *currentModule, nullptr, SourceLocation());
+    auto* typeDecl = new TypeDecl(tag, getName(decl).str(), {}, {}, AccessLevel::Default, *currentModule, nullptr, Location());
     typeDecl->packed = decl.hasAttr<clang::PackedAttr>();
 
     for (auto* field : decl.fields()) {
@@ -196,21 +196,21 @@ static TypeDecl* toCx(const clang::RecordDecl& decl, Module* currentModule) {
 }
 
 static VarDecl* toCx(const clang::VarDecl& decl, Module* currentModule) {
-    return new VarDecl(toCx(decl.getType()), decl.getName().str(), nullptr, nullptr, AccessLevel::Default, *currentModule, SourceLocation());
+    return new VarDecl(toCx(decl.getType()), decl.getName().str(), nullptr, nullptr, AccessLevel::Default, *currentModule, Location());
 }
 
 static void addIntegerConstantToSymbolTable(llvm::StringRef name, llvm::APSInt value, clang::QualType qualType, Module& module) {
-    auto initializer = new IntLiteralExpr(std::move(value), SourceLocation());
+    auto initializer = new IntLiteralExpr(std::move(value), Location());
     auto type = toCx(qualType).withMutability(Mutability::Const);
     initializer->setType(type);
-    module.addToSymbolTable(new VarDecl(type, name.str(), initializer, nullptr, AccessLevel::Default, module, SourceLocation()));
+    module.addToSymbolTable(new VarDecl(type, name.str(), initializer, nullptr, AccessLevel::Default, module, Location()));
 }
 
 static void addFloatConstantToSymbolTable(llvm::StringRef name, llvm::APFloat value, Module& module) {
-    auto initializer = new FloatLiteralExpr(std::move(value), SourceLocation());
+    auto initializer = new FloatLiteralExpr(std::move(value), Location());
     auto type = Type::getFloat64(Mutability::Const);
     initializer->setType(type);
-    module.addToSymbolTable(new VarDecl(type, name.str(), initializer, nullptr, AccessLevel::Default, module, SourceLocation()));
+    module.addToSymbolTable(new VarDecl(type, name.str(), initializer, nullptr, AccessLevel::Default, module, Location()));
 }
 
 namespace {
@@ -244,12 +244,12 @@ struct CToCxConverter final : clang::ASTConsumer {
                 for (clang::EnumConstantDecl* enumerator : enumDecl.enumerators()) {
                     auto enumeratorName = enumerator->getName();
                     auto value = enumerator->getInitVal();
-                    auto valueExpr = new IntLiteralExpr(value, SourceLocation());
-                    cases.push_back(EnumCase(enumeratorName.str(), valueExpr, Type(), AccessLevel::Default, SourceLocation()));
+                    auto valueExpr = new IntLiteralExpr(value, Location());
+                    cases.push_back(EnumCase(enumeratorName.str(), valueExpr, Type(), AccessLevel::Default, Location()));
                     addIntegerConstantToSymbolTable(enumeratorName, value, type, module);
                 }
 
-                module.addToSymbolTable(new EnumDecl(getName(enumDecl).str(), std::move(cases), AccessLevel::Default, module, nullptr, SourceLocation()));
+                module.addToSymbolTable(new EnumDecl(getName(enumDecl).str(), std::move(cases), AccessLevel::Default, module, nullptr, Location()));
                 break;
             }
             case clang::Decl::Var:
@@ -273,8 +273,8 @@ struct CToCxConverter final : clang::ASTConsumer {
     }
 
     FunctionDecl* toCx(const clang::FunctionDecl& decl, Module* currentModule) {
-        auto params = map(decl.parameters(),
-                          [](clang::ParmVarDecl* param) { return ParamDecl(::toCx(param->getType()), param->getNameAsString(), false, SourceLocation()); });
+        auto params =
+            map(decl.parameters(), [](clang::ParmVarDecl* param) { return ParamDecl(::toCx(param->getType()), param->getNameAsString(), false, Location()); });
         FunctionProto proto(decl.getNameAsString(), std::move(params), ::toCx(decl.getReturnType()), decl.isVariadic(), true);
         if (auto asmLabelAttr = decl.getAttr<clang::AsmLabelAttr>()) {
             proto.asmLabel = asmLabelAttr->getLabel().str();
@@ -282,9 +282,9 @@ struct CToCxConverter final : clang::ASTConsumer {
         return new FunctionDecl(std::move(proto), {}, AccessLevel::Default, *currentModule, toCx(decl.getLocation()));
     }
 
-    SourceLocation toCx(clang::SourceLocation location) {
+    Location toCx(clang::SourceLocation location) {
         auto presumedLocation = sourceManager.getPresumedLoc(location);
-        return SourceLocation(strdup(presumedLocation.getFilename()), presumedLocation.getLine(), presumedLocation.getColumn());
+        return Location(strdup(presumedLocation.getFilename()), presumedLocation.getLine(), presumedLocation.getColumn());
     }
 
 private:
@@ -346,7 +346,7 @@ struct ErrorIgnoringTextDiagPrinter final : clang::TextDiagnosticPrinter {
 
 } // namespace
 
-bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const CompileOptions& options, SourceLocation importLocation) {
+bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const CompileOptions& options, Location importLocation) {
     auto it = Module::getAllImportedModulesMap().find(headerName);
     if (it != Module::getAllImportedModulesMap().end()) {
         importer.addImportedModule(it->second);

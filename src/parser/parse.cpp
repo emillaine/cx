@@ -30,12 +30,12 @@ Token Parser::currentToken() {
     return tokenBuffer[currentTokenIndex];
 }
 
-SourceLocation Parser::getCurrentLocation() {
+Location Parser::getCurrentLocation() {
     return currentToken().getLocation();
 }
 
 Token Parser::lookAhead(int offset) {
-    if (int(currentTokenIndex) + offset < 0) return Token(Token::None, SourceLocation());
+    if (int(currentTokenIndex) + offset < 0) return Token(Token::None, Location());
     int count = int(currentTokenIndex) + offset - int(tokenBuffer.size()) + 1;
     while (count-- > 0) {
         tokenBuffer.emplace_back(lexer.nextToken());
@@ -131,7 +131,7 @@ std::vector<NamedValue> Parser::parseArgumentList(bool allowEmpty) {
 
     do {
         std::string name;
-        SourceLocation location = SourceLocation();
+        Location location = Location();
         if (lookAhead(1) == Token::Colon) {
             auto result = parse(Token::Identifier);
             name = result.getString().str();
@@ -160,7 +160,7 @@ VarExpr* Parser::parseThis() {
     return expr;
 }
 
-static std::string replaceEscapeChars(llvm::StringRef literalContent, SourceLocation literalStartLocation) {
+static std::string replaceEscapeChars(llvm::StringRef literalContent, Location literalStartLocation) {
     std::string result;
     result.reserve(literalContent.size());
 
@@ -192,7 +192,7 @@ static std::string replaceEscapeChars(llvm::StringRef literalContent, SourceLoca
                 break;
             default:
                 auto itColumn = literalStartLocation.column + 1 + (it - literalContent.begin());
-                SourceLocation itLocation(literalStartLocation.file, literalStartLocation.line, itColumn);
+                Location itLocation(literalStartLocation.file, literalStartLocation.line, itColumn);
                 ERROR(itLocation, "unknown escape character '\\" << *it << "'");
             }
             continue;
@@ -801,7 +801,7 @@ VarDecl* Parser::parseVarDecl(Decl* parent, AccessLevel accessLevel) {
     return parseVarDeclAfterName(parent, accessLevel, type.withMutability(mutability), name.getString(), name.getLocation());
 }
 
-VarDecl* Parser::parseVarDeclAfterName(Decl* parent, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation nameLocation) {
+VarDecl* Parser::parseVarDeclAfterName(Decl* parent, AccessLevel accessLevel, Type type, llvm::StringRef name, Location nameLocation) {
     Expr* initializer = nullptr;
 
     if (currentToken() == Token::Assignment) {
@@ -1104,7 +1104,7 @@ llvm::StringRef Parser::parseFunctionName(TypeDecl* receiverTypeDecl) {
 
 /// function-proto ::= type id param-list
 FunctionDecl* Parser::parseFunctionProto(bool isExtern, TypeDecl* receiverTypeDecl, AccessLevel accessLevel, std::vector<GenericParamDecl>* genericParams,
-                                         Type returnType, llvm::StringRef name, SourceLocation location) {
+                                         Type returnType, llvm::StringRef name, Location location) {
     if (currentToken() == Token::Less) {
         parseGenericParamList(*genericParams);
     }
@@ -1123,8 +1123,7 @@ FunctionDecl* Parser::parseFunctionProto(bool isExtern, TypeDecl* receiverTypeDe
 /// function-template-proto ::= type id template-param-list param-list
 /// template-param-list ::= '<' template-param-decls '>'
 /// template-param-decls ::= id | id ',' template-param-decls
-FunctionTemplate* Parser::parseFunctionTemplateProto(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name,
-                                                     SourceLocation location) {
+FunctionTemplate* Parser::parseFunctionTemplateProto(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location) {
     std::vector<GenericParamDecl> genericParams;
     auto decl = parseFunctionProto(false, receiverTypeDecl, accessLevel, &genericParams, type, name, location);
     return new FunctionTemplate(std::move(genericParams), decl, accessLevel);
@@ -1132,7 +1131,7 @@ FunctionTemplate* Parser::parseFunctionTemplateProto(TypeDecl* receiverTypeDecl,
 
 /// function-decl ::= function-proto '{' stmt* '}'
 FunctionDecl* Parser::parseFunctionDecl(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, bool requireBody, Type type, llvm::StringRef name,
-                                        SourceLocation location) {
+                                        Location location) {
     auto decl = parseFunctionProto(false, receiverTypeDecl, accessLevel, nullptr, type, name, location);
 
     if (requireBody || currentToken() == Token::LeftBrace) {
@@ -1147,14 +1146,14 @@ FunctionDecl* Parser::parseFunctionDecl(TypeDecl* receiverTypeDecl, AccessLevel 
 }
 
 /// function-template-decl ::= function-template-proto '{' stmt* '}'
-FunctionTemplate* Parser::parseFunctionTemplate(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation location) {
+FunctionTemplate* Parser::parseFunctionTemplate(TypeDecl* receiverTypeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location) {
     auto decl = parseFunctionTemplateProto(receiverTypeDecl, accessLevel, type, name, location);
     decl->getFunctionDecl()->setBody(parseBlock(decl));
     return decl;
 }
 
 /// extern-function-decl ::= 'extern' function-proto ('\n' | ';')
-FunctionDecl* Parser::parseExternFunctionDecl(Type type, llvm::StringRef name, SourceLocation location) {
+FunctionDecl* Parser::parseExternFunctionDecl(Type type, llvm::StringRef name, Location location) {
     auto decl = parseFunctionProto(true, nullptr, AccessLevel::Default, nullptr, type, name, location);
     parseStmtTerminator();
     return decl;
@@ -1185,7 +1184,7 @@ DestructorDecl* Parser::parseDestructorDecl(TypeDecl& receiverTypeDecl) {
 }
 
 /// field-decl ::= type id ('=' expr)? ('\n' | ';')
-FieldDecl Parser::parseFieldDecl(TypeDecl& typeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, SourceLocation location) {
+FieldDecl Parser::parseFieldDecl(TypeDecl& typeDecl, AccessLevel accessLevel, Type type, llvm::StringRef name, Location location) {
     Expr* defaultValue = nullptr;
 
     if (currentToken() == Token::Assignment) {

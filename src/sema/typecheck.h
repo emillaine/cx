@@ -24,7 +24,7 @@ namespace cx {
 struct Module;
 struct PackageManifest;
 struct SourceFile;
-struct SourceLocation;
+struct Location;
 struct Type;
 struct CompileOptions;
 
@@ -87,7 +87,7 @@ private:
     Type typecheckTupleExpr(TupleExpr& expr);
     Type typecheckUnaryExpr(UnaryExpr& expr);
     Type typecheckBinaryExpr(BinaryExpr& expr);
-    void typecheckAssignment(BinaryExpr& expr, SourceLocation location);
+    void typecheckAssignment(BinaryExpr& expr, Location location);
     Type typecheckCallExpr(CallExpr& expr, Type expectedType = Type());
     Type typecheckBuiltinConversion(CallExpr& expr);
     Type typecheckBuiltinCast(CallExpr& expr);
@@ -106,11 +106,11 @@ private:
     /// Returns the converted type when the implicit conversion succeeds, or the null type when it doesn't.
     Type isImplicitlyConvertible(const Expr* expr, Type source, Type target, bool allowPointerToTemporary = false,
                                  std::optional<ImplicitCastExpr::Kind>* implicitCastKind = nullptr) const;
-    void typecheckImplicitlyBoolConvertibleExpr(Type type, SourceLocation location, bool positive = true);
+    void typecheckImplicitlyBoolConvertibleExpr(Type type, Location location, bool positive = true);
     Type findGenericArg(Type argType, Type paramType, llvm::StringRef genericParam);
     llvm::StringMap<Type> getGenericArgsForCall(llvm::ArrayRef<GenericParamDecl> genericParams, CallExpr& call, FunctionDecl* decl, bool returnOnError,
                                                 Type expectedType);
-    Decl* findDecl(llvm::StringRef name, SourceLocation location) const;
+    Decl* findDecl(llvm::StringRef name, Location location) const;
     std::vector<Decl*> findDecls(llvm::StringRef name, TypeDecl* receiverTypeDecl = nullptr, bool inAllImportedModules = false) const;
     std::vector<Decl*> findCalleeCandidates(const CallExpr& expr, llvm::StringRef callee);
     Decl* resolveOverload(llvm::ArrayRef<Decl*> decls, CallExpr& expr, llvm::StringRef callee, Type expectedType);
@@ -118,13 +118,13 @@ private:
                                                    bool returnOnError);
     ArgumentValidation getArgumentValidationResult(CallExpr& expr, llvm::ArrayRef<ParamDecl> params, bool isVariadic);
     std::optional<Match> matchArguments(CallExpr& expr, Decl* calleeDecl, llvm::ArrayRef<ParamDecl> params = {});
-    void validateAndConvertArguments(CallExpr& expr, const Decl& calleeDecl, llvm::StringRef functionName = "", SourceLocation location = SourceLocation());
+    void validateAndConvertArguments(CallExpr& expr, const Decl& calleeDecl, llvm::StringRef functionName = "", Location location = Location());
     void validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<ParamDecl> params, bool isVariadic, llvm::StringRef callee = "",
-                                     SourceLocation location = SourceLocation());
+                                     Location location = Location());
     TypeDecl* getTypeDecl(const BasicType& type);
     EnumCase* getEnumCase(const Expr& expr);
     void checkReturnPointerToLocal(const Expr* returnValue) const;
-    static void checkHasAccess(const Decl& decl, SourceLocation location, AccessLevel userAccessLevel);
+    static void checkHasAccess(const Decl& decl, Location location, AccessLevel userAccessLevel);
     void checkLambdaCapture(const VariableDecl& variableDecl, const VarExpr& varExpr) const;
     llvm::ErrorOr<const Module&> importModule(SourceFile* importer, const PackageManifest* manifest, llvm::StringRef moduleName);
     void deferTypechecking(Decl* decl);
@@ -146,6 +146,6 @@ private:
     const CompileOptions& options;
 };
 
-void validateGenericArgCount(size_t genericParamCount, llvm::ArrayRef<Type> genericArgs, llvm::StringRef name, SourceLocation location);
+void validateGenericArgCount(size_t genericParamCount, llvm::ArrayRef<Type> genericArgs, llvm::StringRef name, Location location);
 
 } // namespace cx

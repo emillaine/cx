@@ -377,7 +377,7 @@ llvm::APSInt BinaryExpr::getConstantIntegerValue() const {
     }
 }
 
-LambdaExpr::LambdaExpr(std::vector<ParamDecl>&& params, Module* module, SourceLocation location) : Expr(ExprKind::LambdaExpr, location) {
+LambdaExpr::LambdaExpr(std::vector<ParamDecl>&& params, Module* module, Location location) : Expr(ExprKind::LambdaExpr, location) {
     static uint64_t nameCounter = 0;
     FunctionProto proto("__lambda" + std::to_string(nameCounter++), std::move(params), Type(), false, false);
     this->functionDecl = new FunctionDecl(std::move(proto), std::vector<Type>(), AccessLevel::Private, *module, getLocation());

@@ -53,8 +53,7 @@ static std::error_code importModuleSourcesInDirectoryRecursively(const llvm::Twi
     }
 
     if (module.getSourceFiles().empty()) {
-        REPORT_ERROR(SourceLocation(),
-                     "Module '" << module.getName() << "' import failed: no source files found in '" << directoryPath << "' or its subdirectories");
+        REPORT_ERROR(Location(), "Module '" << module.getName() << "' import failed: no source files found in '" << directoryPath << "' or its subdirectories");
     }
 
     return error;
@@ -235,7 +234,7 @@ static llvm::SmallVector<Decl*, 1> findDeclsInModules(llvm::StringRef name, llvm
     return decls;
 }
 
-static Decl* findDeclInModules(llvm::StringRef name, SourceLocation location, llvm::ArrayRef<Module*> modules) {
+static Decl* findDeclInModules(llvm::StringRef name, Location location, llvm::ArrayRef<Module*> modules) {
     auto decls = findDeclsInModules(name, modules);
 
     if (decls.size() == 1) {
@@ -250,7 +249,7 @@ static Decl* findDeclInModules(llvm::StringRef name, SourceLocation location, ll
     }
 }
 
-Decl* Typechecker::findDecl(llvm::StringRef name, SourceLocation location) const {
+Decl* Typechecker::findDecl(llvm::StringRef name, Location location) const {
     ASSERT(!name.empty());
 
     if (Decl* match = findDeclInModules(name, location, currentModule)) {

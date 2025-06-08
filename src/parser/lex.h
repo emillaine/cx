@@ -8,7 +8,7 @@ class MemoryBuffer;
 
 namespace cx {
 
-struct SourceLocation;
+struct Location;
 
 struct Lexer {
     Lexer(llvm::MemoryBufferRef input);
@@ -16,17 +16,17 @@ struct Lexer {
     const char* getFilePath() const;
 
 private:
-    SourceLocation getCurrentLocation() const;
+    Location getCurrentLocation() const;
     char readChar();
     void unreadChar(char ch);
-    void readBlockComment(SourceLocation startLocation);
+    void readBlockComment(Location startLocation);
     Token readQuotedLiteral(char delimiter, Token::Kind literalKind);
     Token readNumber();
 
     llvm::MemoryBufferRef buffer;
     const char* currentFilePosition;
-    SourceLocation firstLocation;
-    SourceLocation lastLocation;
+    Location firstLocation;
+    Location lastLocation;
 };
 
 } // namespace cx

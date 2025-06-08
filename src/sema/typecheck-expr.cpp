@@ -15,7 +15,7 @@
 
 using namespace cx;
 
-void Typechecker::checkHasAccess(const Decl& decl, SourceLocation location, AccessLevel userAccessLevel) {
+void Typechecker::checkHasAccess(const Decl& decl, Location location, AccessLevel userAccessLevel) {
     // FIXME: Compare SourceFile objects instead of file path strings.
     if (decl.getAccessLevel() == AccessLevel::Private && strcmp(decl.getLocation().file, location.file) != 0) {
         WARN(location, "'" << decl.getName() << "' is private");
@@ -50,7 +50,7 @@ Type Typechecker::typecheckVarExpr(VarExpr& expr, bool useIsWriteOnly) {
         return llvm::cast<ParamDecl>(decl)->getType();
     case DeclKind::FunctionDecl:
     case DeclKind::MethodDecl:
-        return Type(llvm::cast<FunctionDecl>(decl)->getFunctionType(), Mutability::Mutable, SourceLocation());
+        return Type(llvm::cast<FunctionDecl>(decl)->getFunctionType(), Mutability::Mutable, Location());
     case DeclKind::GenericParamDecl:
         llvm_unreachable("cannot refer to generic parameters yet");
     case DeclKind::ConstructorDecl:
@@ -142,7 +142,7 @@ Type Typechecker::typecheckTupleExpr(TupleExpr& expr) {
     return TupleType::get(std::move(elements));
 }
 
-void Typechecker::typecheckImplicitlyBoolConvertibleExpr(Type type, SourceLocation location, bool positive) {
+void Typechecker::typecheckImplicitlyBoolConvertibleExpr(Type type, Location location, bool positive) {
     if (!type.removePointer().isBool() && !type.removePointer().isOptionalType()) {
         if (type.isImplementedAsPointer()) {
             WARN(location, "type '" << type << "' " << (positive ? "is always non-null" : "cannot be null") << "; to declare it nullable, use '"
@@ -297,7 +297,7 @@ Type Typechecker::typecheckBinaryExpr(BinaryExpr& expr) {
     return isComparisonOperator(op) ? Type::getBool() : expr.getLHS().getType().removeOptional().removePointer();
 }
 
-void Typechecker::typecheckAssignment(BinaryExpr& expr, SourceLocation location) {
+void Typechecker::typecheckAssignment(BinaryExpr& expr, Location location) {
     auto* lhs = &expr.getLHS();
     auto* rhs = &expr.getRHS();
 
@@ -762,7 +762,7 @@ std::vector<Type> Typechecker::inferGenericArgsFromCallArgs(llvm::ArrayRef<Gener
     return inferredGenericArgs;
 }
 
-void cx::validateGenericArgCount(size_t genericParamCount, llvm::ArrayRef<Type> genericArgs, llvm::StringRef name, SourceLocation location) {
+void cx::validateGenericArgCount(size_t genericParamCount, llvm::ArrayRef<Type> genericArgs, llvm::StringRef name, Location location) {
     if (genericArgs.size() < genericParamCount) {
         REPORT_ERROR(location, "too few generic arguments to '" << name << "', expected " << genericParamCount);
     } else if (genericArgs.size() > genericParamCount) {
@@ -1131,7 +1131,7 @@ Type Typechecker::typecheckCallExpr(CallExpr& expr, Type expectedType) {
     }
 
     if (expr.getFunctionName() == "assert") {
-        ParamDecl assertParam(Type::getBool(), "", false, SourceLocation());
+        ParamDecl assertParam(Type::getBool(), "", false, Location());
         validateAndConvertArguments(expr, assertParam, false, expr.getFunctionName(), expr.getLocation());
         validateGenericArgCount(0, expr.getGenericArgs(), expr.getFunctionName(), expr.getLocation());
         return Type::getVoid();
@@ -1292,7 +1292,7 @@ std::optional<Match> Typechecker::matchArguments(CallExpr& expr, Decl* calleeDec
     return Match{calleeDecl, result.didConvertArguments};
 }
 
-void Typechecker::validateAndConvertArguments(CallExpr& expr, const Decl& calleeDecl, llvm::StringRef functionName, SourceLocation location) {
+void Typechecker::validateAndConvertArguments(CallExpr& expr, const Decl& calleeDecl, llvm::StringRef functionName, Location location) {
     if (auto functionDecl = llvm::dyn_cast<FunctionDecl>(&calleeDecl)) {
         validateAndConvertArguments(expr, functionDecl->getParams(), functionDecl->isVariadic(), functionName, location);
     } else {
@@ -1302,8 +1302,7 @@ void Typechecker::validateAndConvertArguments(CallExpr& expr, const Decl& callee
     }
 }
 
-void Typechecker::validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<ParamDecl> params, bool isVariadic, llvm::StringRef callee,
-                                              SourceLocation location) {
+void Typechecker::validateAndConvertArguments(CallExpr& expr, llvm::ArrayRef<ParamDecl> params, bool isVariadic, llvm::StringRef callee, Location location) {
     auto result = getArgumentValidationResult(expr, params, isVariadic);
 
     // Arguments are type-checked here for error messages, but type-converted only in the success case below

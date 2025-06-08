@@ -48,11 +48,11 @@ protected:
 inline Stmt::~Stmt() {}
 
 struct ReturnStmt : Stmt {
-    ReturnStmt(Expr* value, SourceLocation location) : Stmt(StmtKind::ReturnStmt), value(value), location(location) {}
+    ReturnStmt(Expr* value, Location location) : Stmt(StmtKind::ReturnStmt), value(value), location(location) {}
     static bool classof(const Stmt* s) { return s->kind == StmtKind::ReturnStmt; }
 
     Expr* value;
-    SourceLocation location;
+    Location location;
 };
 
 struct VarStmt : Stmt {
@@ -106,18 +106,18 @@ struct SwitchStmt : Stmt {
 };
 
 struct WhileStmt : Stmt {
-    WhileStmt(Expr* condition, std::vector<Stmt*>&& body, SourceLocation location)
+    WhileStmt(Expr* condition, std::vector<Stmt*>&& body, Location location)
     : Stmt(StmtKind::WhileStmt), condition(condition), body(std::move(body)), location(location) {}
     Stmt* lower();
     static bool classof(const Stmt* s) { return s->kind == StmtKind::WhileStmt; }
 
     Expr* condition;
     std::vector<Stmt*> body;
-    SourceLocation location;
+    Location location;
 };
 
 struct ForStmt : Stmt {
-    ForStmt(VarStmt* variable, Expr* condition, Expr* increment, std::vector<Stmt*>&& body, SourceLocation location)
+    ForStmt(VarStmt* variable, Expr* condition, Expr* increment, std::vector<Stmt*>&& body, Location location)
     : Stmt(StmtKind::ForStmt), variable(variable), condition(condition), increment(increment), body(std::move(body)), location(location) {}
     static bool classof(const Stmt* s) { return s->kind == StmtKind::ForStmt; }
 
@@ -125,11 +125,11 @@ struct ForStmt : Stmt {
     Expr* condition;
     Expr* increment;
     std::vector<Stmt*> body;
-    SourceLocation location;
+    Location location;
 };
 
 struct ForEachStmt : Stmt {
-    ForEachStmt(VarDecl* variable, Expr* range, std::vector<Stmt*>&& body, SourceLocation location)
+    ForEachStmt(VarDecl* variable, Expr* range, std::vector<Stmt*>&& body, Location location)
     : Stmt(StmtKind::ForEachStmt), variable(variable), range(range), body(std::move(body)), location(location) {}
     Stmt* lower(int nestLevel);
     static bool classof(const Stmt* s) { return s->kind == StmtKind::ForEachStmt; }
@@ -137,21 +137,21 @@ struct ForEachStmt : Stmt {
     VarDecl* variable;
     Expr* range;
     std::vector<Stmt*> body;
-    SourceLocation location;
+    Location location;
 };
 
 struct BreakStmt : Stmt {
-    BreakStmt(SourceLocation location) : Stmt(StmtKind::BreakStmt), location(location) {}
+    BreakStmt(Location location) : Stmt(StmtKind::BreakStmt), location(location) {}
     static bool classof(const Stmt* s) { return s->kind == StmtKind::BreakStmt; }
 
-    SourceLocation location;
+    Location location;
 };
 
 struct ContinueStmt : Stmt {
-    ContinueStmt(SourceLocation location) : Stmt(StmtKind::ContinueStmt), location(location) {}
+    ContinueStmt(Location location) : Stmt(StmtKind::ContinueStmt), location(location) {}
     static bool classof(const Stmt* s) { return s->kind == StmtKind::ContinueStmt; }
 
-    SourceLocation location;
+    Location location;
 };
 
 struct CompoundStmt : Stmt {

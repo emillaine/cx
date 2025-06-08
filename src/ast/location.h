@@ -7,16 +7,17 @@
 
 namespace cx {
 
-struct SourceLocation {
+// A location in source code.
+struct Location {
     using IntegerType = short;
 
     const char* file;
     IntegerType line;
     IntegerType column;
 
-    SourceLocation() : SourceLocation(nullptr, std::numeric_limits<IntegerType>::min(), std::numeric_limits<IntegerType>::min()) {}
-    SourceLocation(const char* file, IntegerType line, IntegerType column) : file(file), line(line), column(column) {}
-    SourceLocation nextColumn() const { return SourceLocation(file, line, column + 1); }
+    Location() : Location(nullptr, std::numeric_limits<IntegerType>::min(), std::numeric_limits<IntegerType>::min()) {}
+    Location(const char* file, IntegerType line, IntegerType column) : file(file), line(line), column(column) {}
+    Location nextColumn() const { return Location(file, line, column + 1); }
     bool isValid() const { return line > 0 && column > 0; }
 
     bool print() const {

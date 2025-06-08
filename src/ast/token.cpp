@@ -64,12 +64,12 @@ static PrecedenceGroup getPrecedenceGroup(Token::Kind tokenKind) {
     }
 }
 
-Token::Token(Token::Kind kind, SourceLocation location, llvm::StringRef string) : kind(kind), src{string}, location(location) {
+Token::Token(Token::Kind kind, Location location, llvm::StringRef string) : kind(kind), src{string}, location(location) {
     ASSERT(!string.empty() || kind == Token::None || kind >= Token::Break);
     ASSERT(location.isValid());
 }
 
-Token::Token(SourceLocation location, uint64_t val) : kind(Token::IntegerLiteral), src{""}, location(location) {
+Token::Token(Location location, uint64_t val) : kind(Token::IntegerLiteral), src{""}, location(location) {
     ASSERT(location.isValid());
     src.integer = val;
 }
