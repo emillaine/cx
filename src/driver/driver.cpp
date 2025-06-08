@@ -1,4 +1,5 @@
 #include "driver.h"
+#include <bit>
 #include <cstdio>
 #include <string>
 #include <system_error>
@@ -22,6 +23,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/TargetParser/Host.h>
 #pragma warning(pop)
 #include "../ast/module.h"
 #include "../backend/c-backend.h"
@@ -73,13 +75,13 @@ cl::opt<bool> compileOnly("c", cl::desc("Compile only, generating an object file
 
 cl::OptionCategory outputCategory("Output Options");
 // TODO: Add -print-llvm-all option.
-enum class PrintMode { None, AST, IR, IRAll, C, LLVM };
-cl::opt<PrintMode> printMode(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(cl::SubCommand::getTopLevel()), cl::cat(outputCategory),
-                             cl::values(clEnumValN(PrintMode::AST, "print-ast", "Print the abstract syntax tree of main module"),
-                                        clEnumValN(PrintMode::IR, "print-ir", "Print C* intermediate representation of main module"),
-                                        clEnumValN(PrintMode::IRAll, "print-ir-all", "Print C* intermediate representation of all compiled modules"),
-                                        clEnumValN(PrintMode::C, "print-c", "Print generated C code"),
-                                        clEnumValN(PrintMode::LLVM, "print-llvm", "Print LLVM intermediate representation of main module")));
+enum class PrintOpt { AST, IR, IRAll, C, LLVM };
+cl::bits<PrintOpt> printOpts(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(cl::SubCommand::getTopLevel()), cl::cat(outputCategory),
+                             cl::values(clEnumValN(PrintOpt::AST, "print-ast", "Print the abstract syntax tree of main module"),
+                                        clEnumValN(PrintOpt::IR, "print-ir", "Print C* intermediate representation of main module"),
+                                        clEnumValN(PrintOpt::IRAll, "print-ir-all", "Print C* intermediate representation of all compiled modules"),
+                                        clEnumValN(PrintOpt::C, "print-c", "Print generated C code"),
+                                        clEnumValN(PrintOpt::LLVM, "print-llvm", "Print LLVM intermediate representation of main module")));
 enum class Backend { LLVM, C };
 cl::opt<Backend> backend("backend", cl::desc("Select code-generation backend to use:"), cl::sub(cl::SubCommand::getAll()), cl::cat(outputCategory),
                          cl::values(clEnumValN(Backend::LLVM, "llvm", "LLVM backend (default)"), clEnumValN(Backend::C, "c", "C backend")));
@@ -236,6 +238,14 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     addPredefinedImportSearchPaths(buildParams.filePaths);
 
     CompileOptions options = {noUnusedWarnings, importSearchPaths, frameworkSearchPaths, defines, cflags};
+    auto remainingPrintOpts = std::popcount(printOpts.getBits());
+    bool printSectionDividers = remainingPrintOpts > 1;
+
+    auto handlePrintOpt = [&](PrintOpt o) {
+        bool isSet = printOpts.isSet(o);
+        if (isSet) remainingPrintOpts--;
+        return isSet;
+    };
 
     if (!specifiedOutputFileName.empty()) {
         buildParams.outputFileName = specifiedOutputFileName;
@@ -256,9 +266,11 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     if (errors) return 1;
 
-    if (printMode == PrintMode::AST) {
+    if (handlePrintOpt(PrintOpt::AST)) {
+        if (printSectionDividers) llvm::outs() << "=== BEGIN AST ===\n";
         mainModule.print(llvm::outs());
-        return 0;
+        if (printSectionDividers) llvm::outs() << "=== END AST ===\n";
+        if (!remainingPrintOpts) return 0;
     }
 
     IRGenerator irGenerator;
@@ -275,14 +287,19 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     if (errors) return 1;
     if (typecheck) return 0;
 
-    if (printMode == PrintMode::IRAll) {
+    if (handlePrintOpt(PrintOpt::IRAll)) {
+        handlePrintOpt(PrintOpt::IR);
+        if (printSectionDividers) llvm::outs() << "=== BEGIN IR ===\n";
         for (auto* module : irGenerator.generatedModules) {
             module->print(llvm::outs());
         }
-        return 0;
-    } else if (printMode == PrintMode::IR) {
+        if (printSectionDividers) llvm::outs() << "=== END IR ===\n";
+        if (!remainingPrintOpts) return 0;
+    } else if (handlePrintOpt(PrintOpt::IR)) {
+        if (printSectionDividers) llvm::outs() << "=== BEGIN IR ===\n";
         irGenerator.generatedModules.back()->print(llvm::outs());
-        return 0;
+        if (printSectionDividers) llvm::outs() << "=== END IR ===\n";
+        if (!remainingPrintOpts) return 0;
     }
 
     llvm::SmallString<128> temporaryOutputFilePath;
@@ -301,9 +318,11 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         }
         std::string cCode = cGen.finish();
 
-        if (printMode == PrintMode::C) {
+        if (handlePrintOpt(PrintOpt::C)) {
+            if (printSectionDividers) llvm::outs() << "=== BEGIN C ===\n";
             llvm::outs() << cCode << "\n";
-            return 0;
+            if (printSectionDividers) llvm::outs() << "=== END C ===\n";
+            if (!remainingPrintOpts) return 0;
         }
 
         // TODO: emitAssembly not supported, report to user
@@ -324,11 +343,13 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         }
         llvm::Module* llvmModule = llvmGenerator.generatedModules.back();
 
-        if (printMode == PrintMode::LLVM) {
+        if (handlePrintOpt(PrintOpt::LLVM)) {
             llvmModule->setModuleIdentifier("");
             llvmModule->setSourceFileName("");
+            if (printSectionDividers) llvm::outs() << "=== BEGIN LLVM ===\n";
             llvmModule->print(llvm::outs(), nullptr);
-            return 0;
+            if (printSectionDividers) llvm::outs() << "=== END LLVM ===\n";
+            if (!remainingPrintOpts) return 0;
         }
 
         llvm::Module linkedModule("", llvmGenerator.ctx);

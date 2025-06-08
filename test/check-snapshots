@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import subprocess
 import sys
 from types import SimpleNamespace
 
 all_checks = [
-    SimpleNamespace(flag="-print-ast", extension=".ast", is_default=False),
-    SimpleNamespace(flag="-print-ir", extension=".ir", is_default=True),
-    SimpleNamespace(flag="-print-llvm", extension=".ll", is_default=True),
+    SimpleNamespace(name="AST", flag="-print-ast", extension=".ast", is_default=False),
+    SimpleNamespace(name="IR", flag="-print-ir", extension=".ir", is_default=True),
+    SimpleNamespace(name="LLVM", flag="-print-llvm", extension=".ll", is_default=True),
 ]
 
 cx, test_file, *cx_flags = sys.argv[1:]
@@ -16,14 +17,29 @@ cx, test_file, *cx_flags = sys.argv[1:]
 checks_to_run = ([c for c in all_checks if c.flag in cx_flags]
                  or [c for c in all_checks if c.is_default])
 
+print_flags = [c.flag for c in checks_to_run]
+command = sys.argv[1:] + print_flags
+
+try:
+    raw_output = subprocess.check_output(command, text=True)
+except subprocess.CalledProcessError as error:
+    print("Command:", " ".join(command))
+    print(error.output)
+    sys.exit(error.returncode)
+
+sections = {}
+if len(checks_to_run) == 1:
+    sections[checks_to_run[0].name] = raw_output
+else:
+    matches = re.finditer(r"=== BEGIN (\w+) ===\n(.*?\n?)=== END \1 ===", raw_output, re.DOTALL)
+    for match in matches:
+        section_name = match.group(1)
+        content = match.group(2)
+        sections[section_name] = content
+
 for check in checks_to_run:
     snapshot_path = test_file + check.extension
-
-    try:
-        output = subprocess.check_output(sys.argv[1:] + [check.flag], text=True)
-    except subprocess.CalledProcessError as error:
-        print(error.output)
-        sys.exit(error.returncode)
+    output = sections[check.name]
 
     if "UPDATE_SNAPSHOTS" in os.environ:
         with open(snapshot_path, "w") as snapshot_file:
@@ -34,12 +50,14 @@ for check in checks_to_run:
         with open(snapshot_path, "r") as snapshot_file:
             snapshot = snapshot_file.read().replace("\r\n", "\n")
     except IOError:
+        print("Command:", " ".join(command))
         print("FAIL: snapshot file not found\n")
         print("Output:")
         print(output)
         sys.exit(1)
 
     if output != snapshot:
+        print("Command:", " ".join(command))
         print("FAIL: output doesn't match snapshot\n")
         print("- Snapshot")
         print("+ Received\n")
