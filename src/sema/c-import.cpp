@@ -359,6 +359,7 @@ bool cx::importCHeader(SourceFile& importer, llvm::StringRef headerName, const C
     ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), diagClient);
 
     auto args = map(options.cflags, [](auto& cflag) { return cflag.c_str(); });
+    args.push_back("-fgnuc-version=4.2.1"); // Enable compatibility with GCC macros in imported headers.
     clang::CompilerInvocation::CreateFromArgs(ci.getInvocation(), args, ci.getDiagnostics());
 
     auto pto = std::make_shared<clang::TargetOptions>();
