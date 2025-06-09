@@ -17,12 +17,7 @@ void IRGenerator::emitReturnStmt(const ReturnStmt& stmt) {
 
 void IRGenerator::emitBlock(llvm::ArrayRef<Stmt*> stmts, BasicBlock* continuation) {
     beginScope();
-
-    for (const auto& stmt : stmts) {
-        emitStmt(*stmt);
-        if (stmt->isReturnStmt() || stmt->isBreakStmt() || stmt->isContinueStmt()) break;
-    }
-
+    emitStmts(stmts);
     endScope();
 
     if (insertBlock->body.empty() || !insertBlock->body.back()->isTerminator()) {
@@ -148,11 +143,7 @@ void IRGenerator::emitContinueStmt(const ContinueStmt&) {
 
 void IRGenerator::emitCompoundStmt(const CompoundStmt& compoundStmt) {
     beginScope();
-
-    for (auto& stmt : compoundStmt.body) {
-        emitStmt(*stmt);
-    }
-
+    emitStmts(compoundStmt.body);
     endScope();
 }
 
@@ -194,5 +185,12 @@ void IRGenerator::emitStmt(const Stmt& stmt) {
     case StmtKind::CompoundStmt:
         emitCompoundStmt(llvm::cast<CompoundStmt>(stmt));
         break;
+    }
+}
+
+void IRGenerator::emitStmts(llvm::ArrayRef<Stmt*> stmts) {
+    for (Stmt* stmt : stmts) {
+        emitStmt(*stmt);
+        if (stmt->isReturnStmt() || stmt->isBreakStmt() || stmt->isContinueStmt()) break;
     }
 }

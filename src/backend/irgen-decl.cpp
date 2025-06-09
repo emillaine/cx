@@ -59,10 +59,7 @@ void IRGenerator::emitFunctionBody(const FunctionDecl& decl, Function& function)
         }
     }
 
-    for (auto& stmt : *decl.body) {
-        emitStmt(*stmt);
-    }
-
+    emitStmts(*decl.body);
     endScope();
 
     if (insertBlock->body.empty() || !llvm::isa<ReturnInst>(insertBlock->body.back())) {

@@ -141,7 +141,8 @@ void LLVMGenerator::codegenFunctionBody(const Function* function, llvm::Function
         }
 
         for (auto* inst : block->body) {
-            getValue(inst);
+            auto llvmValue = codegenInst(inst);
+            generatedValues.emplace(inst, llvmValue);
         }
     }
 

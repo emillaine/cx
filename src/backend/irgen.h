@@ -98,6 +98,7 @@ struct IRGenerator {
     Value* emitAssignmentLHS(const Expr& lhs);
     void emitCompoundStmt(const CompoundStmt& stmt);
     void emitStmt(const Stmt& stmt);
+    void emitStmts(llvm::ArrayRef<Stmt*> stmts);
     void emitDecl(const Decl& decl);
     void emitFunctionDecl(const FunctionDecl& decl);
     Value* emitVarDecl(const VarDecl& decl);
