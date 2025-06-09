@@ -400,14 +400,20 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     // Link the output:
 
     llvm::SmallString<128> temporaryExecutablePath;
-    llvm::sys::fs::createUniquePath(isWindows ? "cx-%%%%%%%%.exe" : "cx-%%%%%%%%.out", temporaryExecutablePath, true);
+    llvm::sys::fs::createUniquePath("cx-%%%%%%%%", temporaryExecutablePath, true);
 
     std::vector<const char*> ccArgs = {
         ccPath.c_str(),
         temporaryOutputFilePath.c_str(),
     };
 
-    if (buildParams.createSharedLib) ccArgs.push_back(isMSVC ? "-LD" : "-shared");
+    if (buildParams.createSharedLib) {
+        ccArgs.push_back(isMSVC ? "-LD" : "-shared");
+        if (!isMSVC) {
+            ccArgs.push_back("-undefined");
+            ccArgs.push_back("dynamic_lookup");
+        }
+    }
     ccArgs.push_back(isMSVC ? "-Fe:" : "-o");
     ccArgs.push_back(temporaryExecutablePath.c_str());
 
