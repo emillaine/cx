@@ -15,15 +15,15 @@ using namespace cx;
 
 extern "C" {
 
-struct cxModule {
+struct CxModule {
     Module module;
 };
 
-cxModule* cxCreateModule(const char* name) {
-    return new cxModule{.module = Module(name)};
+CxModule* cxCreateModule(const char* name) {
+    return new CxModule{.module = Module(name)};
 }
 
-void cxLoadScriptFromFile(cxModule* module, const char* filePath) {
+void cxLoadScriptFromFile(CxModule* module, const char* filePath) {
     auto fileBuffer = llvm::MemoryBuffer::getFile(filePath);
     if (!fileBuffer) {
         llvm::errs() << "Error loading script from file '" << filePath << "': " << fileBuffer.getError().message();
@@ -32,12 +32,13 @@ void cxLoadScriptFromFile(cxModule* module, const char* filePath) {
     module->module.fileBuffers.push_back(std::move(*fileBuffer));
 }
 
-void cxCompileModule(cxModule* module) {
-    buildModule(module->module, {.createSharedLib = true});
+CxCompileResult cxCompileModule(CxModule* module) {
+    int status = buildModule(module->module, {.createSharedLib = true});
+    return CxCompileResult{.status = status};
 }
 
-cxFunction cxGetFunction(cxModule* module, const char* name) {
-    cxFunction function = {};
+CxFunction cxGetFunction(CxModule* module, const char* name) {
+    CxFunction function = {};
     auto* decl = module->module.getSymbolTable().findOne(name);
 
     if (auto* functionDecl = llvm::dyn_cast_or_null<FunctionDecl>(decl)) {

@@ -11,20 +11,24 @@ extern "C" {
 #define API_EXPORT __attribute__((visibility("default")))
 #endif
 
-typedef struct cxModule cxModule;
+typedef struct CxModule CxModule;
 
-typedef struct cxFunction {
+typedef struct CxFunction {
     void* ptr;
-} cxFunction;
+} CxFunction;
 
-API_EXPORT cxModule* cxCreateModule(const char* name);
+typedef struct CxCompileResult {
+    int status;
+} CxCompileResult;
 
-API_EXPORT void cxLoadScriptFromFile(cxModule* module, const char* filePath);
+API_EXPORT CxModule* cxCreateModule(const char* name);
+
+API_EXPORT void cxLoadScriptFromFile(CxModule* module, const char* filePath);
 
 /// Compiles all scripts loaded so far.
-API_EXPORT void cxCompileModule(cxModule* module);
+API_EXPORT CxCompileResult cxCompileModule(CxModule* module);
 
-API_EXPORT cxFunction cxGetFunction(cxModule* module, const char* name);
+API_EXPORT CxFunction cxGetFunction(CxModule* module, const char* name);
 
 #ifdef __cplusplus
 }

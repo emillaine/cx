@@ -3,12 +3,12 @@
 #include <stdlib.h>
 
 int main() {
-    cxModule* module = cxCreateModule("main");
+    CxModule* module = cxCreateModule("main");
     cxLoadScriptFromFile(module, "script1.cx");
     cxLoadScriptFromFile(module, "script2.cx");
     cxCompileModule(module);
 
-    cxFunction function = cxGetFunction(module, "hello");
+    CxFunction function = cxGetFunction(module, "hello");
     if (function.ptr == NULL) {
         fprintf(stderr, "Function not found\n");
         return 1;
