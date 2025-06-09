@@ -75,15 +75,15 @@ Type Typechecker::typecheckVarExpr(VarExpr& expr, bool useIsWriteOnly) {
     llvm_unreachable("all cases handled");
 }
 
-Type typecheckStringLiteralExpr(StringLiteralExpr&) {
+static Type typecheckStringLiteralExpr(StringLiteralExpr&) {
     return BasicType::get("string", {});
 }
 
-Type typecheckCharacterLiteralExpr(CharacterLiteralExpr&) {
+static Type typecheckCharacterLiteralExpr(CharacterLiteralExpr&) {
     return Type::getChar();
 }
 
-Type typecheckIntLiteralExpr(IntLiteralExpr& expr) {
+static Type typecheckIntLiteralExpr(IntLiteralExpr& expr) {
     if (expr.getValue().isSignedIntN(32)) {
         return Type::getInt();
     } else if (expr.getValue().isSignedIntN(64)) {
@@ -94,11 +94,11 @@ Type typecheckIntLiteralExpr(IntLiteralExpr& expr) {
     ERROR(expr.getLocation(), "integer literal is too large");
 }
 
-Type typecheckFloatLiteralExpr(FloatLiteralExpr&) {
+static Type typecheckFloatLiteralExpr(FloatLiteralExpr&) {
     return Type::getFloat();
 }
 
-Type typecheckBoolLiteralExpr(BoolLiteralExpr&) {
+static Type typecheckBoolLiteralExpr(BoolLiteralExpr&) {
     return Type::getBool();
 }
 
@@ -110,7 +110,7 @@ Type Typechecker::typecheckNullLiteralExpr(NullLiteralExpr&, Type expectedType) 
     }
 }
 
-Type typecheckUndefinedLiteralExpr(UndefinedLiteralExpr&, Type expectedType) {
+static Type typecheckUndefinedLiteralExpr(UndefinedLiteralExpr&, Type expectedType) {
     ASSERT(expectedType && !expectedType.containsUnresolvedPlaceholder());
     return expectedType;
 }
