@@ -1443,27 +1443,21 @@ Type Typechecker::typecheckMemberExpr(MemberExpr& expr) {
     baseType = baseType.removePointer();
 
     if (baseType.isArrayType()) {
-        auto sizeSynonyms = {"count", "length", "size"};
-
-        if (llvm::is_contained(sizeSynonyms, expr.getMemberName())) {
+        if (llvm::is_contained({"count", "length", "size"}, expr.getMemberName())) {
             ERROR(expr.getLocation(), "use the '.size()' member function to get the number of elements in an array");
         }
-    }
-
-    if (auto* typeDecl = baseType.getDecl()) { // TODO: add comment why types don't always have decl
-        for (auto& field : typeDecl->fields) {
+    } else if (baseType.isTupleType()) {
+        for (auto& element : baseType.getTupleElements()) {
+            if (element.name == expr.getMemberName()) {
+                return element.type;
+            }
+        }
+    } else {
+        for (auto& field : baseType.getDecl()->fields) {
             if (field.getName() == expr.getMemberName()) {
                 checkHasAccess(field, expr.getLocation(), AccessLevel::None);
                 expr.setDecl(field);
                 return field.type.withMutability(baseType.getMutability());
-            }
-        }
-    }
-
-    if (baseType.isTupleType()) {
-        for (auto& element : baseType.getTupleElements()) {
-            if (element.name == expr.getMemberName()) {
-                return element.type;
             }
         }
     }
