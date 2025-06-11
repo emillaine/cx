@@ -273,15 +273,8 @@ Decl* Typechecker::findDecl(llvm::StringRef name, Location location) const {
         return match;
     }
 
-    ASSERT(currentSourceFile); // TODO: Seems we always have a currentSourceFile nowadays
-    if (currentSourceFile) {
-        if (Decl* match = findDeclInModules(name, location, currentSourceFile->getImportedModules())) {
-            return match;
-        }
-    } else {
-        if (Decl* match = findDeclInModules(name, location, Module::getAllImportedModules())) {
-            return match;
-        }
+    if (Decl* match = findDeclInModules(name, location, currentSourceFile->getImportedModules())) {
+        return match;
     }
 
     ERROR(location, "unknown identifier '" << name << "'");
