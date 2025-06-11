@@ -572,8 +572,8 @@ bool Parser::shouldParseGenericArgumentList() {
     // Temporary hack: use spacing to determine whether to parse a generic argument list
     // of a less-than binary expression. Zero spaces on either side of '<' will cause it
     // to be interpreted as a generic argument list, for now.
-    return lookAhead(0).getLocation().column + int(lookAhead(0).getString().size()) == lookAhead(1).getLocation().column ||
-           lookAhead(1).getLocation().column + 1 == lookAhead(2).getLocation().column;
+    return lookAhead(0).getLocation().column + int(lookAhead(0).getString().size()) == lookAhead(1).getLocation().column
+        || lookAhead(1).getLocation().column + 1 == lookAhead(2).getLocation().column;
 }
 
 /// Returns true if a right-arrow token immediately follows the current set of parentheses.

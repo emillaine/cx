@@ -38,8 +38,8 @@ void Typechecker::checkReturnPointerToLocal(const Expr* returnValue) const {
         }
     }
 
-    if (localVariableType && currentFunction->getReturnType().removeOptional().isPointerType() &&
-        currentFunction->getReturnType().removeOptional().getPointee().equalsIgnoreTopLevelMutable(localVariableType)) {
+    if (localVariableType && currentFunction->getReturnType().removeOptional().isPointerType()
+        && currentFunction->getReturnType().removeOptional().getPointee().equalsIgnoreTopLevelMutable(localVariableType)) {
         WARN(returnValue->getLocation(), "returning pointer to local variable (local variables will not exist after the function returns)");
     }
 }

@@ -313,8 +313,8 @@ Value* Value::getBranchArgument() const {
 }
 
 static bool isConstant(const Value* inst) {
-    return inst->kind == ValueKind::ConstantInt || inst->kind == ValueKind::ConstantFP || inst->kind == ValueKind::ConstantString ||
-           inst->kind == ValueKind::Undefined || inst->kind == ValueKind::ConstantNull || inst->kind == ValueKind::ConstantBool;
+    return inst->kind == ValueKind::ConstantInt || inst->kind == ValueKind::ConstantFP || inst->kind == ValueKind::ConstantString
+        || inst->kind == ValueKind::Undefined || inst->kind == ValueKind::ConstantNull || inst->kind == ValueKind::ConstantBool;
 }
 
 static std::unordered_map<const Value*, std::string> valuesNames;

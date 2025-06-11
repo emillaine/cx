@@ -87,8 +87,8 @@ bool Expr::isConstant() const {
         return llvm::cast<ImplicitCastExpr>(this)->getOperand()->isConstant();
 
     case ExprKind::IfExpr:
-        return llvm::cast<IfExpr>(this)->getCondition()->isConstant() && llvm::cast<IfExpr>(this)->getThenExpr()->isConstant() &&
-               llvm::cast<IfExpr>(this)->getElseExpr()->isConstant();
+        return llvm::cast<IfExpr>(this)->getCondition()->isConstant() && llvm::cast<IfExpr>(this)->getThenExpr()->isConstant()
+            && llvm::cast<IfExpr>(this)->getElseExpr()->isConstant();
     }
 
     llvm_unreachable("all cases handled");

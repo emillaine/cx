@@ -89,8 +89,8 @@ struct SymbolTable {
     FunctionDecl* findWithMatchingPrototype(const FunctionDecl& toFind) const {
         for (Decl* decl : findFirst(toFind.getQualifiedName())) {
             if (auto* functionDecl = llvm::dyn_cast<FunctionDecl>(decl)) {
-                if (functionDecl->getParams().size() == toFind.getParams().size() &&
-                    std::equal(toFind.getParams().begin(), toFind.getParams().end(), functionDecl->getParams().begin(), paramsMatch)) {
+                if (functionDecl->getParams().size() == toFind.getParams().size()
+                    && std::equal(toFind.getParams().begin(), toFind.getParams().end(), functionDecl->getParams().begin(), paramsMatch)) {
                     return functionDecl;
                 }
             }

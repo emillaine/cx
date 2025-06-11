@@ -126,8 +126,8 @@ void NullAnalyzer::analyze(Value* value) {
         if (call->expr) {
             if (auto receiverType = call->expr->getReceiverType()) {
                 // isConstructorDecl check filters out Optional() calls.
-                if (receiverType.isOptionalType() && !call->expr->getCalleeDecl()->isConstructorDecl() &&
-                    analyzeNullability(call->args[0], call) == Nullability::DefinitelyNullable) {
+                if (receiverType.isOptionalType() && !call->expr->getCalleeDecl()->isConstructorDecl()
+                    && analyzeNullability(call->args[0], call) == Nullability::DefinitelyNullable) {
                     // TODO: Store the implicit 'this' receiver to the call expr during typechecking to simplify this code.
                     auto location = call->expr->getReceiver() ? call->expr->getReceiver()->getLocation() : call->expr->getLocation();
                     WARN(location, "receiver may be null; unwrap it with a postfix '!' to silence this warning");
@@ -158,8 +158,8 @@ void NullAnalyzer::analyze(Value* value) {
     case ValueKind::ConstGEPInst: {
         auto gep = llvm::cast<ConstGEPInst>(value);
         if (gep->expr) {
-            if (gep->expr->getBaseExpr()->getType().isOptionalType() && !gep->expr->getBaseExpr()->isThis() &&
-                analyzeNullability(gep->pointer, gep) == Nullability::DefinitelyNullable) {
+            if (gep->expr->getBaseExpr()->getType().isOptionalType() && !gep->expr->getBaseExpr()->isThis()
+                && analyzeNullability(gep->pointer, gep) == Nullability::DefinitelyNullable) {
                 WARN(gep->expr->getBaseExpr()->getLocation(), "value may be null; unwrap it with a postfix '!' to silence this warning");
             }
         }

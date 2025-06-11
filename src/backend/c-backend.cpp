@@ -648,6 +648,6 @@ std::string CGenerator::finish() {
            "#include <stdint.h>\n"
            "#include <stdlib.h>\n"
            "#include <string.h>\n"
-           "#include <stdbool.h>\n" +
-           preludeStream.str() + stream.str();
+           "#include <stdbool.h>\n"
+         + preludeStream.str() + stream.str();
 }

@@ -12,8 +12,8 @@ Value* IRGenerator::emitVarExpr(const VarExpr& expr) {
 }
 
 Value* IRGenerator::emitStringLiteralExpr(const StringLiteralExpr& expr) {
-    if ((expr.getType().removeOptional().isPointerType() && expr.getType().removeOptional().getPointee().isChar()) ||
-        (expr.getType().removeOptional().isUnsizedArrayPointer() && expr.getType().removeOptional().getElementType().isChar())) {
+    if ((expr.getType().removeOptional().isPointerType() && expr.getType().removeOptional().getPointee().isChar())
+        || (expr.getType().removeOptional().isUnsizedArrayPointer() && expr.getType().removeOptional().getElementType().isChar())) {
         return createGlobalStringPtr(expr.getValue());
     }
 
@@ -516,8 +516,8 @@ Value* IRGenerator::emitTupleElementAccess(const MemberExpr& expr) {
 Value* IRGenerator::emitIndexedAccess(const Expr& base, const Expr& index) {
     auto* value = emitLvalueExpr(base);
 
-    if (value->getType()->isPointerType() && value->getType()->getPointee()->isPointerType() &&
-        value->getType()->getPointee()->equals(getIRType(base.getType()))) {
+    if (value->getType()->isPointerType() && value->getType()->getPointee()->isPointerType()
+        && value->getType()->getPointee()->equals(getIRType(base.getType()))) {
         value = createLoad(value);
     }
 
@@ -704,8 +704,8 @@ Value* IRGenerator::emitLvalueExpr(const Expr& expr) {
     auto value = emitPlainExpr(expr);
 
     // Handle optionals that have been implicitly unwrapped due to data-flow analysis.
-    if (expr.hasAssignableType() && expr.getAssignableType().isOptionalType() && !expr.getAssignableType().getWrappedType().isPointerType() &&
-        expr.getType() == expr.getAssignableType().getWrappedType()) {
+    if (expr.hasAssignableType() && expr.getAssignableType().isOptionalType() && !expr.getAssignableType().getWrappedType().isPointerType()
+        && expr.getType() == expr.getAssignableType().getWrappedType()) {
         return createGEP(value, optionalValueFieldIndex);
     }
 

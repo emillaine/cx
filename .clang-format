@@ -8,5 +8,8 @@ ColumnLimit: 160
 ConstructorInitializerIndentWidth: 0
 IncludeIsMainRegex: '(-decl|-stmt|-expr)?$'
 IndentWidth: 4
+PenaltyReturnTypeOnItsOwnLine: 110
+BreakBeforeBinaryOperators: NonAssignment
+AlignOperands: AlignAfterOperator
 PointerAlignment: Left
 SpaceAfterTemplateKeyword: false
