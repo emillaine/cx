@@ -1,6 +1,7 @@
 BasedOnStyle: LLVM
 AccessModifierOffset: -4
 AlignEscapedNewlines: DontAlign
+AlignTrailingComments: false
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: WithoutElse
 ColumnLimit: 160

@@ -1450,7 +1450,7 @@ Type Typechecker::typecheckMemberExpr(MemberExpr& expr) {
         }
     }
 
-    if (auto* typeDecl = baseType.getDecl()) {
+    if (auto* typeDecl = baseType.getDecl()) { // TODO: add comment why types don't always have decl
         for (auto& field : typeDecl->fields) {
             if (field.getName() == expr.getMemberName()) {
                 checkHasAccess(field, expr.getLocation(), AccessLevel::None);

@@ -22,7 +22,7 @@ Value* IRGenerator::emitStringLiteralExpr(const StringLiteralExpr& expr) {
     auto* alloca = createEntryBlockAlloca(BasicType::get("string", {}), "__str");
     Function* stringConstructor = nullptr;
 
-    for (auto* decl : Module::getStdlibModule()->getSymbolTable().find("string.init")) {
+    for (auto* decl : Module::getStdlibModule()->getSymbolTable().findInTopLevelScope("string.init")) {
         auto params = llvm::cast<ConstructorDecl>(decl)->getParams();
         if (params.size() == 2 && params[0].type.isPointerType() && params[1].type.isInt()) {
             stringConstructor = getFunction(*llvm::cast<ConstructorDecl>(decl));

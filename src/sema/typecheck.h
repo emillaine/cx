@@ -53,7 +53,6 @@ struct Typechecker {
       isPostProcessing(false), options(options) {}
     void typecheckModule(Module& module, const PackageManifest* manifest);
 
-private:
     Module* getCurrentModule() const { return NOTNULL(currentModule); }
     Type typecheckExpr(Expr& expr, bool useIsWriteOnly = false, Type expectedType = Type());
     void typecheckVarDecl(VarDecl& decl);
@@ -133,7 +132,6 @@ private:
     void setMoved(Expr* expr, bool isMoved);
     void checkNotMoved(const Decl& decl, const VarExpr& expr);
 
-private:
     Module* currentModule;
     SourceFile* currentSourceFile;
     FunctionDecl* currentFunction;

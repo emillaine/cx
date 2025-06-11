@@ -1,0 +1,9 @@
+
+void _EN4main3barE() {
+    return void
+}
+
+void _EN4main3fooE3int(int bar) {
+    void _0 = call _EN4main3barE()
+    return void
+}

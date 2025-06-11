@@ -11,47 +11,52 @@ using namespace cx;
 void Typechecker::typecheckType(Type type, AccessLevel userAccessLevel) {
     switch (type.getKind()) {
     case TypeKind::BasicType: {
-        if (!type.isOptionalType() && type.isBuiltinType()) {
-            validateGenericArgCount(0, type.getGenericArgs(), type.getName(), type.getLocation());
-            break;
-        }
-
-        auto* basicType = llvm::cast<BasicType>(type.getBase());
-
-        for (auto genericArg : basicType->getGenericArgs()) {
-            typecheckType(genericArg, userAccessLevel);
-        }
-
-        auto decls = findDecls(basicType->getQualifiedName());
         Decl* decl;
+        auto* basicType = llvm::cast<BasicType>(type.getBase());
+        if (basicType->decl) {
+            decl = basicType->decl;
+        } else {
+            if (basicType->name.empty()) break; // Nothing to type-check.
 
-        if (decls.empty()) {
-            auto decls = findDecls(basicType->getName());
+            if (!type.isOptionalType() && type.isBuiltinType()) {
+                validateGenericArgCount(0, type.getGenericArgs(), type.getName(), type.getLocation());
+                break;
+            }
+
+            for (auto genericArg : basicType->getGenericArgs()) {
+                typecheckType(genericArg, userAccessLevel);
+            }
+
+            auto decls = findDecls(basicType->getQualifiedName());
 
             if (decls.empty()) {
-                ERROR(type.getLocation(), "unknown type '" << type << "'");
-            }
+                // For generic types, search again with the base name (without generic args).
+                auto decls = findDecls(basicType->getName());
 
-            ASSERT(decls.size() == 1);
-            decl = decls[0];
-            auto instantiation = llvm::cast<TypeTemplate>(decl)->instantiate(basicType->getGenericArgs());
-            getCurrentModule()->addToSymbolTable(*instantiation);
-            deferTypechecking(instantiation);
-        } else {
-            ASSERT(decls.size() == 1);
-            decl = decls[0];
+                if (decls.empty()) {
+                    ERROR(type.getLocation(), "unknown type '" << type << "'");
+                }
 
-            switch (decl->kind) {
-            case DeclKind::TypeDecl:
-            case DeclKind::EnumDecl:
+                ASSERT(decls.size() == 1);
+                decl = decls[0];
+                ASSERT(!basicType->getGenericArgs().empty());
+                auto instantiation = llvm::cast<TypeTemplate>(decl)->instantiate(basicType->getGenericArgs());
+                getCurrentModule()->addToSymbolTable(*instantiation);
+                deferTypechecking(instantiation);
+                checkHasAccess(*decl, type.getLocation(), userAccessLevel);
                 break;
-            case DeclKind::TypeTemplate:
-                validateGenericArgCount(llvm::cast<TypeTemplate>(decl)->genericParams.size(), basicType->getGenericArgs(), basicType->getName(),
-                                        type.getLocation());
-                break;
-            default:
-                ERROR(type.getLocation(), "'" << type << "' is not a type");
+            } else if (decls.size() > 1) {
+                ERROR(type.getLocation(), "ambiguous reference to '" << type.getName() << "'"); // TODO: add candidate notes
+            } else {
+                decl = decls.front();
             }
+        }
+
+        if (decl->isTypeTemplate()) {
+            validateGenericArgCount(llvm::cast<TypeTemplate>(decl)->genericParams.size(), basicType->getGenericArgs(), basicType->getName(),
+                                    type.getLocation());
+        } else if (!decl->isTypeDecl()) {
+            ERROR(type.getLocation(), "'" << type << "' is not a type");
         }
 
         checkHasAccess(*decl, type.getLocation(), userAccessLevel);
@@ -115,7 +120,7 @@ static bool allPathsReturn(llvm::ArrayRef<Stmt*> block) {
 
 void Typechecker::typecheckGenericParamDecls(llvm::ArrayRef<GenericParamDecl> genericParams, AccessLevel userAccessLevel) {
     for (auto& genericParam : genericParams) {
-        if (auto existing = getCurrentModule()->getSymbolTable().find(genericParam.getName()); !existing.empty()) {
+        if (auto existing = getCurrentModule()->getSymbolTable().findFirst(genericParam.getName()); !existing.empty()) {
             ERROR_WITH_NOTES(genericParam.getLocation(), getPreviousDefinitionNotes(existing), "redefinition of '" << genericParam.getName() << "'");
         }
 
@@ -343,7 +348,7 @@ void Typechecker::typecheckImportDecl(ImportDecl& decl, const PackageManifest* m
     // TODO: Print import search paths as part of the below error messages.
 
     if (decl.target.ends_with(".h")) {
-        if (!importCHeader(*currentSourceFile, decl.target, options, decl.getLocation())) {
+        if (!importCHeader(*currentSourceFile, decl, *this)) {
             REPORT_ERROR(decl.getLocation(), "couldn't import C header file '" << decl.target << "'");
         }
     } else {

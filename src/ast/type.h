@@ -179,13 +179,10 @@ struct BasicType : TypeBase {
 private:
     friend Type;
     BasicType(llvm::StringRef name, std::vector<Type>&& genericArgs)
-    : TypeBase(TypeKind::BasicType), name(name), genericArgs(std::move(genericArgs)), decl(nullptr) {
-        // TODO: Enable this assert.
-        // ASSERT(!name.empty());
-    }
+    : TypeBase(TypeKind::BasicType), name(name), genericArgs(std::move(genericArgs)), decl(nullptr) {}
 
-private:
-    std::string name;
+public:
+    std::string name; // Can be empty for anonymous types imported from C.
     std::vector<Type> genericArgs;
     TypeDecl* decl;
 };

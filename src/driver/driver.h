@@ -18,10 +18,10 @@ struct PackageManifest;
 
 struct CompileOptions {
     bool noUnusedWarnings = false;
-    std::vector<std::string> importSearchPaths;
-    std::vector<std::string> frameworkSearchPaths;
-    std::vector<std::string> defines;
-    std::vector<std::string> cflags;
+    std::vector<std::string> importSearchPaths = {};
+    std::vector<std::string> frameworkSearchPaths = {};
+    std::vector<std::string> defines = {};
+    std::vector<std::string> cflags = {};
 };
 
 struct BuildParams {
@@ -35,6 +35,6 @@ struct BuildParams {
 
 int driverMain(int argc, const char** argv);
 int buildModule(Module& mainModule, BuildParams buildParams);
-llvm::MemoryBufferRef addSourceFileToModule(llvm::StringRef filePath, Module& targetModule);
+llvm::MemoryBufferRef addFileBufferToModule(llvm::StringRef filePath, Module& targetModule);
 
 } // namespace cx

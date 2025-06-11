@@ -1,0 +1,6 @@
+// RUN: check-snapshots
+
+void bar() {}
+void foo(int bar) {
+    bar();
+}

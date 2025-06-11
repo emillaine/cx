@@ -1,5 +1,6 @@
 #include "llvm.h"
 #pragma warning(push, 0)
+#include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/IR/CFG.h>
 #include <llvm/IR/Module.h>
@@ -20,12 +21,15 @@ llvm::Type* LLVMGenerator::getBuiltinType(llvm::StringRef name) {
         .Case("int16", llvm::Type::getInt16Ty(ctx))
         .Case("int32", llvm::Type::getInt32Ty(ctx))
         .Case("int64", llvm::Type::getInt64Ty(ctx))
+        .Case("int128", llvm::Type::getInt128Ty(ctx))
         .Case("uint", llvm::Type::getInt32Ty(ctx))
         .Case("uint8", llvm::Type::getInt8Ty(ctx))
         .Case("uint16", llvm::Type::getInt16Ty(ctx))
         .Case("uint32", llvm::Type::getInt32Ty(ctx))
         .Case("uint64", llvm::Type::getInt64Ty(ctx))
+        .Case("uint128", llvm::Type::getInt128Ty(ctx))
         .Case("float", llvm::Type::getFloatTy(ctx))
+        .Case("float16", llvm::Type::getHalfTy(ctx))
         .Case("float32", llvm::Type::getFloatTy(ctx))
         .Case("float64", llvm::Type::getDoubleTy(ctx))
         .Case("float80", llvm::Type::getX86_FP80Ty(ctx))
@@ -34,7 +38,8 @@ llvm::Type* LLVMGenerator::getBuiltinType(llvm::StringRef name) {
 
 llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
     if (type->name.empty()) {
-        auto elementTypes = map(type->elementTypes, [&](IRType* type) { return getLLVMType(type); });
+        auto elementTypes = map(type->elementTypes, [&](IRType* elementType) { return getLLVMType(elementType); });
+        // TODO: can these be cached to `structs` as well?
         return llvm::StructType::get(ctx, std::move(elementTypes), type->packed);
     }
 
@@ -43,7 +48,7 @@ llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
 
     auto llvmStruct = llvm::StructType::create(ctx, type->getName());
     structs.try_emplace(type, llvmStruct);
-    auto elementTypes = map(type->elementTypes, [&](IRType* type) { return getLLVMType(type); });
+    auto elementTypes = map(type->elementTypes, [&](IRType* elementType) { return getLLVMType(elementType); });
     llvmStruct->setBody(std::move(elementTypes), type->packed);
     return llvmStruct;
 }

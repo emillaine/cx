@@ -214,7 +214,7 @@ static void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName
     file.flush();
 }
 
-llvm::MemoryBufferRef cx::addSourceFileToModule(llvm::StringRef filePath, Module& targetModule) {
+llvm::MemoryBufferRef cx::addFileBufferToModule(llvm::StringRef filePath, Module& targetModule) {
     auto buffer = llvm::MemoryBuffer::getFile(filePath);
     if (!buffer) ABORT("couldn't open file '" << filePath << "'");
     assert((*buffer)->getBufferIdentifier() == filePath);
@@ -225,7 +225,7 @@ llvm::MemoryBufferRef cx::addSourceFileToModule(llvm::StringRef filePath, Module
 static int buildModuleFromFiles(BuildParams buildParams) {
     Module mainModule("main");
     for (llvm::StringRef filePath : buildParams.filePaths) {
-        addSourceFileToModule(filePath, mainModule);
+        addFileBufferToModule(filePath, mainModule);
     }
     return buildModule(mainModule, std::move(buildParams));
 }
@@ -386,7 +386,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         if (error) ABORT(error.message());
     }
 
-    bool treatAsLibrary = mainModule.getSymbolTable().find("main").empty() && !run;
+    bool treatAsLibrary = mainModule.getSymbolTable().findInTopLevelScope("main").empty() && !run;
     if (treatAsLibrary && !buildParams.createSharedLib) {
         compileOnly = true;
     }
@@ -427,6 +427,10 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     }
 
     for (auto& flag : options.cflags) {
+        ccArgs.push_back(flag.c_str());
+    }
+    for (auto& flag : options.defines) {
+        ccArgs.push_back("-D");
         ccArgs.push_back(flag.c_str());
     }
     for (auto& flag : librarySearchPaths) {

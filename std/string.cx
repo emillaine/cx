@@ -15,8 +15,8 @@ struct string: Copyable, Comparable, Hashable, Printable {
         characters = ArrayRef(cString, int(strlen(cString)));
     }
 
-    string(StringBuffer* string) {
-        characters = ArrayRef(string.data(), string.size());
+    string(StringBuffer* stringBuffer) {
+        characters = ArrayRef(stringBuffer.data(), stringBuffer.size());
     }
 
     bool empty() {

@@ -101,7 +101,7 @@ add_custom_target(check_examples
     DEPENDS example_embedding)
 add_custom_target(check)
 add_custom_target(update_snapshots ${CMAKE_COMMAND} -E env UPDATE_SNAPSHOTS=1 cmake --build "${CMAKE_BINARY_DIR}" --target check)
-add_dependencies(check check_lit check_examples)
+add_dependencies(check check_examples check_lit)
 
 # Download the LLVM FileCheck utility for tests.
 set(FILECHECK_SRC_PATH "llvmorg-${LLVM_PACKAGE_VERSION}/llvm/utils/FileCheck/FileCheck.cpp")

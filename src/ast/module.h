@@ -7,6 +7,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Support/MemoryBuffer.h>
 #pragma warning(pop)
 #include "decl.h"
 
@@ -30,7 +31,6 @@ struct SourceFile {
         }
     }
 
-private:
     std::string filePath;
     Module* parentModule;
     std::vector<Decl*> topLevelDecls;
@@ -53,7 +53,8 @@ struct SymbolTable {
     void addGlobal(llvm::StringRef name, Decl* decl) { scopes.front()->decls[name].push_back(decl); }
     void addIdentifierReplacement(llvm::StringRef name, llvm::StringRef replacement) { identifierReplacements.try_emplace(name, replacement); }
 
-    llvm::ArrayRef<Decl*> find(llvm::StringRef name) const {
+    llvm::ArrayRef<Decl*> findFirst(llvm::StringRef name) const {
+        ASSERT(!name.empty());
         auto realName = applyIdentifierReplacements(name);
         for (auto& scope : llvm::reverse(scopes)) {
             auto it = scope->decls.find(realName);
@@ -63,13 +64,21 @@ struct SymbolTable {
     }
 
     Decl* findOne(llvm::StringRef name) const {
-        auto results = find(name);
+        auto results = findFirst(name);
         if (results.empty()) return nullptr;
         ASSERT(results.size() == 1);
         return results.front();
     }
 
+    llvm::ArrayRef<Decl*> findInTopLevelScope(llvm::StringRef name) const {
+        ASSERT(!name.empty());
+        auto it = scopes.front()->decls.find(applyIdentifierReplacements(name));
+        if (it != scopes.front()->decls.end()) return it->second;
+        return {};
+    }
+
     llvm::ArrayRef<Decl*> findInCurrentScope(llvm::StringRef name) const {
+        ASSERT(!name.empty());
         if (!scopes.empty()) {
             auto it = scopes.back()->decls.find(applyIdentifierReplacements(name));
             if (it != scopes.back()->decls.end()) return it->second;
@@ -78,7 +87,7 @@ struct SymbolTable {
     }
 
     FunctionDecl* findWithMatchingPrototype(const FunctionDecl& toFind) const {
-        for (Decl* decl : find(toFind.getQualifiedName())) {
+        for (Decl* decl : findFirst(toFind.getQualifiedName())) {
             if (auto* functionDecl = llvm::dyn_cast<FunctionDecl>(decl)) {
                 if (functionDecl->getParams().size() == toFind.getParams().size() &&
                     std::equal(toFind.getParams().begin(), toFind.getParams().end(), functionDecl->getParams().begin(), paramsMatch)) {
@@ -151,14 +160,12 @@ struct Module {
 private:
     void addToSymbolTableWithName(Decl& decl, llvm::StringRef name);
 
-private:
+public:
     std::string name;
     std::vector<SourceFile> sourceFiles;
     SymbolTable symbolTable;
-    static llvm::StringMap<Module*> allImportedModules;
-
-public:
     std::vector<std::unique_ptr<llvm::MemoryBuffer>> fileBuffers;
+    static llvm::StringMap<Module*> allImportedModules;
 };
 
 } // namespace cx

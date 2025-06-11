@@ -2,6 +2,10 @@
 
 #include <string>
 
+namespace llvm {
+class raw_string_ostream;
+}
+
 namespace cx {
 
 struct FunctionDecl;

@@ -110,6 +110,13 @@ struct int64: Copyable, Comparable, Printable, Hashable {
     }
 }
 
+// Not Printable or Hashable for now.
+struct int128: Copyable, Comparable {
+    Ordering compare(int128* other) {
+        return this < other ? Ordering.Less : this > other ? Ordering.Greater : Ordering.Equal;
+    }
+}
+
 struct uint: Copyable, Comparable, Printable, Hashable {
     Ordering compare(uint* other) {
         return this < other ? Ordering.Less : this > other ? Ordering.Greater : Ordering.Equal;
@@ -177,5 +184,12 @@ struct uint64: Copyable, Comparable, Printable, Hashable {
 
     uint64 hash() {
         return this;
+    }
+}
+
+// Not Printable or Hashable for now.
+struct uint128: Copyable, Comparable {
+    Ordering compare(uint128* other) {
+        return this < other ? Ordering.Less : this > other ? Ordering.Greater : Ordering.Equal;
     }
 }

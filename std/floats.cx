@@ -18,6 +18,16 @@ struct float: Copyable, Comparable, Printable {
     }
 }
 
+struct float16: Copyable, Comparable, Printable {
+    Ordering compare(float16* other) {
+        return this < other ? Ordering.Less : this > other ? Ordering.Greater : Ordering.Equal;
+    }
+
+    void print(StringBuffer* stream) {
+        printFloat(float64(this), stream);
+    }
+}
+
 struct float32: Copyable, Comparable, Printable {
     Ordering compare(float32* other) {
         return this < other ? Ordering.Less : this > other ? Ordering.Greater : Ordering.Equal;

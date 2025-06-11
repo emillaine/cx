@@ -46,7 +46,7 @@ struct CGenerator {
     std::string prelude;
     std::string result;
     llvm::raw_string_ostream preludeStream; // Contains struct definitions
-    llvm::raw_string_ostream stream;        // Contains functions
+    llvm::raw_string_ostream stream; // Contains functions
     std::unordered_set<IRType*> alreadyEmittedTypes;
     std::unordered_set<std::string> alreadyDefinedFunctions;
     std::unordered_map<const Value*, std::string> emittedValues;

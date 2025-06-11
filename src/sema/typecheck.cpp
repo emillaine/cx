@@ -47,7 +47,7 @@ static std::error_code importModuleSourcesInDirectoryRecursively(const llvm::Twi
         llvm::sort(paths);
 
         for (auto& path : paths) {
-            Parser parser(addSourceFileToModule(path, module), module, options);
+            Parser parser(addFileBufferToModule(path, module), module, options);
             parser.parse();
         }
     }
@@ -144,6 +144,9 @@ static void checkUnusedDecls(const Module& module) {
 }
 
 void Typechecker::typecheckModule(Module& module, const PackageManifest* manifest) {
+    llvm::SaveAndRestore restoreModule(currentModule);
+    llvm::SaveAndRestore restoreSourceFile(currentSourceFile);
+
     auto stdModule = importModule(nullptr, nullptr, "std");
     if (!stdModule) {
         ABORT("couldn't import the standard library: " << stdModule.getError().message());
@@ -218,23 +221,22 @@ void Typechecker::typecheckModule(Module& module, const PackageManifest* manifes
     if (module.getName() != "std" && !options.noUnusedWarnings) {
         checkUnusedDecls(module);
     }
-
-    currentModule = nullptr;
-    currentSourceFile = nullptr;
 }
 
-static llvm::SmallVector<Decl*, 1> findDeclsInModules(llvm::StringRef name, llvm::ArrayRef<Module*> modules) {
-    llvm::SmallVector<Decl*, 1> decls;
+static llvm::SmallVector<Decl*, 8> findDeclsInModules(llvm::StringRef name, llvm::ArrayRef<Module*> modules, bool topLevelOnly = false) {
+    ASSERT(!name.empty());
+    llvm::SmallVector<Decl*, 8> decls;
 
     for (auto& module : modules) {
-        llvm::ArrayRef<Decl*> matches = module->getSymbolTable().find(name);
-        decls.append(matches.begin(), matches.end());
+        auto matches = topLevelOnly ? module->symbolTable.findInTopLevelScope(name) : module->symbolTable.findFirst(name);
+        llvm::append_range(decls, matches);
     }
 
     return decls;
 }
 
 static Decl* findDeclInModules(llvm::StringRef name, Location location, llvm::ArrayRef<Module*> modules) {
+    ASSERT(!name.empty());
     auto decls = findDeclsInModules(name, modules);
 
     if (decls.size() == 1) {
@@ -242,8 +244,9 @@ static Decl* findDeclInModules(llvm::StringRef name, Location location, llvm::Ar
     } else if (decls.empty()) {
         return nullptr;
     } else if (llvm::all_of(decls, [](Decl* decl) { return decl->getModule() && decl->getModule()->getName().ends_with(".h"); })) {
-        // For duplicate definitions in C headers, return the last definition. TODO: Check that their value is the same.
-        return decls.back();
+        // For duplicate definitions in C headers, return the last definition.
+        // TODO: This should only work for declarations of the same thing.
+        return decls.back(); // For duplicate definitions in C headers, return the last definition.
     } else {
         ERROR(location, "ambiguous reference to '" << name << "'");
     }
@@ -270,6 +273,7 @@ Decl* Typechecker::findDecl(llvm::StringRef name, Location location) const {
         return match;
     }
 
+    ASSERT(currentSourceFile); // TODO: Seems we always have a currentSourceFile nowadays
     if (currentSourceFile) {
         if (Decl* match = findDeclInModules(name, location, currentSourceFile->getImportedModules())) {
             return match;
@@ -283,7 +287,7 @@ Decl* Typechecker::findDecl(llvm::StringRef name, Location location) const {
     ERROR(location, "unknown identifier '" << name << "'");
 }
 
-static void append(std::vector<Decl*>& target, llvm::ArrayRef<Decl*> source) {
+static void appendUnique(std::vector<Decl*>& target, llvm::ArrayRef<Decl*> source) {
     for (auto& element : source) {
         // TODO: Should this ever be false? I.e. should the same decl ever be in multiple different modules?
         if (!llvm::is_contained(target, element)) {
@@ -293,6 +297,7 @@ static void append(std::vector<Decl*>& target, llvm::ArrayRef<Decl*> source) {
 }
 
 std::vector<Decl*> Typechecker::findDecls(llvm::StringRef name, TypeDecl* receiverTypeDecl, bool inAllImportedModules) const {
+    ASSERT(!name.empty());
     std::vector<Decl*> decls;
 
     if (!receiverTypeDecl && currentFunction) {
@@ -321,15 +326,16 @@ std::vector<Decl*> Typechecker::findDecls(llvm::StringRef name, TypeDecl* receiv
     }
 
     if (currentModule->getName() != "std") {
-        append(decls, findDeclsInModules(name, currentModule));
+        appendUnique(decls, findDeclsInModules(name, currentModule, false));
+        appendUnique(decls, findDeclsInModules(name, currentModule, true)); // HACK, TODO: one find function should be enough
     }
 
-    append(decls, findDeclsInModules(name, Module::getStdlibModule()));
+    appendUnique(decls, findDeclsInModules(name, Module::getStdlibModule()));
 
     if (currentSourceFile && !inAllImportedModules) {
-        append(decls, findDeclsInModules(name, currentSourceFile->getImportedModules()));
+        appendUnique(decls, findDeclsInModules(name, currentSourceFile->getImportedModules()));
     } else {
-        append(decls, findDeclsInModules(name, Module::getAllImportedModules()));
+        appendUnique(decls, findDeclsInModules(name, Module::getAllImportedModules()));
     }
 
     return decls;

@@ -142,8 +142,14 @@ void IRGenerator::emitDecl(const Decl& decl) {
         break;
     case DeclKind::FieldDecl:
         llvm_unreachable("handled via TypeDecl");
+    case DeclKind::ImportDecl: {
+        auto& importDecl = llvm::cast<ImportDecl>(decl);
+        if (!importDecl.importedHeaderPath.empty()) {
+            module->includedHeaders.push_back(importDecl.importedHeaderPath);
+        }
+        break;
+    }
     case DeclKind::TypeDecl:
-    case DeclKind::ImportDecl:
     case DeclKind::FunctionTemplate:
     case DeclKind::TypeTemplate:
     case DeclKind::EnumDecl:

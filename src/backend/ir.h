@@ -376,6 +376,7 @@ struct IRModule {
     std::string name;
     std::vector<Function*> functions;
     std::vector<GlobalVariable*> globalVariables;
+    std::vector<std::string> includedHeaders;
 
     void print(llvm::raw_ostream& stream) const;
 };

@@ -75,9 +75,9 @@ bool Type::isUnsizedArrayPointer() const {
 
 bool Type::isBuiltinScalar(llvm::StringRef typeName) {
     return llvm::StringSwitch<bool>(typeName)
-        .Cases("int", "int8", "int16", "int32", "int64", true)
-        .Cases("uint", "uint8", "uint16", "uint32", "uint64", true)
-        .Cases("float", "float32", "float64", "float80", "bool", "char", true)
+        .Cases("int", "int8", "int16", "int32", "int64", "int128", true)
+        .Cases("uint", "uint8", "uint16", "uint32", "uint64", "uint128", true)
+        .Cases("float", "float16", "float32", "float64", "float80", "bool", "char", true)
         .Default(false);
 }
 
@@ -127,15 +127,15 @@ Type Type::resolve(const llvm::StringMap<Type>& replacements) const {
 template<typename T> static Type getType(T&& typeBase, Mutability mutability, Location location) {
     Type newType(&typeBase, mutability, location);
 
-    for (auto& existingTypeBase : typeBases) {
-        Type existingType(&*existingTypeBase, mutability, location);
+    for (auto* existingTypeBase : typeBases) {
+        Type existingType(existingTypeBase, mutability, location);
         if (existingType.equalsIgnoreTopLevelMutable(newType)) {
             return existingType;
         }
     }
 
     typeBases.push_back(new T(std::forward<T>(typeBase)));
-    return Type(&*typeBases.back(), mutability, location);
+    return Type(typeBases.back(), mutability, location);
 }
 
 Type BasicType::get(llvm::StringRef name, llvm::ArrayRef<Type> genericArgs, Mutability mutability, Location location) {
@@ -278,6 +278,10 @@ bool cx::operator==(Type lhs, Type rhs) {
 bool Type::equalsIgnoreTopLevelMutable(Type other) const {
     switch (getKind()) {
     case TypeKind::BasicType:
+        // HACK, FIXME: stop using equalsIgnoreTopLevelMutable to check if types are the same,
+        // it doesn't make sense for anonymous types (e.g. ones embedded in structs imported from C).
+        if (getName().empty()) return false;
+        // TODO: Should probably compare the referenced decl instead of just the name.
         return other.isBasicType() && getName() == other.getName() && getGenericArgs() == other.getGenericArgs();
     case TypeKind::ArrayType:
         return other.isArrayType() && getElementType() == other.getElementType() && getArraySize() == other.getArraySize();
