@@ -112,6 +112,7 @@ if(NOT EXISTS "${FILECHECK_SRC_FILE}")
     file(DOWNLOAD "${FILECHECK_SRC_URL}" "${FILECHECK_SRC_FILE}")
 endif()
 if(NOT TARGET FileCheck)
+    string(REGEX REPLACE "/RTC[^ ]*" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}") # Remove /RTC flags, they conflict with /O2.
     add_executable(FileCheck ${FILECHECK_SRC_FILE})
     llvm_map_components_to_libnames(FILECHECK_NEEDED_LIBS filecheck support)
     target_link_libraries(FileCheck ${FILECHECK_NEEDED_LIBS})
@@ -119,7 +120,7 @@ endif()
 
 # Optimize test utilities by default.
 if(MSVC)
-    set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} -w /O2 /GL /MT")
+    set_target_properties(FileCheck PROPERTIES COMPILE_FLAGS "${LLVM_DEFINITIONS} /w /O2 /GL /MT")
     set_target_properties(libcx PROPERTIES COMPILE_FLAGS "/MT")
     set_target_properties(cx PROPERTIES COMPILE_FLAGS "/MT")
 else()
