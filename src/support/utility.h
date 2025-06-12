@@ -60,9 +60,10 @@ struct CompileError : std::exception {
     static CompileError dependentError() { return CompileError(Location(), ""); }
     const char* what() const noexcept override { return message.c_str(); }
     void report() const;
+    void reportAsWarning() const;
 
     Location location;
-    std::string message;
+    std::string message; // Empty if this is a silent "dependent error", resulting from a previous, reported error.
     std::vector<Note> notes;
 };
 
@@ -75,7 +76,7 @@ template<typename T> void printColored(const T& text, llvm::raw_ostream::Colors 
 void printStackTrace();
 [[noreturn]] void abort(StringFormatter& message);
 void reportError(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
-void reportWarning(Location location, StringFormatter& message);
+void reportWarning(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
 
 #define ABORT(args) \
     { \

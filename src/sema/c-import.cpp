@@ -249,8 +249,8 @@ struct CToCxConverter final : clang::ASTConsumer {
     }
 
     bool HandleTopLevelDecl(clang::DeclGroupRef declGroup) override {
-        try {
-            for (clang::Decl* decl : declGroup) {
+        for (clang::Decl* decl : declGroup) {
+            try {
                 switch (decl->getKind()) {
                 case clang::Decl::Function: {
                     auto functionDecl = toCx(*llvm::cast<clang::FunctionDecl>(decl));
@@ -304,15 +304,18 @@ struct CToCxConverter final : clang::ASTConsumer {
                 default:
                     break;
                 }
-            }
 
-            // Can't throw exceptions through the Clang API as it has exceptions disabled,
-            // so need to handle them here.
-        } catch (const CompileError& error) {
-            error.report();
-        } catch (...) {
-            llvm_unreachable("Unhandled exception");
+                // Can't throw exceptions through the Clang API as it has exceptions disabled,
+                // so need to handle them here.
+            } catch (const CompileError& error) {
+                CompileError augmentedError = error;
+                augmentedError.message.insert(0, "encountered an internal compiler error in C import: ");
+                augmentedError.reportAsWarning();
+            } catch (...) {
+                WARN(Location(), "Unhandled exception in C import");
+            }
         }
+
         return true; // continue parsing
     }
 

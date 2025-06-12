@@ -82,11 +82,19 @@ CompileError::CompileError(Location location, std::string&& message, std::vector
 : location(location), message(std::move(message)), notes(std::move(notes)) {}
 
 void CompileError::report() const {
-    if (message.empty()) return; // This is a "silent" error, resulting from a previous, reported error.
+    if (message.empty()) return;
 
     StringFormatter s;
     s << message;
     reportError(location, s, notes);
+}
+
+void CompileError::reportAsWarning() const {
+    if (message.empty()) return;
+
+    StringFormatter s;
+    s << message;
+    reportWarning(location, s, notes);
 }
 
 std::optional<std::string> cx::findExternalCCompiler() {
@@ -128,12 +136,16 @@ void cx::reportError(Location location, StringFormatter& message, llvm::ArrayRef
     }
 }
 
-void cx::reportWarning(Location location, StringFormatter& message) {
+void cx::reportWarning(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes) {
     if (disableWarnings) return;
 
     if (warningsAsErrors) {
-        reportError(location, message);
+        reportError(location, message, notes);
     } else {
         printDiagnostic(location, "warning", llvm::raw_ostream::YELLOW, message.str());
+
+        for (auto& note : notes) {
+            printDiagnostic(note.location, "note", llvm::raw_ostream::BLACK, note.message);
+        }
     }
 }
