@@ -2,15 +2,13 @@ name: Build
 
 on: [ push, pull_request ]
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ windows-latest, ubuntu-latest, macos-latest ]
+        build_type: [ Debug, RelWithDebInfo ]
 
     steps:
       - uses: actions/checkout@v2
@@ -47,7 +45,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         working-directory: ${{runner.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH="$LLVMDIR" -DCMAKE_UNITY_BUILD=OFF
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_PREFIX_PATH="$LLVMDIR" -DCMAKE_UNITY_BUILD=OFF
 
       - name: install DIA SDK # Workaround for https://github.com/llvm/llvm-project/issues/86250
         if: runner.os == 'Windows'
@@ -60,7 +58,7 @@ jobs:
       - name: Build
         working-directory: ${{runner.workspace}}/build
         shell: bash
-        run: cmake --build . --config $BUILD_TYPE
+        run: cmake --build . --config ${{ matrix.build_type }}
 
       - name: Test
         working-directory: ${{runner.workspace}}/build
@@ -75,7 +73,7 @@ jobs:
             brew install sdl2 glfw3
           fi
           # Tests depending on SDL2 or GLFW are disabled on Windows CI.
-          CX_PRINT_STACK_TRACE=true cmake --build . --config $BUILD_TYPE --target check
+          CX_PRINT_STACK_TRACE=true cmake --build . --config ${{ matrix.build_type }} --target check
 
   deploy-website:
     if: github.repository == 'cx-language/cx' && github.ref == 'refs/heads/main'
