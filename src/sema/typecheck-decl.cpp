@@ -132,7 +132,7 @@ void Typechecker::typecheckGenericParamDecls(llvm::ArrayRef<GenericParamDecl> ge
                     ERROR(constraint.getLocation(), "only interface types can be used as generic constraints");
                 }
             } catch (const CompileError& error) {
-                error.print();
+                error.report();
             }
         }
     }
@@ -178,7 +178,7 @@ void Typechecker::typecheckFunctionDecl(FunctionDecl& decl) {
 
                     if (!typecheckStmt(stmt) && !decl.getReturnType()) {
                         ASSERT(decl.isLambda());
-                        throw CompileError();
+                        throw CompileError::dependentError();
                     }
                 }
 

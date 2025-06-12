@@ -54,10 +54,12 @@ struct Note {
 };
 
 struct CompileError : std::exception {
-    CompileError();
     CompileError(Location location, std::string&& message, std::vector<Note>&& notes = {});
+    /// Creates a specific type of compile error used for propagating non-reported errors that are the result of a previous, reported error.
+    /// For example using a variable whose initializer has an error.
+    static CompileError dependentError() { return CompileError(Location(), ""); }
     const char* what() const noexcept override { return message.c_str(); }
-    void print() const;
+    void report() const;
 
     Location location;
     std::string message;

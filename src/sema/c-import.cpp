@@ -103,10 +103,9 @@ struct CToCxConverter final : clang::ASTConsumer {
     }
 
     static llvm::StringRef getName(const clang::TagDecl& decl) {
-        clang::TypedefNameDecl* typedefNameDecl = decl.getTypedefNameForAnonDecl();
         if (!decl.getName().empty()) {
             return decl.getName();
-        } else if (typedefNameDecl) {
+        } else if (auto typedefNameDecl = decl.getTypedefNameForAnonDecl()) {
             return typedefNameDecl->getName();
         }
         return "";
@@ -310,7 +309,7 @@ struct CToCxConverter final : clang::ASTConsumer {
             // Can't throw exceptions through the Clang API as it has exceptions disabled,
             // so need to handle them here.
         } catch (const CompileError& error) {
-            error.print();
+            error.report();
         } catch (...) {
             llvm_unreachable("Unhandled exception");
         }

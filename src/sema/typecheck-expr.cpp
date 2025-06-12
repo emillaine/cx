@@ -1567,7 +1567,7 @@ Type Typechecker::typecheckExpr(Expr& expr, bool useIsWriteOnly, Type expectedTy
     switch (expr.getKind()) {
     case ExprKind::VarExpr:
         type = typecheckVarExpr(llvm::cast<VarExpr>(expr), useIsWriteOnly);
-        if (!type) throw CompileError();
+        if (!type) throw CompileError::dependentError(); // Variable initializer had an error, don't report uses of that variable as errors.
         break;
     case ExprKind::StringLiteralExpr:
         type = typecheckStringLiteralExpr(llvm::cast<StringLiteralExpr>(expr));

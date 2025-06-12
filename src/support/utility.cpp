@@ -78,13 +78,11 @@ void cx::printDiagnostic(Location location, llvm::StringRef type, llvm::raw_ostr
     llvm::outs() << '\n';
 }
 
-CompileError::CompileError() = default;
-
 CompileError::CompileError(Location location, std::string&& message, std::vector<Note>&& notes)
 : location(location), message(std::move(message)), notes(std::move(notes)) {}
 
-void CompileError::print() const {
-    if (message.empty()) return;
+void CompileError::report() const {
+    if (message.empty()) return; // This is a "silent" error, resulting from a previous, reported error.
 
     StringFormatter s;
     s << message;
@@ -108,7 +106,7 @@ std::optional<std::string> cx::findExternalCCompiler() {
 void cx::printStackTrace() {
     if (auto env = llvm::sys::Process::GetEnv("CX_PRINT_STACK_TRACE")) {
         if (llvm::StringRef(*env).equals_insensitive("true") || *env == "1") {
-            llvm::sys::PrintStackTrace(llvm::outs());
+            llvm::sys::PrintStackTrace(llvm::errs());
         }
     }
 }

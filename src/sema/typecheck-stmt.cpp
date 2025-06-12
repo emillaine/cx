@@ -227,7 +227,7 @@ bool Typechecker::typecheckStmt(Stmt*& stmt) {
             break;
         }
     } catch (const CompileError& error) {
-        error.print();
+        error.report();
         return false;
     }
 

@@ -162,7 +162,11 @@ void Typechecker::typecheckModule(Module& module, const PackageManifest* manifes
                 llvm::StringMap<Type> genericArgs = {{"This", typeDecl->getType()}};
 
                 for (Type interface : typeDecl->interfaces) {
-                    typecheckType(interface, typeDecl->accessLevel);
+                    try {
+                        typecheckType(interface, typeDecl->accessLevel);
+                    } catch (const CompileError& error) {
+                        error.report();
+                    }
                     std::vector<FieldDecl> inheritedFields;
 
                     for (auto& field : interface.getDecl()->fields) {
@@ -194,7 +198,7 @@ void Typechecker::typecheckModule(Module& module, const PackageManifest* manifes
                 try {
                     typecheckVarDecl(*varDecl);
                 } catch (const CompileError& error) {
-                    error.print();
+                    error.report();
                 }
             }
         }
@@ -212,7 +216,7 @@ void Typechecker::typecheckModule(Module& module, const PackageManifest* manifes
                     typecheckTopLevelDecl(*decl, manifest);
                     postProcess();
                 } catch (const CompileError& error) {
-                    error.print();
+                    error.report();
                 }
             }
         }

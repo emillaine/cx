@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import re
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -23,14 +22,16 @@ command = sys.argv[1:] + print_flags
 try:
     raw_output = subprocess.check_output(command, text=True)
 except subprocess.CalledProcessError as error:
-    print("Command:", " ".join(command))
-    print(error.output)
+    print("Command:", " ".join(command), file=sys.stderr)
+    print(error.output, file=sys.stderr)
     sys.exit(error.returncode)
 
 sections = {}
 if len(checks_to_run) == 1:
     sections[checks_to_run[0].name] = raw_output
 else:
+    import re
+
     matches = re.finditer(r"=== BEGIN (\w+) ===\n(.*?\n?)=== END \1 ===", raw_output, re.DOTALL)
     for match in matches:
         section_name = match.group(1)
@@ -50,21 +51,19 @@ for check in checks_to_run:
         with open(snapshot_path, "r") as snapshot_file:
             snapshot = snapshot_file.read().replace("\r\n", "\n")
     except IOError:
-        print("Command:", " ".join(command))
-        print("FAIL: snapshot file not found\n")
-        print("Output:")
-        print(output)
+        print("Command:", " ".join(command), file=sys.stderr)
+        print("FAIL: snapshot file not found\n", file=sys.stderr)
+        print("Output:", file=sys.stderr)
+        print(output, file=sys.stderr)
         sys.exit(1)
 
     if output != snapshot:
-        print("Command:", " ".join(command))
-        print("FAIL: output doesn't match snapshot\n")
-        print("- Snapshot")
-        print("+ Received\n")
-
         import difflib
 
         diff = difflib.unified_diff(snapshot.splitlines(1), output.splitlines(1))
-        print("".join(diff))
-
+        print("Command:", " ".join(command), file=sys.stderr)
+        print("FAIL: output doesn't match snapshot\n", file=sys.stderr)
+        print("- Snapshot", file=sys.stderr)
+        print("+ Received\n", file=sys.stderr)
+        print("".join(diff), file=sys.stderr)
         sys.exit(1)

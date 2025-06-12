@@ -1507,7 +1507,7 @@ void Parser::parse() {
             }
         }
     } catch (const CompileError& error) {
-        error.print();
+        error.report();
     }
 
     sourceFile.setDecls(std::move(topLevelDecls));

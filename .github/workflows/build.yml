@@ -75,7 +75,7 @@ jobs:
             brew install sdl2 glfw3
           fi
           # Tests depending on SDL2 or GLFW are disabled on Windows CI.
-          cmake --build . --config $BUILD_TYPE --target check
+          CX_PRINT_STACK_TRACE=true cmake --build . --config $BUILD_TYPE --target check
 
   deploy-website:
     if: github.repository == 'cx-language/cx' && github.ref == 'refs/heads/main'
