@@ -419,11 +419,8 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     if (backend == Backend::C) {
         // TODO: remove these and fix errors
-        ccArgs.push_back("-Wno-incompatible-library-redeclaration");
         ccArgs.push_back("-Wno-incompatible-pointer-types");
         ccArgs.push_back("-Wno-format");
-        ccArgs.push_back("-Wno-return-type");
-        ccArgs.push_back("-Wno-visibility");
     }
 
     for (auto& flag : options.cflags) {
