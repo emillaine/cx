@@ -37,11 +37,12 @@ template<typename SourceContainer, typename Mapper> auto map(const SourceContain
 
 #define NOTNULL(x) (ASSERT(x), x)
 
-struct StringFormatter : llvm::raw_string_ostream {
-    StringFormatter() : llvm::raw_string_ostream(message) {}
+struct StringBuilder : llvm::raw_string_ostream {
+    StringBuilder() : llvm::raw_string_ostream(string) {}
+    operator llvm::StringRef() const { return string; } // NOLINT(*-explicit-constructor)
+    operator const char*() const { return string.c_str(); } // NOLINT(*-explicit-constructor)
 
-private:
-    std::string message;
+    std::string string;
 };
 
 std::string readLineFromFile(Location location);
@@ -74,55 +75,43 @@ template<typename T> void printColored(const T& text, llvm::raw_ostream::Colors 
 }
 
 void printStackTrace();
-[[noreturn]] void abort(StringFormatter& message);
-void reportError(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
-void reportWarning(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes = {});
+[[noreturn]] void abort(llvm::StringRef message);
+void reportError(Location location, llvm::StringRef message, llvm::ArrayRef<Note> notes = {});
+void reportWarning(Location location, llvm::StringRef message, llvm::ArrayRef<Note> notes = {});
 
 #define ABORT(args) \
     { \
         printStackTrace(); \
-        StringFormatter s; \
-        s << args; \
-        abort(s); \
+        abort(StringBuilder() << args); \
     }
 
 #define ERROR(location, args) \
     { \
         printStackTrace(); \
-        StringFormatter s; \
-        s << args; \
-        throw CompileError(location, std::move(s.str())); \
+        throw CompileError(location, std::move((StringBuilder() << args).string)); \
     }
 
 #define ERROR_WITH_NOTES(location, notes, args) \
     { \
         printStackTrace(); \
-        StringFormatter s; \
-        s << args; \
-        throw CompileError(location, std::move(s.str()), notes); \
+        throw CompileError(location, std::move((StringBuilder() << args).string), notes); \
     }
 
 #define REPORT_ERROR(location, args) \
     { \
         printStackTrace(); \
-        StringFormatter s; \
-        s << args; \
-        reportError(location, s, {}); \
+        reportError(location, StringBuilder() << args); \
     }
 
 #define REPORT_ERROR_WITH_NOTES(location, notes, args) \
     { \
         printStackTrace(); \
-        StringFormatter s; \
-        s << args; \
-        reportError(location, s, notes); \
+        reportError(location, StringBuilder() << args, notes); \
     }
 
 #define WARN(location, args) \
     { \
-        StringFormatter s; \
-        s << args; \
-        reportWarning(location, s); \
+        reportWarning(location, StringBuilder() << args); \
     }
 
 std::optional<std::string> findExternalCCompiler();

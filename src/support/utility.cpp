@@ -83,18 +83,12 @@ CompileError::CompileError(Location location, std::string&& message, std::vector
 
 void CompileError::report() const {
     if (message.empty()) return;
-
-    StringFormatter s;
-    s << message;
-    reportError(location, s, notes);
+    reportError(location, StringBuilder() << message, notes);
 }
 
 void CompileError::reportAsWarning() const {
     if (message.empty()) return;
-
-    StringFormatter s;
-    s << message;
-    reportWarning(location, s, notes);
+    reportWarning(location, StringBuilder() << message, notes);
 }
 
 std::optional<std::string> cx::findExternalCCompiler() {
@@ -119,30 +113,30 @@ void cx::printStackTrace() {
     }
 }
 
-void cx::abort(StringFormatter& message) {
+void cx::abort(llvm::StringRef message) {
     printColored("error: ", llvm::raw_ostream::RED);
-    llvm::outs() << message.str() << '\n';
+    llvm::outs() << message << '\n';
     exit(1);
 }
 
-void cx::reportError(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes) {
+void cx::reportError(Location location, llvm::StringRef message, llvm::ArrayRef<Note> notes) {
     errors++;
     if (errorLimit > 0 && errors > errorLimit) exit(1);
 
-    printDiagnostic(location, "error", llvm::raw_ostream::RED, message.str());
+    printDiagnostic(location, "error", llvm::raw_ostream::RED, message);
 
     for (auto& note : notes) {
         printDiagnostic(note.location, "note", llvm::raw_ostream::BLACK, note.message);
     }
 }
 
-void cx::reportWarning(Location location, StringFormatter& message, llvm::ArrayRef<Note> notes) {
+void cx::reportWarning(Location location, llvm::StringRef message, llvm::ArrayRef<Note> notes) {
     if (disableWarnings) return;
 
     if (warningsAsErrors) {
         reportError(location, message, notes);
     } else {
-        printDiagnostic(location, "warning", llvm::raw_ostream::YELLOW, message.str());
+        printDiagnostic(location, "warning", llvm::raw_ostream::YELLOW, message);
 
         for (auto& note : notes) {
             printDiagnostic(note.location, "note", llvm::raw_ostream::BLACK, note.message);

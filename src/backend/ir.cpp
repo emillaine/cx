@@ -50,7 +50,7 @@ IRType* cx::getIRType(Type astType) {
             structType->elementTypes = std::move(elementTypes);
             return structType;
         } else {
-            llvm_unreachable("unknown type");
+            llvm_unreachable(StringBuilder() << "unknown type '" << astType << "'");
         }
         break;
     }
