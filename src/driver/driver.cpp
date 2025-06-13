@@ -302,7 +302,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         if (!remainingPrintOpts) return 0;
     }
 
-    llvm::SmallString<128> temporaryOutputFilePath;
+    llvm::SmallString<128> tempIntermediateFilePath;
     const char* outputFileExtension;
     // Prefer external C compiler for better system compatibility, fallback to embedded Clang.
     std::string ccPath = findExternalCCompiler().value_or(buildParams.argv0);
@@ -328,7 +328,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         // TODO: emitAssembly not supported, report to user
         outputFileExtension = "c";
         int fileDescriptor;
-        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, fileDescriptor, temporaryOutputFilePath)) {
+        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, fileDescriptor, tempIntermediateFilePath)) {
             ABORT(error.message());
         }
 
@@ -365,19 +365,14 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
             return 0;
         }
 
-        if (emitAssembly) {
-            outputFileExtension = "s";
-        } else {
-            outputFileExtension = isWindows ? "obj" : "o";
-        }
-
-        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, temporaryOutputFilePath)) {
+        outputFileExtension = emitAssembly ? "s" : isWindows ? "obj" : "o";
+        if (auto error = llvm::sys::fs::createTemporaryFile("cx", outputFileExtension, tempIntermediateFilePath)) {
             ABORT(error.message());
         }
 
         auto fileType = emitAssembly ? llvm::CodeGenFileType::AssemblyFile : llvm::CodeGenFileType::ObjectFile;
         auto relocModel = noPIE ? llvm::Reloc::Model::Static : llvm::Reloc::Model::PIC_;
-        emitLLVMModuleToMachineCode(linkedModule, temporaryOutputFilePath, fileType, relocModel);
+        emitLLVMModuleToMachineCode(linkedModule, tempIntermediateFilePath, fileType, relocModel);
         break;
     }
 
@@ -393,20 +388,23 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     if (compileOnly || emitAssembly) {
         llvm::SmallString<128> outputFilePath = buildParams.outputDirectory;
         llvm::sys::path::append(outputFilePath, llvm::Twine("output.") + outputFileExtension);
-        renameFile(temporaryOutputFilePath, outputFilePath);
+        renameFile(tempIntermediateFilePath, outputFilePath);
         return 0;
     }
 
     // Link the output:
 
-    llvm::SmallString<128> temporaryExecutablePath;
-    llvm::sys::fs::createUniquePath("cx-%%%%%%%%", temporaryExecutablePath, true);
+    llvm::SmallString<128> tempOutputFilePath;
+    llvm::SmallString<128> tempFileNamePattern("cx-%%%%%%%%");
+    if (isMSVC) { // MSVC will append .exe to the output file anyway, so match that.
+        tempFileNamePattern += (buildParams.createSharedLib ? ".dll" : ".exe");
+    }
+    llvm::sys::fs::createUniquePath(tempFileNamePattern, tempOutputFilePath, true);
 
     std::vector<const char*> ccArgs = {
         ccPath.c_str(),
-        temporaryOutputFilePath.c_str(),
+        tempIntermediateFilePath.c_str(),
     };
-
     if (buildParams.createSharedLib) {
         ccArgs.push_back(isMSVC ? "-LD" : "-shared");
         if (!isMSVC) {
@@ -415,7 +413,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         }
     }
     ccArgs.push_back(isMSVC ? "-Fe:" : "-o");
-    ccArgs.push_back(temporaryExecutablePath.c_str());
+    ccArgs.push_back(tempOutputFilePath.c_str());
 
     if (backend == Backend::C) {
         // TODO: remove these and fix errors
@@ -457,18 +455,18 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     std::vector<llvm::StringRef> ccArgStringRefs(ccArgs.begin(), ccArgs.end());
     int ccExitStatus = useExternalCCompiler ? llvm::sys::ExecuteAndWait(ccArgs[0], ccArgStringRefs) : invokeClang(ccArgs);
-    llvm::sys::fs::remove(temporaryOutputFilePath);
+    llvm::sys::fs::remove(tempIntermediateFilePath);
     if (ccExitStatus != 0) return ccExitStatus;
 
     if (run) {
-        std::string command = (temporaryExecutablePath + " 2>&1").str();
+        std::string command = (tempOutputFilePath + " 2>&1").str();
         std::string output;
         int executableExitStatus = exec(command.c_str(), output);
         llvm::outs() << output;
-        llvm::sys::fs::remove(temporaryExecutablePath);
+        llvm::sys::fs::remove(tempOutputFilePath);
 
         if (isMSVC) {
-            auto path = temporaryExecutablePath;
+            auto path = tempOutputFilePath;
             llvm::sys::path::replace_extension(path, "ilk");
             llvm::sys::fs::remove(path);
             llvm::sys::path::replace_extension(path, "pdb");
@@ -498,10 +496,10 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         }
     }
 
-    renameFile(temporaryExecutablePath, outputPathPrefix + buildParams.outputFileName);
+    renameFile(tempOutputFilePath, outputPathPrefix + buildParams.outputFileName);
 
     if (isMSVC) {
-        auto path = temporaryExecutablePath;
+        auto path = tempOutputFilePath;
         auto outputPath = outputPathPrefix;
         outputPath += buildParams.outputFileName;
 
