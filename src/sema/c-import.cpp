@@ -137,9 +137,7 @@ struct CToCxConverter final : clang::ASTConsumer {
             auto& recordType = llvm::cast<clang::RecordType>(type);
             auto* recordDecl = recordType.getDecl();
             auto cxType = BasicType::get(getName(*recordDecl), {}, mutability);
-            if (cxType.getName().empty()) {
-                llvm::cast<BasicType>(cxType.getBase())->setDecl(toCx(*recordDecl));
-            }
+            llvm::cast<BasicType>(cxType.getBase())->setDecl(toCx(*recordDecl));
             return cxType;
         }
         case clang::Type::Paren:
@@ -192,9 +190,15 @@ struct CToCxConverter final : clang::ASTConsumer {
     }
 
     TypeDecl* toCx(const clang::RecordDecl& recordDecl) {
+        auto it = importedRecordDecls.find(&recordDecl);
+        if (it != importedRecordDecls.end()) {
+            return it->second;
+        }
+
         auto tag = recordDecl.isUnion() ? TypeTag::Union : TypeTag::Struct;
         auto* typeDecl = new TypeDecl(tag, getName(recordDecl).str(), {}, {}, AccessLevel::Default, module, nullptr, Location());
         typeDecl->packed = recordDecl.hasAttr<clang::PackedAttr>();
+        importedRecordDecls.emplace(&recordDecl, typeDecl);
 
         // Add to symbol table before type-checking so that type-checker finds the struct decl.
         module.addToSymbolTable(typeDecl);
@@ -340,6 +344,7 @@ private:
     Typechecker& typechecker;
     clang::TargetInfo* targetInfo;
     clang::SourceManager& sourceManager;
+    std::unordered_map<const clang::RecordDecl*, TypeDecl*> importedRecordDecls;
 };
 
 struct MacroImporter final : clang::PPCallbacks {

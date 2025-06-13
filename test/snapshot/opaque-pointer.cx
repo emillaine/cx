@@ -1,0 +1,7 @@
+// RUN: check-snapshots
+
+import "opaque-pointer.h"
+
+void main() {
+    var s = S(opaque: null);
+}
