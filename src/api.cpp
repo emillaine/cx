@@ -1,11 +1,12 @@
 #include "cx.h"
-
 #ifdef _WIN32
 // TODO
 #else
 #include <dlfcn.h>
 #endif
-
+#pragma warning(push, 0)
+#include <llvm/Support/CommandLine.h>
+#pragma warning(pop)
 #include "ast/mangle.h"
 #include "ast/module.h"
 #include "driver/driver.h"
@@ -33,6 +34,8 @@ void cxLoadScriptFromFile(CxModule* module, const char* filePath) {
 }
 
 CxCompileResult cxCompileModule(CxModule* module) {
+    const char* argv[] = {nullptr, "--backend=c"};
+    llvm::cl::ParseCommandLineOptions(2, argv);
     int status = buildModule(module->module, {.createSharedLib = true});
     return CxCompileResult{.status = status};
 }
