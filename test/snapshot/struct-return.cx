@@ -1,0 +1,19 @@
+// RUN: check-snapshots
+
+import "struct-return.h"
+
+struct S2 {
+    float64 x;
+    float64 y;
+    float64 z;
+    float64 w;
+}
+
+S2 returnsLargeStruct2() {
+    return S2(0, 1, 2, 3);
+}
+
+void main() {
+    var s = returnsLargeStruct();
+    var s2 = returnsLargeStruct2();
+}

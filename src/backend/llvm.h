@@ -50,7 +50,8 @@ struct LLVMGenerator {
     llvm::Function* getFunction(const Function* function);
     void codegenFunction(const Function* function);
     void codegenFunctionBody(const Function* function, llvm::Function* llvmFunction);
-    llvm::Type* getLLVMType(IRType* type);
+    llvm::Type* getLLVMType(IRType* type, bool* isSret = nullptr);
+    bool shouldUseSret(llvm::Type* returnType);
     llvm::Type* getBuiltinType(llvm::StringRef name);
     llvm::Type* getStructType(IRStructType* type);
 
@@ -60,6 +61,7 @@ struct LLVMGenerator {
     std::vector<llvm::Module*> generatedModules;
     std::unordered_map<const Value*, llvm::Value*> generatedValues;
     std::unordered_map<IRType*, llvm::StructType*> structs;
+    bool isCurrentFunctionSret;
 };
 
 } // namespace cx

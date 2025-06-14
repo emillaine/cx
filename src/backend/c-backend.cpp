@@ -142,7 +142,7 @@ void CGenerator::codegenStore(const StoreInst* inst) {
 void CGenerator::codegenInsert(const InsertInst* inst) {
     stream.indent(4);
     auto type = inst->aggregate->getType();
-    assert(type->isStruct() || type->isArrayType());
+    ASSERT(type->isStruct() || type->isArrayType());
     codegenType(stream, type, true);
     auto name = "_insert" + std::to_string(valueSuffixCounter++);
     stream << " " << name;

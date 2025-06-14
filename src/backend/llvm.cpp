@@ -53,7 +53,7 @@ llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
     return llvmStruct;
 }
 
-llvm::Type* LLVMGenerator::getLLVMType(IRType* type) {
+llvm::Type* LLVMGenerator::getLLVMType(IRType* type, bool* isSret) {
     switch (type->kind) {
     case IRTypeKind::IRBasicType: {
         return NOTNULL(getBuiltinType(type->getName()));
@@ -65,7 +65,15 @@ llvm::Type* LLVMGenerator::getLLVMType(IRType* type) {
     case IRTypeKind::IRFunctionType: {
         auto functionType = llvm::cast<IRFunctionType>(type);
         auto returnType = getLLVMType(functionType->returnType);
-        auto paramTypes = map(functionType->paramTypes, [&](IRType* type) { return getLLVMType(type); });
+        auto paramTypes = map(functionType->paramTypes, [&](IRType* p) { return getLLVMType(p); });
+        // Use hidden sret pointer parameter to return larger structs to be compatible with the C calling convention.
+        if (shouldUseSret(returnType)) {
+            if (isSret) *isSret = true;
+            paramTypes.insert(paramTypes.begin(), llvm::PointerType::get(returnType, 0));
+            returnType = llvm::Type::getVoidTy(ctx);
+        } else {
+            if (isSret) *isSret = false;
+        }
         return llvm::FunctionType::get(returnType, paramTypes, functionType->isVariadic);
     }
     case IRTypeKind::IRPointerType: {
@@ -101,31 +109,39 @@ llvm::Type* LLVMGenerator::getLLVMType(IRType* type) {
     llvm_unreachable("all cases handled");
 }
 
+bool LLVMGenerator::shouldUseSret(llvm::Type* returnType) {
+    return !returnType->isVoidTy() && module->getDataLayout().getTypeAllocSize(returnType) > 16;
+}
+
 llvm::Function* LLVMGenerator::getFunction(const Function* function) {
     if (auto* llvmFunction = module->getFunction(function->mangledName)) return llvmFunction;
 
-    llvm::SmallVector<llvm::Type*, 16> paramTypes;
-    for (auto& param : function->params) {
-        paramTypes.emplace_back(getLLVMType(param.type));
-    }
-
-    auto* returnType = getLLVMType(function->returnType);
-    auto* functionType = llvm::FunctionType::get(returnType, paramTypes, function->isVariadic);
-    auto* llvmFunction = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, function->mangledName, &*module);
+    bool isSret;
+    auto llvmFunctionType = llvm::cast<llvm::FunctionType>(getLLVMType(function->getType()->getPointee(), &isSret));
+    auto* llvmFunction = llvm::Function::Create(llvmFunctionType, llvm::Function::ExternalLinkage, function->mangledName, module);
 
     auto arg = llvmFunction->arg_begin(), argsEnd = llvmFunction->arg_end();
-    ASSERT(function->params.size() == size_t(std::distance(arg, argsEnd)));
+    if (isSret) {
+        arg->setName("sret.arg");
+        ++arg;
+    }
     for (auto param = function->params.begin(); arg != argsEnd; ++param, ++arg) {
         arg->setName(param->name);
     }
 
+    if (isSret) {
+        auto structType = getLLVMType(function->returnType);
+        llvmFunction->getArg(0)->addAttr(llvm::Attribute::get(ctx, llvm::Attribute::StructRet, structType));
+    }
     return llvmFunction;
 }
 
 void LLVMGenerator::codegenFunctionBody(const Function* function, llvm::Function* llvmFunction) {
+    isCurrentFunctionSret = shouldUseSret(getLLVMType(function->returnType));
     llvm::IRBuilder<>::InsertPointGuard insertPointGuard(builder);
 
     auto arg = llvmFunction->arg_begin();
+    if (isCurrentFunctionSret) ++arg;
     for (auto& param : function->params) {
         generatedValues.emplace(&param, &*arg++);
     }
@@ -183,6 +199,11 @@ llvm::Value* LLVMGenerator::codegenAlloca(const AllocaInst* inst) {
 }
 
 llvm::Value* LLVMGenerator::codegenReturn(const ReturnInst* inst) {
+    if (isCurrentFunctionSret) {
+        auto currentFunction = builder.GetInsertBlock()->getParent();
+        builder.CreateStore(getValue(inst->value), currentFunction->getArg(0));
+        return builder.CreateRetVoid();
+    }
     return inst->value ? builder.CreateRet(getValue(inst->value)) : builder.CreateRetVoid();
 }
 
@@ -237,12 +258,20 @@ llvm::Value* LLVMGenerator::codegenCall(const CallInst* inst) {
     auto function = getValue(inst->function);
     auto args = map(inst->args, [&](auto* arg) { return getValue(arg); });
     auto cxFunctionType = inst->function->getType();
-    if (cxFunctionType->isPointerType()) {
-        cxFunctionType = cxFunctionType->getPointee();
+    if (cxFunctionType->isPointerType()) cxFunctionType = cxFunctionType->getPointee();
+    ASSERT(cxFunctionType->isFunctionType());
+
+    bool isSret;
+    auto* llvmFunctionType = llvm::cast<llvm::FunctionType>(getLLVMType(cxFunctionType, &isSret));
+    if (isSret) {
+        auto sretType = getLLVMType(cxFunctionType->getReturnType());
+        auto sretAlloca = builder.CreateAlloca(sretType, nullptr, "sret.alloca");
+        args.insert(args.begin(), sretAlloca);
+        builder.CreateCall(llvmFunctionType, function, args);
+        return builder.CreateLoad(sretType, sretAlloca, "sret.load");
+    } else {
+        return builder.CreateCall(llvmFunctionType, function, args);
     }
-    assert(cxFunctionType->isFunctionType());
-    auto* llvmFunctionType = llvm::cast<llvm::FunctionType>(getLLVMType(cxFunctionType));
-    return builder.CreateCall(llvmFunctionType, function, args);
 }
 
 llvm::Value* LLVMGenerator::codegenBinary(const BinaryInst* inst) {

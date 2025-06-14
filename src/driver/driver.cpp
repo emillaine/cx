@@ -75,6 +75,7 @@ cl::opt<bool> compileOnly("c", cl::desc("Compile only, generating an object file
 
 cl::OptionCategory outputCategory("Output Options");
 // TODO: Add -print-llvm-all option.
+// TODO: support simultaneous -print-c and -print-llvm? (requires both C backend and LLVM backend)
 enum class PrintOpt { AST, IR, IRAll, C, LLVM };
 cl::bits<PrintOpt> printOpts(cl::desc("Print output from intermediate steps:"), cl::sub(build), cl::sub(cl::SubCommand::getTopLevel()), cl::cat(outputCategory),
                              cl::values(clEnumValN(PrintOpt::AST, "print-ast", "Print the abstract syntax tree of main module"),
@@ -217,7 +218,7 @@ static void emitLLVMBitcode(const llvm::Module& module, llvm::StringRef fileName
 llvm::MemoryBufferRef cx::addFileBufferToModule(llvm::StringRef filePath, Module& targetModule) {
     auto buffer = llvm::MemoryBuffer::getFile(filePath);
     if (!buffer) ABORT("couldn't open file '" << filePath << "'");
-    assert((*buffer)->getBufferIdentifier() == filePath);
+    ASSERT((*buffer)->getBufferIdentifier() == filePath);
     targetModule.fileBuffers.push_back(std::move(*buffer));
     return targetModule.fileBuffers.back()->getMemBufferRef();
 }
