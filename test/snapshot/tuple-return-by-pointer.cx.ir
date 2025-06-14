@@ -1,29 +1,29 @@
 
 int main() {
     S* s = alloca S
-    { int }** f = alloca { int }*
-    { int }** g = alloca { int }*
-    { int } _0 = insertvalue { int } undefined, 0, int 1
-    void _1 = call _EN4main1S4initET3int_(S* s, { int } _0)
-    { int }* _2 = call _EN4main1S1fE(S* s)
+    struct { int }** f = alloca struct { int }*
+    struct { int }** g = alloca struct { int }*
+    struct { int } _0 = insertvalue struct { int } undefined, 0, int 1
+    void _1 = call _EN4main1S4initET3int_(S* s, struct { int } _0)
+    struct { int }* _2 = call _EN4main1S1fE(S* s)
     store _2 to f
-    { int }* _3 = call _EN4main1S1gE(S* s)
+    struct { int }* _3 = call _EN4main1S1gE(S* s)
     store _3 to g
     return int 0
 }
 
-void _EN4main1S4initET3int_(S* this, { int } t) {
-    { int }* t_0 = getelementptr this, 0
+void _EN4main1S4initET3int_(S* this, struct { int } t) {
+    struct { int }* t_0 = getelementptr this, 0
     store t to t_0
     return void
 }
 
-{ int }* _EN4main1S1fE(S* this) {
-    { int }* t = getelementptr this, 0
+struct { int }* _EN4main1S1fE(S* this) {
+    struct { int }* t = getelementptr this, 0
     return t
 }
 
-{ int }* _EN4main1S1gE(S* this) {
-    { int }* t = getelementptr this, 0
+struct { int }* _EN4main1S1gE(S* this) {
+    struct { int }* t = getelementptr this, 0
     return t
 }

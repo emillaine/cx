@@ -877,11 +877,11 @@ static const Match* findMatchByPredicate(llvm::ArrayRef<Match> matches, const Ca
 }
 
 static bool isStdlibDecl(const Match& match) {
-    return match.decl->getModule() && match.decl->getModule()->getName() == "std";
+    return match.decl->getModule() && match.decl->getModule()->name == "std";
 }
 
 static bool isCHeaderDecl(const Match& match) {
-    return match.decl->getModule() && match.decl->getModule()->getName().ends_with(".h");
+    return match.decl->getModule() && match.decl->getModule()->name.ends_with("_h");
 }
 
 static const Match* resolveAmbiguousOverload(llvm::ArrayRef<Match> matches, const CallExpr& call) {

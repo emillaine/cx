@@ -1,11 +1,11 @@
 
 int main() {
     S* s = alloca S
-    void _0 = call _EN16opaque-pointer.h1S4initEOP6Opaque(S* s, Opaque* null)
+    void _0 = call _EN16opaque-pointer_h1S4initEOP6Opaque(S* s, Opaque* null)
     return int 0
 }
 
-void _EN16opaque-pointer.h1S4initEOP6Opaque(S* this, Opaque* opaque) {
+void _EN16opaque-pointer_h1S4initEOP6Opaque(S* this, Opaque* opaque) {
     Opaque** opaque_0 = getelementptr this, 0
     store opaque to opaque_0
     return void

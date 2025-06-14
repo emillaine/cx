@@ -66,7 +66,7 @@ llvm::ErrorOr<const Module&> Typechecker::importModule(SourceFile* importer, con
         return *it->second;
     }
 
-    auto module = new Module(moduleName);
+    auto module = new Module(moduleName.str());
     std::error_code error;
 
     if (manifest) {
@@ -247,7 +247,7 @@ static Decl* findDeclInModules(llvm::StringRef name, Location location, llvm::Ar
         return decls[0];
     } else if (decls.empty()) {
         return nullptr;
-    } else if (llvm::all_of(decls, [](Decl* decl) { return decl->getModule() && decl->getModule()->getName().ends_with(".h"); })) {
+    } else if (llvm::all_of(decls, [](Decl* decl) { return decl->getModule() && decl->getModule()->name.ends_with("_h"); })) {
         // For duplicate definitions in C headers, return the last definition.
         // TODO: This should only work for declarations of the same thing.
         return decls.back(); // For duplicate definitions in C headers, return the last definition.

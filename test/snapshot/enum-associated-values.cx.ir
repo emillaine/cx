@@ -11,18 +11,18 @@ int main() {
     store enum.load to e
     int* tag_0 = getelementptr enum_0, 0
     store int 1 to tag_0
-    { bool, int } _0 = insertvalue { bool, int } undefined, 0, bool false
-    { bool, int } _1 = insertvalue _0, 1, int 42
-    union { void, { bool, int }, { int } }* associatedValue = getelementptr enum_0, 1
-    { bool, int }* _2 = cast associatedValue to { bool, int }*
+    struct { bool, int } _0 = insertvalue struct { bool, int } undefined, 0, bool false
+    struct { bool, int } _1 = insertvalue _0, 1, int 42
+    union { void, struct { bool, int }, struct { int } }* associatedValue = getelementptr enum_0, 1
+    struct { bool, int }* _2 = cast associatedValue to struct { bool, int }*
     store _1 to _2
     E enum.load_0 = load enum_0
     store enum.load_0 to e
     int* tag_1 = getelementptr enum_1, 0
     store int 2 to tag_1
-    { int } _3 = insertvalue { int } undefined, 0, int 43
-    union { void, { bool, int }, { int } }* associatedValue_0 = getelementptr enum_1, 1
-    { int }* _4 = cast associatedValue_0 to { int }*
+    struct { int } _3 = insertvalue struct { int } undefined, 0, int 43
+    union { void, struct { bool, int }, struct { int } }* associatedValue_0 = getelementptr enum_1, 1
+    struct { int }* _4 = cast associatedValue_0 to struct { int }*
     store _3 to _4
     E enum.load_1 = load enum_1
     store enum.load_1 to e
@@ -38,15 +38,15 @@ switch.case.0:
     br switch.end
 
 switch.case.1:
-    union { void, { bool, int }, { int } }* _5 = getelementptr e, 1
-    { bool, int }* eb = cast _5 to { bool, int }*
+    union { void, struct { bool, int }, struct { int } }* _5 = getelementptr e, 1
+    struct { bool, int }* eb = cast _5 to struct { bool, int }*
     int* tag_2 = getelementptr enum_2, 0
     store int 2 to tag_2
     int* i = getelementptr eb, 1
     int i.load = load i
-    { int } _6 = insertvalue { int } undefined, 0, i.load
-    union { void, { bool, int }, { int } }* associatedValue_1 = getelementptr enum_2, 1
-    { int }* _7 = cast associatedValue_1 to { int }*
+    struct { int } _6 = insertvalue struct { int } undefined, 0, i.load
+    union { void, struct { bool, int }, struct { int } }* associatedValue_1 = getelementptr enum_2, 1
+    struct { int }* _7 = cast associatedValue_1 to struct { int }*
     store _6 to _7
     E enum.load_2 = load enum_2
     store enum.load_2 to e
@@ -55,8 +55,8 @@ switch.case.1:
     return i.load_0
 
 switch.case.2:
-    union { void, { bool, int }, { int } }* _8 = getelementptr e, 1
-    { int }* eb_0 = cast _8 to { int }*
+    union { void, struct { bool, int }, struct { int } }* _8 = getelementptr e, 1
+    struct { int }* eb_0 = cast _8 to struct { int }*
     int* j = getelementptr eb_0, 0
     int j.load = load j
     return j.load

@@ -1,10 +1,12 @@
 #include "ir.h"
 #pragma warning(push, 0)
+#include <llvm/ADT/SmallString.h>
 #include <llvm/ADT/StringSet.h>
 #include <llvm/ADT/StringSwitch.h>
 #pragma warning(pop)
 #include "../ast/decl.h"
 #include "../ast/mangle.h"
+#include "../ast/module.h"
 
 using namespace cx;
 
@@ -34,21 +36,39 @@ IRType* cx::getIRType(Type astType) {
 
             if (enumDecl->hasAssociatedValues()) {
                 auto unionType = new IRUnionType{IRTypeKind::IRUnionType, {}, ""};
-                irType = new IRStructType{IRTypeKind::IRStructType, {tagType, unionType}, astType.getQualifiedTypeName(), '_' + mangleType(astType), false};
+                irType = new IRStructType{IRTypeKind::IRStructType,
+                                          {IRField{tagType, "tag"}, IRField{unionType, "union"}},
+                                          astType.getQualifiedTypeName(),
+                                          '_' + mangleType(astType),
+                                          false,
+                                          false};
                 irTypes.emplace(astType.getBase(), irType);
-                auto associatedTypes = map(enumDecl->cases, [](const EnumCase& c) { return getIRType(c.associatedType); });
-                unionType->elementTypes = std::move(associatedTypes);
+                auto associatedTypes = map(enumDecl->cases, [](const EnumCase& c) { return IRField{getIRType(c.associatedType), c.name}; });
+                unionType->fields = std::move(associatedTypes);
                 return irType;
             } else {
                 irType = tagType;
             }
-        } else if (astType.getDecl()) {
-            auto structType =
-                new IRStructType{IRTypeKind::IRStructType, {}, astType.getQualifiedTypeName(), '_' + mangleType(astType), astType.getDecl()->packed};
-            irTypes.emplace(astType.getBase(), structType);
-            auto elementTypes = map(astType.getDecl()->fields, [](const FieldDecl& f) { return getIRType(f.type); });
-            structType->elementTypes = std::move(elementTypes);
-            return structType;
+        } else if (auto decl = astType.getDecl()) {
+            if (decl->isUnion()) {
+                auto unionType = new IRUnionType{IRTypeKind::IRUnionType, {}, astType.getQualifiedTypeName()};
+                irTypes.emplace(astType.getBase(), unionType);
+                // Fields are set late to handle recursive types.
+                unionType->fields = map(decl->fields, [](const FieldDecl& f) { return IRField{getIRType(f.type), f.name}; });
+                return unionType;
+            } else {
+                bool isImportedFromC = decl->module.name.ends_with("_h");
+                auto structType = new IRStructType{IRTypeKind::IRStructType,
+                                                   {},
+                                                   astType.getQualifiedTypeName(),
+                                                   isImportedFromC ? astType.getName().str() : ('_' + mangleType(astType)),
+                                                   decl->packed,
+                                                   isImportedFromC};
+                irTypes.emplace(astType.getBase(), structType);
+                // Fields are set late to handle recursive types.
+                structType->fields = map(decl->fields, [](const FieldDecl& f) { return IRField{getIRType(f.type), f.name}; });
+                return structType;
+            }
         } else {
             llvm_unreachable(StringBuilder() << "unknown type '" << astType << "'");
         }
@@ -65,8 +85,8 @@ IRType* cx::getIRType(Type astType) {
         break;
     }
     case TypeKind::TupleType: {
-        auto elementTypes = map(astType.getTupleElements(), [](const TupleElement& e) { return getIRType(e.type); });
-        irType = new IRStructType{IRTypeKind::IRStructType, std::move(elementTypes), std::string(), std::string(), false};
+        auto fields = map(astType.getTupleElements(), [](const TupleElement& e) { return IRField{getIRType(e.type), e.name}; });
+        irType = new IRStructType{IRTypeKind::IRStructType, std::move(fields), std::string(), std::string(), false, false};
         break;
     }
     case TypeKind::FunctionType: {
@@ -114,7 +134,7 @@ IRType* Value::getType() const {
         return llvm::cast<InsertInst>(this)->aggregate->getType();
     case ValueKind::ExtractInst: {
         auto extract = llvm::cast<ExtractInst>(this);
-        return extract->aggregate->getType()->getElements()[extract->index];
+        return extract->aggregate->getType()->getFields()[extract->index].type;
     }
     case ValueKind::CallInst: {
         auto functionType = llvm::cast<CallInst>(this)->function->getType();
@@ -171,8 +191,8 @@ IRType* Value::getType() const {
         auto baseType = gep->pointer->getType()->getPointee();
         switch (baseType->kind) {
         case IRTypeKind::IRStructType:
-            ASSERT(gep->index < baseType->getElements().size());
-            return baseType->getElements()[gep->index]->getPointerTo();
+            ASSERT(gep->index < baseType->getFields().size());
+            return baseType->getFields()[gep->index].type->getPointerTo();
         case IRTypeKind::IRArrayType:
             ASSERT(gep->index < baseType->getArraySize());
             return baseType->getElementType()->getPointerTo();
@@ -605,9 +625,9 @@ IRType* IRType::getPointee() {
     return llvm::cast<IRPointerType>(this)->pointee;
 }
 
-llvm::ArrayRef<IRType*> IRType::getElements() {
-    if (isUnion()) return llvm::cast<IRUnionType>(this)->elementTypes;
-    return llvm::cast<IRStructType>(this)->elementTypes;
+llvm::ArrayRef<IRField> IRType::getFields() {
+    if (isUnion()) return llvm::cast<IRUnionType>(this)->fields;
+    return llvm::cast<IRStructType>(this)->fields;
 }
 
 llvm::StringRef IRType::getName() {
@@ -659,10 +679,10 @@ llvm::raw_ostream& cx::operator<<(llvm::raw_ostream& stream, IRType* type) {
         if (type->getName() != "") {
             return stream << type->getName();
         } else {
-            stream << "{ ";
-            for (auto& element : type->getElements()) {
-                stream << element;
-                if (&element != &type->getElements().back()) stream << ", ";
+            stream << "struct { ";
+            for (auto& field : type->getFields()) {
+                stream << field.type;
+                if (&field != &type->getFields().back()) stream << ", ";
             }
             return stream << " }";
         }
@@ -672,13 +692,13 @@ llvm::raw_ostream& cx::operator<<(llvm::raw_ostream& stream, IRType* type) {
             return stream << type->getName();
         } else {
             stream << "union { ";
-            for (auto& element : type->getElements()) {
-                if (element) { // TODO: Element type should exist for all associated values
-                    stream << element;
+            for (auto& field : type->getFields()) {
+                if (field.type) { // TODO: Element type should exist for all enum associated values
+                    stream << field.type;
                 } else {
                     stream << "void";
                 }
-                if (&element != &type->getElements().back()) stream << ", ";
+                if (&field != &type->getFields().back()) stream << ", ";
             }
             return stream << " }";
         }
@@ -714,9 +734,9 @@ bool IRType::equals(IRType* other) {
         if (!other->isStruct()) return false;
         if (getName() != other->getName()) return false;
         if (getName().empty()) {
-            if (getElements().size() != other->getElements().size()) return false;
-            for (size_t i = 0; i < getElements().size(); ++i) {
-                if (!getElements()[i]->equals(other->getElements()[i])) return false;
+            if (getFields().size() != other->getFields().size()) return false;
+            for (size_t i = 0; i < getFields().size(); ++i) {
+                if (!getFields()[i].type->equals(other->getFields()[i].type)) return false;
             }
         }
         return true;

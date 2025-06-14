@@ -3,7 +3,7 @@
 #include <vector>
 #pragma warning(push, 0)
 #include <llvm/ADT/DenseMap.h>
-#include <llvm/ADT/StringSet.h>
+#include <llvm/ADT/Twine.h>
 #pragma warning(pop)
 #include "../ast/decl.h"
 #include "../ast/expr.h"
@@ -172,7 +172,7 @@ struct IRGenerator {
         if (pointer->getType()->getPointee()->isArrayType()) {
             ASSERT(index < pointer->getType()->getPointee()->getArraySize());
         } else {
-            ASSERT(index < pointer->getType()->getPointee()->getElements().size());
+            ASSERT(index < pointer->getType()->getPointee()->getFields().size());
         }
         return insertBlock->add(new ConstGEPInst{ValueKind::ConstGEPInst, pointer, index, expr, name.str()});
     }

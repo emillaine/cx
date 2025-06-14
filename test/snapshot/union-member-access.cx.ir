@@ -1,0 +1,17 @@
+
+int _EN4main3fooE1U(U u) {
+    int b = extractvalue u, 0
+    return b
+}
+
+int main() {
+    U* u = alloca U
+    int* a = cast u to int*
+    store int 21 to a
+    U u.load = load u
+    int _0 = call _EN4main3fooE1U(U u.load)
+    int* b = cast u to int*
+    int b.load = load b
+    int _1 = _0 + b.load
+    return _1
+}

@@ -169,7 +169,7 @@ void CGenerator::codegenExtract(const ExtractInst* inst) {
     auto name = "_extract" + std::to_string(valueSuffixCounter++);
     stream << "__auto_type " << name << " = ";
     codegenInst(inst->aggregate);
-    stream << "._" << inst->index;
+    stream << "." << inst->name;
     stream << ";\n";
     emittedValues.insert({inst, std::move(name)});
 }
@@ -311,7 +311,7 @@ void CGenerator::codegenConstGEP(const ConstGEPInst* inst) {
     auto name = "_const_get_element_ptr" + std::to_string(valueSuffixCounter++);
     stream << "__auto_type " << name << " = &";
     codegenInst(inst->pointer);
-    stream << "->_" << inst->index << ";\n";
+    stream << "->" << inst->name << ";\n";
     emittedValues.insert({inst, std::move(name)});
 }
 
@@ -389,7 +389,7 @@ const std::string& CGenerator::getBlockLabel(const BasicBlock* block) {
         return it->second;
     } else {
         auto name = block->name;
-        std::replace(name.begin(), name.end(), '.', '_');
+        llvm::replace(name, '.', '_');
         llvm::raw_string_ostream os(name);
         os << valueSuffixCounter++;
         return emittedValues.insert({block, std::move(os.str())}).first->second;
@@ -614,21 +614,20 @@ void CGenerator::codegenTypeDefinition(llvm::raw_string_ostream& stream, IRType*
     case IRTypeKind::IRStructType: {
         // Generate struct definition if this is the first time we encounter this type.
         auto* irStruct = llvm::cast<IRStructType>(type);
-        if (!alreadyEmittedTypes.contains(type)) {
+        if (!irStruct->isImportedFromC && !alreadyEmittedTypes.contains(type)) {
             alreadyEmittedTypes.insert(type);
 
             // Generate type dependencies first.
-            for (auto* elementType : irStruct->elementTypes) {
-                codegenTypeDefinition(stream, elementType);
+            for (auto& field : irStruct->fields) {
+                codegenTypeDefinition(stream, field.type);
             }
 
             stream << "\nstruct " << irStruct->mangledName << " {\n";
-            int memberIndex = 0;
-            for (auto* elementType : irStruct->elementTypes) {
+            for (auto& field : irStruct->fields) {
                 stream.indent(4);
-                codegenType(stream, elementType, true);
-                stream << " _" << (memberIndex++); // TODO: add names to IRStruct fields for clearer C code gen?
-                codegenTypeSuffix(stream, elementType, true);
+                codegenType(stream, field.type, true);
+                stream << " " << field.name;
+                codegenTypeSuffix(stream, field.type, true);
                 stream << ";\n";
             }
             stream << "};\n";
@@ -636,8 +635,8 @@ void CGenerator::codegenTypeDefinition(llvm::raw_string_ostream& stream, IRType*
         break;
     }
     case IRTypeKind::IRUnionType:
-        for (auto* elementType : llvm::cast<IRUnionType>(type)->elementTypes) {
-            codegenTypeDefinition(stream, elementType);
+        for (auto& field : llvm::cast<IRUnionType>(type)->fields) {
+            codegenTypeDefinition(stream, field.type);
         }
         break;
     }

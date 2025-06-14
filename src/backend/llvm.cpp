@@ -38,9 +38,9 @@ llvm::Type* LLVMGenerator::getBuiltinType(llvm::StringRef name) {
 
 llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
     if (type->name.empty()) {
-        auto elementTypes = map(type->elementTypes, [&](IRType* elementType) { return getLLVMType(elementType); });
+        auto fields = map(type->fields, [&](const IRField& field) { return getLLVMType(field.type); });
         // TODO: can these be cached to `structs` as well?
-        return llvm::StructType::get(ctx, std::move(elementTypes), type->packed);
+        return llvm::StructType::get(ctx, std::move(fields), type->packed);
     }
 
     auto it = structs.find(type);
@@ -48,8 +48,8 @@ llvm::Type* LLVMGenerator::getStructType(IRStructType* type) {
 
     auto llvmStruct = llvm::StructType::create(ctx, type->getName());
     structs.try_emplace(type, llvmStruct);
-    auto elementTypes = map(type->elementTypes, [&](IRType* elementType) { return getLLVMType(elementType); });
-    llvmStruct->setBody(std::move(elementTypes), type->packed);
+    auto fields = map(type->fields, [&](const IRField& field) { return getLLVMType(field.type); });
+    llvmStruct->setBody(std::move(fields), type->packed);
     return llvmStruct;
 }
 
@@ -86,22 +86,26 @@ llvm::Type* LLVMGenerator::getLLVMType(IRType* type, bool* isSret) {
         return getStructType(structType);
     }
     case IRTypeKind::IRUnionType: {
-        auto unionType = llvm::cast<IRUnionType>(type);
-
-        auto it = structs.find(unionType);
+        auto it = structs.find(type);
         if (it != structs.end()) return it->second;
 
+        auto unionType = llvm::cast<IRUnionType>(type);
         auto structType = unionType->name.empty() ? llvm::StructType::get(ctx) : llvm::StructType::create(ctx, unionType->name);
         structs.try_emplace(unionType, structType);
 
-        unsigned maxSize = 0;
-        for (auto* field : unionType->getElements()) {
-            if (!field) continue;
-            auto size = module->getDataLayout().getTypeAllocSize(getLLVMType(field));
-            if (size > maxSize) maxSize = size;
+        llvm::Type* largestFieldType;
+        int largestFieldSize = 0;
+        for (auto& field : unionType->getFields()) {
+            if (!field.type) continue; // TODO: Element type should exist for all enum associated values
+            auto fieldType = getLLVMType(field.type);
+            auto size = module->getDataLayout().getTypeAllocSize(fieldType);
+            if (size > largestFieldSize) {
+                largestFieldType = fieldType;
+                largestFieldSize = size;
+            }
         }
 
-        structType->setBody(llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx), maxSize));
+        structType->setBody(largestFieldType, largestFieldSize);
         return structType;
     }
     }

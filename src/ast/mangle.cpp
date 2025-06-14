@@ -112,8 +112,7 @@ std::string cx::mangleFunctionDecl(const FunctionDecl& functionDecl) {
     } else {
         stream << cxPrefix;
         stream << 'N';
-
-        mangleIdentifier(stream, functionDecl.getModule()->getName());
+        mangleIdentifier(stream, functionDecl.module.name);
 
         if (auto* typeDecl = functionDecl.getTypeDecl()) {
             mangleIdentifier(stream, typeDecl->getName());

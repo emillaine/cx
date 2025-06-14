@@ -464,7 +464,9 @@ bool cx::importCHeader(SourceFile& importer, ImportDecl& importDecl, Typechecker
     if (headerPath.empty()) headerPath = headerName;
     importDecl.importedHeaderPath = headerPath;
 
-    auto module = new Module(headerName);
+    std::string headerModuleName = headerName.str();
+    llvm::replace(headerModuleName, '.', '_');
+    auto module = new Module(std::move(headerModuleName));
     module->addSourceFile(SourceFile(headerPath, module));
 
     auto cToCxConverter = new CToCxConverter(*module, typechecker, targetInfo, ci.getSourceManager());
@@ -486,6 +488,6 @@ bool cx::importCHeader(SourceFile& importer, ImportDecl& importDecl, Typechecker
     }
 
     importer.addImportedModule(module);
-    Module::getAllImportedModulesMap()[module->getName()] = module;
+    Module::getAllImportedModulesMap()[headerName] = module;
     return true;
 }

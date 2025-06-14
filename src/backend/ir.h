@@ -24,6 +24,7 @@ struct Function;
 struct BasicBlock;
 struct Instruction;
 struct Parameter;
+struct IRField;
 
 enum class IRTypeKind {
     IRBasicType,
@@ -52,7 +53,7 @@ struct IRType {
     bool isVoid();
     bool isNever();
     IRType* getPointee();
-    llvm::ArrayRef<IRType*> getElements();
+    llvm::ArrayRef<IRField> getFields();
     llvm::StringRef getName();
     IRType* getReturnType();
     llvm::ArrayRef<IRType*> getParamTypes();
@@ -90,17 +91,24 @@ struct IRArrayType : IRType {
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRArrayType; }
 };
 
+struct IRField {
+    IRType* type;
+    std::string name;
+};
+
 struct IRStructType : IRType {
-    std::vector<IRType*> elementTypes;
+    std::vector<IRField> fields;
     std::string name;
     std::string mangledName;
     bool packed;
+    bool isImportedFromC;
 
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRStructType; }
 };
 
+// TODO: combine IRUnionType to IRStructType?
 struct IRUnionType : IRType {
-    std::vector<IRType*> elementTypes;
+    std::vector<IRField> fields;
     std::string name;
 
     static bool classof(const IRType* t) { return t->kind == IRTypeKind::IRUnionType; }

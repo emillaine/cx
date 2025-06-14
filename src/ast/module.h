@@ -126,7 +126,7 @@ private:
 
 /// Container for the AST of a whole module, comprised of one or more SourceFiles.
 struct Module {
-    Module(llvm::StringRef name) : name(name) {}
+    Module(std::string&& name) : name(std::move(name)) {}
     void addSourceFile(SourceFile&& file) { sourceFiles.emplace_back(std::move(file)); }
     llvm::ArrayRef<SourceFile> getSourceFiles() const { return sourceFiles; }
     llvm::MutableArrayRef<SourceFile> getSourceFiles() { return sourceFiles; }

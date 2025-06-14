@@ -1,3 +1,4 @@
+// RUN: check-snapshots
 // RUN: check_exit_status 42 %cx run %s
 
 import "union-member-access.h"
