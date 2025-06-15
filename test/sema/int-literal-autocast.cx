@@ -3,7 +3,7 @@
 void foo(uint a) { }
 void bar(uint8 a) { }
 uint baz() { return 0; }
-(uint a, uint8 b) qux() { return (a: 0, b: 0); }
+(uint a, uint8 b) qux() { return (a = 0, b = 0); }
 
 void main() {
     foo(0);

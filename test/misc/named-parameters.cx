@@ -2,5 +2,5 @@
 
 int f(int a, bool b) { return a; }
 int main() {
-    return f(a: 5, b: false);
+    return f(a = 5, b = false);
 }

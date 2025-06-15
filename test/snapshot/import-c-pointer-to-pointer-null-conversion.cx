@@ -3,5 +3,5 @@
 import "inputs/import-c-pointer-to-pointer-null-conversion.h";
 
 void main() {
-    foo(p: null);
+    foo(p = null);
 }

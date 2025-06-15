@@ -247,7 +247,7 @@ active type of a union, etc. Should follow the "pay only for what you use" princ
 
 __Named arguments__ as an optional way to avoid cryptic call sites like `foo(true, false)` by labeling the arguments with the corresponding
 parameter name, with the compiler checking that the argument labels match the parameter names, e.g.
-`foo(a: true, b: false)`. Consequently, named arguments don't have to be in same order as the parameters. This also
+`foo(verbose = true, ignoreErrors = false)`. Consequently, named arguments don't have to be in same order as the parameters. This also
 enables function overloading on parameter names.
 
 __Defer statement__ to allow declaring arbitrary code, such as resource cleanup functions, to be executed when exiting the

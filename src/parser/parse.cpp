@@ -119,7 +119,7 @@ void Parser::parseStmtTerminator(const char* contextInfo) {
 
 /// argument-list ::= '(' ')' | '(' nonempty-argument-list ')'
 /// nonempty-argument-list ::= argument | nonempty-argument-list ',' argument
-/// argument ::= (id ':')? expr
+/// argument ::= (id '=')? expr
 std::vector<NamedValue> Parser::parseArgumentList(bool allowEmpty) {
     parse(Token::LeftParen);
     std::vector<NamedValue> args;
@@ -132,7 +132,7 @@ std::vector<NamedValue> Parser::parseArgumentList(bool allowEmpty) {
     do {
         std::string name;
         Location location = Location();
-        if (lookAhead(1) == Token::Colon) {
+        if (lookAhead(1) == Token::Assignment) {
             auto result = parse(Token::Identifier);
             name = result.getString().str();
             location = result.getLocation();
@@ -275,7 +275,7 @@ ArrayLiteralExpr* Parser::parseArrayLiteral() {
 
 /// tuple-literal ::= '(' tuple-literal-elements ')'
 /// tuple-literal-elements ::= tuple-literal-element | tuple-literal-elements ',' tuple-literal-element
-/// tuple-literal-element ::= (id ':')? expr
+/// tuple-literal-element ::= (id '=')? expr
 /// paren-expr ::= '(' expr ')'
 Expr* Parser::parseTupleLiteralOrParenExpr() {
     ASSERT(currentToken() == Token::LeftParen);
@@ -524,6 +524,7 @@ LambdaExpr* Parser::parseLambdaExpr() {
     return lambda;
 }
 
+// TODO: change to: 'if' expr 'then' expr 'else' expr
 /// if-expr ::= expr '?' expr ':' expr
 IfExpr* Parser::parseIfExpr(Expr* condition) {
     ASSERT(currentToken() == Token::QuestionMark);

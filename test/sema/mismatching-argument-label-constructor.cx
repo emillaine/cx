@@ -6,5 +6,5 @@ struct X: Copyable {
 
 void main() {
     // CHECK: [[@LINE+1]]:15: error: invalid argument name 'bar' for parameter 'a'
-    var x = X(bar: 5);
+    var x = X(bar = 5);
 }

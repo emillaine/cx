@@ -4,5 +4,5 @@ void f(int a) { }
 
 void main() {
     // CHECK: [[@LINE+1]]:7: error: invalid argument name 'foo' for parameter 'a'
-    f(foo: 0);
+    f(foo = 0);
 }

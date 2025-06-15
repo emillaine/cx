@@ -41,8 +41,8 @@ void foo(public int b) {
 }
 
 void main() {
-    foo(a: 42); // prints "a"
-    foo(b: 42); // prints "b"
+    foo(a = 42); // prints "a"
+    foo(b = 42); // prints "b"
 }
 ```
 
@@ -50,7 +50,7 @@ Functions can return multiple values using tuples:
 
 ```cs
 (int a, bool b) foo() {
-    return (a: 42, b: true);
+    return (a = 42, b = true);
 }
 
 void main() {

@@ -98,7 +98,7 @@ StringBuffer readFile(string path) {
     var size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    var content = StringBuffer(uninitializedSize: int(size));
+    var content = StringBuffer(uninitializedSize = int(size));
     fread(content.data(), sizeof(char), uint64(size), file);
 
     return content;

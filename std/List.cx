@@ -18,7 +18,7 @@ struct List<Element> {
 
     /// Initializes an list containing the elements of the given array.
     List(Element[] elements) {
-        init(capacity: elements.size());
+        init(capacity = elements.size());
 
         // TODO: When array references can be iterated, iterate 'elements' directly.
         // TODO: Add push() overload for pushing all elements from an array reference.
@@ -99,7 +99,7 @@ struct List<Element> {
     /// Ensures that the capacity is large enough to store the given number of elements.
     void reserve(int minimumCapacity) {
         if (minimumCapacity > capacity) {
-            var newBuffer = allocateArray<Element>(size: minimumCapacity);
+            var newBuffer = allocateArray<Element>(size = minimumCapacity);
 
             for (var index in 0..size) {
                 var source = &buffer[index];
@@ -189,7 +189,7 @@ struct List<Element> {
     }
 
     List<Output> map<Output>(Output(Element*) transform) {
-        var output = List<Output>(capacity: this.size);
+        var output = List<Output>(capacity = this.size);
 
         for (var element in this) {
             output.push(transform(element));
@@ -199,7 +199,7 @@ struct List<Element> {
     }
 
     List<Output> map<Output>(Output(Element) transform) {
-        var output = List<Output>(capacity: this.size);
+        var output = List<Output>(capacity = this.size);
 
         for (var element in this) {
             output.push(transform(element));

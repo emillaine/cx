@@ -30,6 +30,6 @@ struct Missile {
     }
 
     Vector2 tailPosition() {
-        return (position - Vector2(missileSize, 0)).rotated(origin: position, angle: direction);
+        return (position - Vector2(missileSize, 0)).rotated(origin = position, angle = direction);
     }
 }
