@@ -452,9 +452,42 @@ void CGenerator::codegenBinary(const BinaryInst* inst) {
     const std::string& name = getOrCreateTempName(inst, "_binary_op");
     codegenTempDeclaration(inst, name);
     stream << " = ";
-    codegenInst(inst->left);
+    auto* leftType = inst->left->getType();
+    codegenBinaryExpr(
+        inst->op, [&] { codegenInst(inst->left); }, [&] { codegenInst(inst->right); }, leftType->isFloatingPoint(), leftType->isUnsignedInteger(), inst->right);
+    stream << ";\n";
+}
+
+void CGenerator::codegenBinaryExpr(Token::Kind op, const std::function<void()>& emitLeft, const std::function<void()>& emitRight, bool isFloat, bool isUnsigned,
+                                   const Value* rightValue) {
+    if (op == Token::PositiveModulo && !isUnsigned) {
+        // Positive remainder ((a % b) + b) % b, like the scalar IRGen rewrite.
+        stream << "(";
+        codegenBinaryExpr(
+            Token::Modulo,
+            [&] {
+                stream << "(";
+                codegenBinaryExpr(Token::Modulo, emitLeft, emitRight, isFloat, isUnsigned, rightValue);
+                stream << " + ";
+                emitRight();
+                stream << ")";
+            },
+            emitRight, isFloat, isUnsigned, rightValue);
+        stream << ")";
+        return;
+    }
+    if (op == Token::PositiveModulo) op = Token::Modulo;
+    if (op == Token::Modulo && isFloat) {
+        stream << "fmod(";
+        emitLeft();
+        stream << ", ";
+        emitRight();
+        stream << ")";
+        return;
+    }
+    emitLeft();
     stream << ' ';
-    switch (inst->op.kind) {
+    switch (op) {
     case Token::Plus:
         stream << '+';
         break;
@@ -469,10 +502,10 @@ void CGenerator::codegenBinary(const BinaryInst* inst) {
         // floats, where it is well-defined IEEE arithmetic. x * (±INFINITY)
         // computes the same result for every x, so spell it that way. GCC and
         // xcc accept the division form, but the product form works for them too.
-        auto* divisor = llvm::dyn_cast<ConstantFP>(inst->right);
+        auto* divisor = rightValue ? llvm::dyn_cast<ConstantFP>(rightValue) : nullptr;
         if (divisor && divisor->value.isZero()) {
             // The dividend was already emitted before the switch.
-            stream << (divisor->value.isNegative() ? "* (-INFINITY);\n" : "* INFINITY;\n");
+            stream << (divisor->value.isNegative() ? "* (-INFINITY)" : "* INFINITY");
             return;
         }
         stream << '/';
@@ -518,8 +551,7 @@ void CGenerator::codegenBinary(const BinaryInst* inst) {
         llvm_unreachable("all cases handled");
     }
     stream << ' ';
-    codegenInst(inst->right);
-    stream << ";\n";
+    emitRight();
 }
 
 void CGenerator::codegenUnary(const UnaryInst* inst) {

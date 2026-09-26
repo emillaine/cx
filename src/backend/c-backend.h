@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ir.h"
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -19,6 +20,11 @@ struct CGenerator {
     void codegenExtract(const ExtractInst* inst);
     void codegenCall(const CallInst* inst);
     void codegenBinary(const BinaryInst* inst);
+    // Prints `left OP right` for already-declared operands. isFloat/isUnsigned
+    // describe the operand type; rightValue enables the zero-divisor spelling
+    // when the scalar right operand is a constant zero.
+    void codegenBinaryExpr(Token::Kind op, const std::function<void()>& emitLeft, const std::function<void()>& emitRight, bool isFloat, bool isUnsigned,
+                           const Value* rightValue);
     void codegenUnary(const UnaryInst* inst);
     void codegenGEP(const GEPInst* inst);
     void codegenConstGEP(const ConstGEPInst* inst);
