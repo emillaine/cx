@@ -455,7 +455,8 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     std::string ccPath = findExternalCCompiler().value_or(buildParams.argv0);
     bool useExternalCCompiler = buildParams.argv0 == nullptr || ccPath != buildParams.argv0;
     bool isWindows = llvm::sys::path::extension(ccPath) == ".exe";
-    bool isMSVC = isWindows; // Assuming MSVC-compatible C compiler.
+    // The embedded Clang always takes GNU-style arguments, even on Windows.
+    bool isMSVC = isWindows && useExternalCCompiler;
 
     auto printCSection = [&](const std::string& cCode) {
         if (handlePrintOpt(PrintOpt::C)) {
@@ -631,7 +632,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     llvm::SmallString<128> tempOutputFilePath;
     llvm::SmallString<128> tempFileNamePattern("cx-%%%%%%%%");
-    if (isMSVC) { // MSVC will append .exe to the output file anyway, so match that.
+    if (isWindows) { // MSVC appends the suffix anyway; embedded Clang takes the name as is, and `run` needs a runnable suffix.
         tempFileNamePattern += (buildParams.createSharedLib ? ".dll" : ".exe");
     }
     llvm::sys::fs::createUniquePath(tempFileNamePattern, tempOutputFilePath, true);
@@ -642,7 +643,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     };
     if (buildParams.createSharedLib) {
         ccArgs.push_back(isMSVC ? "-LD" : "-shared");
-        if (!isMSVC) {
+        if (!isWindows) { // ld64-only flags; MSVC linkers reject them.
             ccArgs.push_back("-undefined");
             ccArgs.push_back("dynamic_lookup");
         }
@@ -653,7 +654,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     if (backend == Backend::C && options.mode != BuildMode::Debug) {
         // External MSVC-compatible compilers (cl, clang-cl) take /O2. The
         // embedded Clang driver runs in GNU mode, so it takes -O3.
-        ccArgs.push_back(isMSVC && useExternalCCompiler ? "/O2" : "-O3");
+        ccArgs.push_back(isMSVC ? "/O2" : "-O3");
     }
 
     for (auto& flag : options.cflags) {
@@ -683,12 +684,14 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
     addFlaggedArgs("-F", frameworkSearchPaths);
     addFlaggedArgs("-framework", frameworks);
     if (!isMSVC) {
+#ifndef _WIN32
         // The standard library uses the C math library.
         ccArgs.push_back("-lm");
+#endif
         // Debug info is Debug-only; release stack traces resolve names
         // through the symbol table instead.
         if (options.mode == BuildMode::Debug) ccArgs.push_back("-g");
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(_WIN32)
         // Export symbols so backtrace() resolves cx function names (macOS
         // resolves them from the static symbol table instead).
         ccArgs.push_back("-rdynamic");
@@ -705,6 +708,22 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         ccArgs.push_back("legacy_stdio_definitions.lib");
         ccArgs.push_back("ucrt.lib");
         ccArgs.push_back("msvcrt.lib");
+    } else if (isWindows) {
+        // Embedded Clang locates the MSVC and Windows SDK libraries itself; pass the CRT
+        // libraries in -l form so they are found along its search paths, plus the same
+        // 8MB stack reservation as the MSVC link above.
+#ifdef CX_LLVM_TOOLS_DIR
+        // Point the driver at its own subprograms (lld-link): there are none next to
+        // cx.exe, and LLVM's bin directory is not on PATH on a bare machine.
+        ccArgs.push_back("-B" CX_LLVM_TOOLS_DIR);
+#endif
+        ccArgs.push_back("-l");
+        ccArgs.push_back("legacy_stdio_definitions");
+        ccArgs.push_back("-l");
+        ccArgs.push_back("ucrt");
+        ccArgs.push_back("-l");
+        ccArgs.push_back("msvcrt");
+        ccArgs.push_back("-Wl,/STACK:8388608");
     }
 
     std::vector<llvm::StringRef> ccArgStringRefs(ccArgs.begin(), ccArgs.end());
@@ -750,7 +769,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
         llvm::sys::fs::remove(tempIntermediateFilePath);
         llvm::sys::fs::remove(tempOutputFilePath);
 
-        if (isMSVC) {
+        if (isWindows) {
             for (llvm::StringRef extension : {"ilk", "pdb"}) {
                 auto path = tempOutputFilePath;
                 llvm::sys::path::replace_extension(path, extension);
@@ -790,7 +809,7 @@ int cx::buildModule(Module& mainModule, BuildParams buildParams) {
 
     renameFile(tempOutputFilePath, outputPath);
 
-    if (isMSVC) {
+    if (isWindows) {
         for (llvm::StringRef extension : {"ilk", "pdb"}) {
             auto path = tempOutputFilePath;
             llvm::sys::path::replace_extension(path, extension);

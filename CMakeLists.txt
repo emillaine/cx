@@ -85,6 +85,11 @@ list(FILTER LIBCX_SOURCES EXCLUDE REGEX "src/wasm/")
 list(FILTER LIBCX_SOURCES EXCLUDE REGEX "src/lsp/main.cpp")
 add_library(libcx ${LIBCX_SOURCES})
 set_target_properties(libcx PROPERTIES PREFIX "")
+if(LLVM_TOOLS_BINARY_DIR)
+    # Lets the embedded Clang find its subprograms (lld-link) on Windows
+    # machines where LLVM's bin directory is not on PATH.
+    target_compile_definitions(libcx PRIVATE CX_LLVM_TOOLS_DIR="${LLVM_TOOLS_BINARY_DIR}")
+endif()
 target_precompile_headers(libcx PRIVATE src/pch.h)
 # Clang's headers (notably clang/AST/Stmt.h) befriend AST node classes that
 # are only declared later in the same header, without a prior forward
