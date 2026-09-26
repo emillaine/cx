@@ -1,0 +1,1 @@
+void main() { println("hi"); } // no trailing newline on purpose

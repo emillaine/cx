@@ -19,6 +19,10 @@ using namespace cx;
 Lexer::Lexer(llvm::MemoryBufferRef input)
 : buffer(input), firstLocation(input.getBufferIdentifier().data(), 1, 0), lastLocation(input.getBufferIdentifier().data(), 1, 0) {
     currentFilePosition = buffer.getBufferStart() - 1;
+    // Skip a UTF-8 BOM so files saved by Windows editors lex cleanly.
+    if (buffer.getBuffer().starts_with("\xEF\xBB\xBF")) {
+        currentFilePosition += 3;
+    }
 }
 
 const char* Lexer::getFilePath() const {
@@ -30,6 +34,10 @@ Location Lexer::getCurrentLocation() const {
 }
 
 char Lexer::readChar() {
+    // EOF is sticky: never read past the end of the buffer.
+    if (currentFilePosition >= buffer.getBufferEnd()) {
+        return '\0';
+    }
     char ch = *++currentFilePosition;
     if (ch != '\n') {
         lastLocation.column++;

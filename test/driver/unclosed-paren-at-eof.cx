@@ -1,0 +1,7 @@
+// RUN: %not %cx -typecheck %s 2>&1 | %FileCheck %s
+
+// The file intentionally ends with an unclosed paren: truncated input must
+// produce a clean error instead of hanging the parser.
+
+// CHECK: [[@LINE+2]]:1: error: expected ',' or ')', got end-of-file
+void main() { (x

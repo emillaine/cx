@@ -1,0 +1,11 @@
+// REQUIRES: windows
+// RUN: bare-env %cx %s -o %T/no-vcvars.exe
+// RUN: file-exists %T/no-vcvars.exe
+
+// Linking must work without a developer prompt: with no external C compiler
+// on PATH, the embedded Clang fallback links through lld-link, discovering
+// the installed MSVC and Windows SDK libraries itself.
+
+void main() {
+    println("hi");
+}

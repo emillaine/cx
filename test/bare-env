@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+
+# Runs a command with an empty PATH and no MSVC environment, simulating a
+# machine where the toolchain is installed but no developer prompt was run.
+# An empty PATH provably hides every external C compiler, so a successful
+# build below must have used the embedded Clang fallback. Windows-only in
+# practice: other platforms need toolchain binaries (xcrun, ld) from PATH.
+
+import os
+import subprocess
+import sys
+
+env = dict(os.environ)
+env["PATH"] = ""
+env.pop("INCLUDE", None)
+env.pop("LIB", None)
+
+sys.exit(subprocess.call(sys.argv[1:], env=env))
