@@ -770,7 +770,8 @@ bool Parser::shouldParseVarStmt() {
                 }
             }
             return false;
-        } else if (lookAhead(offset).is(Token::Semicolon) || lookAhead(offset).location.line != lookAhead(offset - 1).location.line) {
+        } else if (lookAhead(offset).is(Token::Semicolon) || lookAhead(offset).is(Token::None)
+                   || lookAhead(offset).location.line != lookAhead(offset - 1).location.line) {
             if (lookAhead(offset - 1).is(Token::Identifier)) {
                 // Walk back over any ', name' pairs of a multi-variable declaration.
                 int back = offset - 2;

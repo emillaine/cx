@@ -1,0 +1,7 @@
+// RUN: %cx %S/inputs/no-trailing-newline.cx -o %T/no-trailing-newline
+// RUN: file-exists %T/no-trailing-newline
+// RUN: %cx %S/inputs/bom.cx -o %T/bom
+// RUN: file-exists %T/bom
+
+// The inputs above carry the edge cases (a missing trailing newline and a
+// UTF-8 BOM); this file holds no compilable code itself.
