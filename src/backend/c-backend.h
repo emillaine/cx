@@ -20,6 +20,7 @@ struct CGenerator {
     void codegenExtract(const ExtractInst* inst);
     void codegenCall(const CallInst* inst);
     void codegenBinary(const BinaryInst* inst);
+    void codegenArrayOp(const ArrayOpInst* inst);
     // Prints `left OP right` for already-declared operands. isFloat/isUnsigned
     // describe the operand type; rightValue enables the zero-divisor spelling
     // when the scalar right operand is a constant zero.

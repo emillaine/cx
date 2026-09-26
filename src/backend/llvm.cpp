@@ -249,7 +249,9 @@ void LLVMGenerator::codegenFunctionBody(const Function* function, llvm::Function
             auto phi = builder.CreatePHI(phiType, 2, block->parameter->name);
             for (auto pred : block->predecessors) {
                 auto value = getValue(pred->body.back()->getBranchArgument());
-                auto target = getBasicBlock(pred);
+                // A split predecessor's terminator landed in its continuation block.
+                auto continueIt = blockContinueBlocks.find(pred);
+                auto target = continueIt != blockContinueBlocks.end() ? continueIt->second : getBasicBlock(pred);
                 if (indirect && llvm::isa<llvm::Constant>(value)) {
                     // Constants have no dependencies, so materialize them at the top of the
                     // entry block, which dominates the PHI. (The current insert point past
@@ -585,6 +587,171 @@ llvm::Value* LLVMGenerator::codegenBinary(const BinaryInst* inst) {
     }
 }
 
+llvm::Value* LLVMGenerator::codegenArrayOpElement(Token::Kind op, llvm::Value* left, llvm::Value* right, IRType* elemType) {
+    // Mirrors codegenBinary, but polymorphic over scalar and vector LLVM
+    // values so one mapping serves vector chunks and the scalar tail.
+    bool isFloat = elemType->isFloatingPoint();
+    bool isSigned = elemType->isSignedInteger();
+    switch (op) {
+    case Token::Plus:
+        return isFloat ? builder.CreateFAdd(left, right) : builder.CreateAdd(left, right);
+    case Token::Minus:
+        return isFloat ? builder.CreateFSub(left, right) : builder.CreateSub(left, right);
+    case Token::Star:
+        return isFloat ? builder.CreateFMul(left, right) : builder.CreateMul(left, right);
+    case Token::Slash:
+        if (isFloat) return builder.CreateFDiv(left, right);
+        return isSigned ? builder.CreateSDiv(left, right) : builder.CreateUDiv(left, right);
+    case Token::Modulo:
+        if (isFloat) return builder.CreateFRem(left, right);
+        return isSigned ? builder.CreateSRem(left, right) : builder.CreateURem(left, right);
+    case Token::PositiveModulo: {
+        if (elemType->isUnsignedInteger()) return codegenArrayOpElement(Token::Modulo, left, right, elemType);
+        // Positive remainder ((a % b) + b) % b, like the scalar rewrite in emitBinaryExpr.
+        auto* rem = codegenArrayOpElement(Token::Modulo, left, right, elemType);
+        auto* shifted = codegenArrayOpElement(Token::Plus, rem, right, elemType);
+        return codegenArrayOpElement(Token::Modulo, shifted, right, elemType);
+    }
+    case Token::Equal:
+        return isFloat ? builder.CreateFCmpOEQ(left, right) : builder.CreateICmpEQ(left, right);
+    case Token::NotEqual:
+        return isFloat ? builder.CreateFCmpUNE(left, right) : builder.CreateICmpNE(left, right);
+    case Token::And:
+        return builder.CreateAnd(left, right);
+    case Token::Or:
+        return builder.CreateOr(left, right);
+    case Token::Xor:
+        return builder.CreateXor(left, right);
+    case Token::LeftShift:
+        return builder.CreateShl(left, right);
+    case Token::RightShift:
+        return isSigned ? builder.CreateAShr(left, right) : builder.CreateLShr(left, right);
+    default:
+        llvm_unreachable("invalid array operation");
+    }
+}
+
+llvm::Value* LLVMGenerator::codegenArrayOp(const ArrayOpInst* inst) {
+    ASSERT(builder.GetInsertBlock() && "array ops cannot appear in global initializers");
+    auto* arrayType = llvm::cast<IRArrayType>(inst->arrayType);
+    int size = arrayType->size;
+    auto* elemType = arrayType->elementType;
+    auto* scalarTy = getLLVMType(elemType);
+    auto* arrayLLVMType = getLLVMType(inst->arrayType);
+    bool isComparison = inst->op == Token::Equal || inst->op == Token::NotEqual;
+    bool foldAnd = inst->op == Token::Equal;
+    // IRGen only emits this node for SIMD-friendly elements (see isVectorFriendlyElement).
+    unsigned bitWidth = scalarTy->getScalarSizeInBits();
+    ASSERT((scalarTy->isIntegerTy() && (bitWidth == 8 || bitWidth == 16 || bitWidth == 32 || bitWidth == 64)) || scalarTy->isFloatTy()
+           || scalarTy->isDoubleTy());
+    unsigned elemBytes = bitWidth / 8;
+    unsigned lanes = 16 / elemBytes; // 128-bit chunks.
+
+    auto isArraySide = [](const Value* side) { return side->getType()->isPointerType() && side->getType()->getPointee()->isArrayType(); };
+    bool leftIsArray = isArraySide(inst->left);
+    bool rightIsArray = isArraySide(inst->right);
+    ASSERT(leftIsArray || rightIsArray);
+    llvm::Value* lhsPtr = leftIsArray ? getValue(inst->left) : nullptr;
+    llvm::Value* rhsPtr = rightIsArray ? getValue(inst->right) : nullptr;
+    llvm::Value* lhsScalar = leftIsArray ? nullptr : getValue(inst->left);
+    llvm::Value* rhsScalar = rightIsArray ? nullptr : getValue(inst->right);
+
+    auto* i32 = llvm::Type::getInt32Ty(ctx);
+    auto* i1 = llvm::Type::getInt1Ty(ctx);
+    auto* zero = llvm::ConstantInt::get(i32, 0);
+    auto gepAt = [&](llvm::Value* arrayPtr, llvm::Value* index) { return builder.CreateInBoundsGEP(arrayLLVMType, arrayPtr, {zero, index}); };
+    auto loadChunk = [&](llvm::Value* arrayPtr, llvm::Value* index, unsigned count) {
+        auto* vecTy = llvm::FixedVectorType::get(scalarTy, count);
+        auto* load = builder.CreateLoad(vecTy, gepAt(arrayPtr, index));
+        // Vector loads default to the vector's 16-byte alignment, which
+        // arrays don't guarantee; use element alignment like scalar loads.
+        load->setAlignment(llvm::Align(elemBytes));
+        return load;
+    };
+    auto storeChunk = [&](llvm::Value* vec, llvm::Value* arrayPtr, llvm::Value* index) {
+        auto* store = builder.CreateStore(vec, gepAt(arrayPtr, index));
+        store->setAlignment(llvm::Align(elemBytes));
+    };
+    auto splat = [&](llvm::Value* scalar, unsigned count) { return builder.CreateVectorSplat(count, scalar); };
+    auto foldMask = [&](llvm::Value* mask, unsigned count, llvm::Value* acc) {
+        for (unsigned i = 0; i < count; ++i) {
+            auto* lane = builder.CreateExtractElement(mask, i);
+            acc = !acc ? lane : foldAnd ? builder.CreateAnd(acc, lane) : builder.CreateOr(acc, lane);
+        }
+        return acc;
+    };
+
+    if (size == 0) {
+        if (isComparison) return llvm::ConstantInt::get(i1, foldAnd);
+        return builder.CreateAlloca(arrayLLVMType, nullptr, inst->name);
+    }
+
+    unsigned count = static_cast<unsigned>(size);
+    if (count <= lanes) {
+        llvm::Value* l = leftIsArray ? loadChunk(lhsPtr, zero, count) : splat(lhsScalar, count);
+        llvm::Value* r = rightIsArray ? loadChunk(rhsPtr, zero, count) : splat(rhsScalar, count);
+        llvm::Value* vec = codegenArrayOpElement(inst->op, l, r, elemType);
+        if (isComparison) return foldMask(vec, count, nullptr);
+        auto* resultAlloca = builder.CreateAlloca(arrayLLVMType, nullptr, inst->name);
+        storeChunk(vec, resultAlloca, zero);
+        return resultAlloca;
+    }
+
+    llvm::Value* resultAlloca = nullptr;
+    llvm::Value* accAlloca = nullptr;
+    if (isComparison) {
+        accAlloca = builder.CreateAlloca(i1, nullptr, "arrayop.acc");
+        builder.CreateStore(llvm::ConstantInt::get(i1, foldAnd), accAlloca);
+    } else {
+        resultAlloca = builder.CreateAlloca(arrayLLVMType, nullptr, inst->name);
+    }
+
+    int chunks = size / static_cast<int>(lanes);
+    auto* indexAlloca = builder.CreateAlloca(i32, nullptr, "arrayop.i");
+    builder.CreateStore(zero, indexAlloca);
+    auto* function = builder.GetInsertBlock()->getParent();
+    auto* cond = llvm::BasicBlock::Create(ctx, "arrayop.cond", function);
+    auto* body = llvm::BasicBlock::Create(ctx, "arrayop.body", function);
+    auto* end = llvm::BasicBlock::Create(ctx, "arrayop.end", function);
+    builder.CreateBr(cond);
+
+    builder.SetInsertPoint(cond);
+    builder.CreateCondBr(builder.CreateICmpSLT(builder.CreateLoad(i32, indexAlloca), llvm::ConstantInt::get(i32, chunks)), body, end);
+
+    builder.SetInsertPoint(body);
+    auto* i = builder.CreateLoad(i32, indexAlloca);
+    auto* first = builder.CreateMul(i, llvm::ConstantInt::get(i32, lanes));
+    llvm::Value* chunkL = leftIsArray ? loadChunk(lhsPtr, first, lanes) : splat(lhsScalar, lanes);
+    llvm::Value* chunkR = rightIsArray ? loadChunk(rhsPtr, first, lanes) : splat(rhsScalar, lanes);
+    llvm::Value* chunkVec = codegenArrayOpElement(inst->op, chunkL, chunkR, elemType);
+    if (isComparison) {
+        builder.CreateStore(foldMask(chunkVec, lanes, builder.CreateLoad(i1, accAlloca)), accAlloca);
+    } else {
+        storeChunk(chunkVec, resultAlloca, first);
+    }
+    builder.CreateStore(builder.CreateAdd(i, llvm::ConstantInt::get(i32, 1)), indexAlloca);
+    builder.CreateBr(cond);
+
+    // Emission continues in end: later instructions execute after the loop.
+    // Record the split so successor PHIs reference end as the predecessor.
+    builder.SetInsertPoint(end);
+    blockContinueBlocks[inst->parent] = end;
+    for (int t = chunks * static_cast<int>(lanes); t < size; ++t) {
+        auto* index = llvm::ConstantInt::get(i32, t);
+        llvm::Value* tailL = leftIsArray ? builder.CreateLoad(scalarTy, gepAt(lhsPtr, index)) : lhsScalar;
+        llvm::Value* tailR = rightIsArray ? builder.CreateLoad(scalarTy, gepAt(rhsPtr, index)) : rhsScalar;
+        llvm::Value* elem = codegenArrayOpElement(inst->op, tailL, tailR, elemType);
+        if (isComparison) {
+            auto* acc = builder.CreateLoad(i1, accAlloca);
+            builder.CreateStore(foldAnd ? builder.CreateAnd(acc, elem) : builder.CreateOr(acc, elem), accAlloca);
+        } else {
+            builder.CreateStore(elem, gepAt(resultAlloca, index));
+        }
+    }
+    if (isComparison) return builder.CreateLoad(i1, accAlloca);
+    return resultAlloca;
+}
+
 llvm::Value* LLVMGenerator::codegenUnary(const UnaryInst* inst) {
     auto operand = getValue(inst->operand);
     auto isFloat = inst->operand->getType()->isFloatingPoint();
@@ -731,6 +898,8 @@ llvm::Value* LLVMGenerator::codegenInst(const Value* value) {
         return codegenCall(llvm::cast<CallInst>(value));
     case ValueKind::BinaryInst:
         return codegenBinary(llvm::cast<BinaryInst>(value));
+    case ValueKind::ArrayOpInst:
+        return codegenArrayOp(llvm::cast<ArrayOpInst>(value));
     case ValueKind::UnaryInst:
         return codegenUnary(llvm::cast<UnaryInst>(value));
     case ValueKind::GEPInst:

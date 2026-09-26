@@ -31,6 +31,8 @@ struct LLVMGenerator {
     llvm::Value* codegenExtract(const ExtractInst* inst);
     llvm::Value* codegenCall(const CallInst* inst);
     llvm::Value* codegenBinary(const BinaryInst* inst);
+    llvm::Value* codegenArrayOp(const ArrayOpInst* inst);
+    llvm::Value* codegenArrayOpElement(Token::Kind op, llvm::Value* left, llvm::Value* right, IRType* elemType);
     llvm::Value* codegenUnary(const UnaryInst* inst);
     llvm::Value* codegenGEP(const GEPInst* inst);
     llvm::Value* codegenConstGEP(const ConstGEPInst* inst);
@@ -79,6 +81,11 @@ struct LLVMGenerator {
     llvm::Module* module = nullptr;
     std::vector<llvm::Module*> generatedModules;
     std::unordered_map<const Value*, llvm::Value*> generatedValues;
+    // A loop-lowered array op splits its cx block; the terminator lands in
+    // the continuation block, which successors must reference as the
+    // predecessor instead (see codegenArrayOp). Keyed by cx block, which is
+    // unique across functions, so no per-function clearing is needed.
+    std::unordered_map<const BasicBlock*, llvm::BasicBlock*> blockContinueBlocks;
     std::unordered_map<IRType*, llvm::StructType*> structs;
     bool isCurrentFunctionSret;
     std::unique_ptr<llvm::DIBuilder> debugBuilder;

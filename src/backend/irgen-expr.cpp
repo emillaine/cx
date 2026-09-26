@@ -477,6 +477,23 @@ Value* IRGenerator::emitCheckedArithmetic(BinaryOperator op, Value* left, Value*
     return result;
 }
 
+// Element types the LLVM backend vectorizes directly (see codegenArrayOp).
+// bool packs a byte per element in memory but lowers to i1, and 128-bit
+// ints, float80, and pointers have no SIMD lowering, so those keep the
+// scalar expansion instead.
+static bool isVectorFriendlyElement(IRType* type) {
+    if (type->isBool()) return false;
+    if (type->isChar()) return true;
+    if (type->isInteger()) {
+        auto name = type->getName();
+        return name != "int128" && name != "uint128";
+    }
+    if (type->isFloatingPoint()) {
+        return type->getName() != "float80";
+    }
+    return false;
+}
+
 Value* IRGenerator::emitBinaryExpr(const BinaryExpr& expr) {
     if (expr.isAssignment()) {
         return emitAssignment(expr);
@@ -536,9 +553,28 @@ Value* IRGenerator::emitBinaryExpr(const BinaryExpr& expr) {
             bool isComparison = (expr.op == Token::Equal || expr.op == Token::NotEqual);
             Token::Kind combiner = expr.op == Token::Equal ? Token::And : Token::Or;
 
-            // Large arrays lower to a counted loop so the backend compilers
-            // can vectorize; small ones stay unrolled for minimal overhead.
+            // Vector-friendly elements stay whole in one node; the LLVM
+            // backend emits SIMD for it directly, in every build mode.
+            auto* arrayIRType = getIRType(arrayT);
+            if (isVectorFriendlyElement(arrayIRType->getElementType())) {
+                Value* left = leftIsArray ? lhsPtr : lhsScalar;
+                Value* right = rightIsArray ? rhsPtr : rhsScalar;
+                return createArrayOp(expr.op, left, right, arrayIRType, &expr);
+            }
+
+            // Scalar fallback for the rest. PositiveModulo has no IR
+            // instruction; expand ((a % b) + b) % b per element like scalars.
             // Element ops are unchecked (matching existing array semantics).
+            auto emitElementOp = [&](Value* l, Value* r) -> Value* {
+                if (expr.op != Token::PositiveModulo) return createBinaryOp(expr.op, l, r, &expr);
+                if (l->getType()->isUnsignedInteger()) return createBinaryOp(Token::Modulo, l, r, &expr);
+                auto* rem = createBinaryOp(Token::Modulo, l, r, &expr);
+                auto* shifted = createBinaryOp(Token::Plus, rem, r, &expr);
+                return createBinaryOp(Token::Modulo, shifted, r, &expr);
+            };
+
+            // Large arrays lower to a counted loop; small ones stay unrolled
+            // for minimal overhead.
             if (arraySize > 4) {
                 auto indexType = Type::getInt32();
                 auto* indexAlloca = createEntryBlockAlloca(indexType);
@@ -570,10 +606,10 @@ Value* IRGenerator::emitBinaryExpr(const BinaryExpr& expr) {
                 Value* lhsElem = leftIsArray ? emitLoopElement(lhsPtr) : lhsScalar;
                 Value* rhsElem = rightIsArray ? emitLoopElement(rhsPtr) : rhsScalar;
                 if (isComparison) {
-                    Value* cmp = createBinaryOp(expr.op, lhsElem, rhsElem, &expr);
+                    Value* cmp = emitElementOp(lhsElem, rhsElem);
                     createStore(createBinaryOp(combiner, createLoad(accAlloca), cmp, &expr), accAlloca);
                 } else {
-                    createStore(createBinaryOp(expr.op, lhsElem, rhsElem, &expr), createGEP(resultAlloca, {zero, i}));
+                    createStore(emitElementOp(lhsElem, rhsElem), createGEP(resultAlloca, {zero, i}));
                 }
                 createStore(createBinaryOp(Token::Plus, i, createConstantInt(indexType, 1), &expr), indexAlloca);
                 createBr(cond);
@@ -601,17 +637,16 @@ Value* IRGenerator::emitBinaryExpr(const BinaryExpr& expr) {
                 for (int64_t i = 0; i < arraySize; ++i) {
                     Value* lhsElem = leftIsArray ? emitArrayElement(lhsPtr, i) : lhsScalar;
                     Value* rhsElem = rightIsArray ? emitArrayElement(rhsPtr, i) : rhsScalar;
-                    Value* cmp = createBinaryOp(expr.op, lhsElem, rhsElem, &expr);
+                    Value* cmp = emitElementOp(lhsElem, rhsElem);
                     result = result ? createBinaryOp(combiner, result, cmp, &expr) : cmp;
                 }
                 return result;
             } else {
-                auto* arrayIRType = getIRType(arrayT);
                 Value* result = createUndefined(arrayIRType);
                 for (int64_t i = 0; i < arraySize; ++i) {
                     Value* lhsElem = leftIsArray ? emitArrayElement(lhsPtr, i) : lhsScalar;
                     Value* rhsElem = rightIsArray ? emitArrayElement(rhsPtr, i) : rhsScalar;
-                    Value* elem = createBinaryOp(expr.op, lhsElem, rhsElem, &expr);
+                    Value* elem = emitElementOp(lhsElem, rhsElem);
                     result = createInsertValue(result, elem, static_cast<int>(i));
                 }
                 return result;

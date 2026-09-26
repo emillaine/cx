@@ -80,11 +80,17 @@ void testDispatch() {
                                    "    println(fib(10));\n"
                                    "    var b = true && false;\n"
                                    "    println(b ? 1 : 2);\n"
+                                   "    float[3] a = [1.0, 2.0, 3.0];\n"
+                                   "    float[3] c = a * 2.0;\n"
+                                   "    println(c[2]);\n"
+                                   "    println(a == c ? 1 : 2);\n"
                                    "}\n",
                                    options);
     check(dispatch.status == 0, "dispatch mode compiles control flow");
     check(dispatch.cCode.find("goto") == std::string::npos, "dispatch mode generates no gotos");
     check(dispatch.cCode.find("_cx_pc") != std::string::npos, "dispatch mode uses a program counter");
+    check(dispatch.cCode.find("float _array_op") != std::string::npos, "dispatch mode hoists the array op result");
+    check(dispatch.cCode.find("_Bool _array_op") != std::string::npos, "dispatch mode hoists the array comparison result");
 }
 
 } // namespace

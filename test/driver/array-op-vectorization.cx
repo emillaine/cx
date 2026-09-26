@@ -1,0 +1,54 @@
+// RUN: %cx -print-ir %s | %FileCheck %s --check-prefix=IR
+// RUN: %cx -print-llvm %s | %FileCheck %s
+// RUN: %cx -print-c %s | %FileCheck %s --check-prefix=C
+
+// Array programming ops lower to one IR node each. The LLVM backend emits
+// SIMD vector ops for them directly, without relying on the optimizer; the
+// C backend emits a scalar loop for the C compiler to vectorize.
+
+// IR: = arrayop + {{.*}}, {{.*}}
+// IR: = arrayop * {{.*}}, {{.*}}
+// IR: = arrayop == {{.*}}, {{.*}}
+// IR: = arrayop + {{.*}}, {{.*}}
+// IR: = arrayop + {{.*}}, {{.*}}
+
+// C: _array_op{{[0-9]+}}[3];
+// C: for (
+// C: _array_op{{[0-9]+}}[_i{{[0-9]+}}] =
+
+void main() {
+    float[3] a = [1.0, 2.0, 3.0];
+    float[3] b = [4.0, 5.0, 6.0];
+    // CHECK: load <3 x float>
+    // CHECK: fadd <3 x float>
+    // CHECK: store <3 x float>
+    float[3] c = a + b;
+    println(c[0] + c[1] + c[2]);
+
+    // CHECK: load <3 x float>
+    // CHECK: fmul <3 x float> {{.*}}, splat (float 2.000000e+00)
+    float[3] d = a * 2.0;
+    println(d[2]);
+
+    int[4] x = [1, 2, 3, 4];
+    int[4] y = [1, 2, 3, 4];
+    // CHECK: icmp eq <4 x i32>
+    // CHECK: extractelement <4 x i1>
+    // CHECK: and i1
+    bool same = x == y;
+    println(same ? 1 : 0);
+
+    // CHECK: arrayop.cond
+    // CHECK: fadd <4 x float>
+    // CHECK: arrayop.end
+    float[8] p = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    float[8] q = p + p;
+    println(q[7]);
+
+    // CHECK: arrayop.cond
+    // CHECK: arrayop.end
+    // CHECK: fadd float
+    float[6] s = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    float[6] t = s + s;
+    println(t[5]);
+}

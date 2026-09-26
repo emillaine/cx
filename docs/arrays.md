@@ -99,9 +99,10 @@ void main() {
 
 Sizes must match; mismatched sizes are a compile error. Only arrays of
 known (constant) size support element-wise ops; generic sizes (`T[N]` with
-symbolic `N`) are rejected with a clear error. Element-wise ops compile to
-a loop over the elements for larger arrays, which release builds vectorize;
-small arrays stay unrolled.
+symbolic `N`) are rejected with a clear error. Element-wise ops compile
+directly to SIMD vector instructions on the LLVM backend, in every build
+mode; larger arrays use a loop over vector chunks with a scalar tail. The
+C backend emits a scalar loop for the C compiler to vectorize.
 
 ## Vector operations
 

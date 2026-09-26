@@ -222,6 +222,13 @@ IRType* Value::getType() const {
         return llvm::cast<CastInst>(this)->type;
     case ValueKind::UnreachableInst:
         llvm_unreachable("unhandled UnreachableInst");
+    case ValueKind::ArrayOpInst: {
+        auto arrayOp = llvm::cast<ArrayOpInst>(this);
+        if (arrayOp->op == Token::Equal || arrayOp->op == Token::NotEqual) {
+            return getIRType(Type::getBool());
+        }
+        return arrayOp->arrayType->getPointerTo();
+    }
     case ValueKind::SizeofInst:
         return getIRType(Type::getUInt64());
     case ValueKind::BasicBlock:
@@ -268,6 +275,8 @@ const Expr* Value::getExpr() const {
         return llvm::cast<UnaryInst>(this)->expr;
     case ValueKind::ConstGEPInst:
         return llvm::cast<ConstGEPInst>(this)->expr;
+    case ValueKind::ArrayOpInst:
+        return llvm::cast<ArrayOpInst>(this)->expr;
     default:
         return nullptr;
     }
@@ -307,6 +316,8 @@ std::string Value::getName() const {
         return llvm::cast<CastInst>(this)->name;
     case ValueKind::UnreachableInst:
         llvm_unreachable("unhandled UnreachableInst");
+    case ValueKind::ArrayOpInst:
+        return llvm::cast<ArrayOpInst>(this)->name;
     case ValueKind::SizeofInst:
         return ("sizeof(" + llvm::cast<SizeofInst>(this)->type->getName() + ")").str();
     case ValueKind::BasicBlock:
@@ -496,6 +507,12 @@ void Value::print(llvm::raw_ostream& stream) const {
     }
     case ValueKind::UnreachableInst: {
         stream << indent << "unreachable";
+        break;
+    }
+    case ValueKind::ArrayOpInst: {
+        auto arrayOp = llvm::cast<ArrayOpInst>(this);
+        stream << indent << formatTypeAndName(arrayOp) << " = arrayop " << arrayOp->op << " " << formatName(arrayOp->left) << ", "
+               << formatName(arrayOp->right);
         break;
     }
     case ValueKind::SizeofInst:

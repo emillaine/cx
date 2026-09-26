@@ -139,6 +139,7 @@ enum class ValueKind {
     ConstGEPInst,
     CastInst,
     UnreachableInst,
+    ArrayOpInst,
     SizeofInst,
     BasicBlock,
     Function,
@@ -296,6 +297,23 @@ struct CastInst : Instruction {
 
 struct UnreachableInst : Instruction {
     static bool classof(const Value* v) { return v->kind == ValueKind::UnreachableInst; }
+};
+
+// Element-wise array operation (`float[3] + float[3]`, `int[4] * 2`, ...).
+// Each side is an array pointer or a broadcast scalar; at least one side is
+// an array. Arithmetic evaluates to a pointer to a fresh result array,
+// comparisons (==/!=, all/any semantics) to a bool. Kept whole so the LLVM
+// backend can emit SIMD vector ops directly instead of relying on the
+// optimizer to rediscover them from a scalar loop.
+struct ArrayOpInst : Instruction {
+    BinaryOperator op;
+    Value* left;
+    Value* right;
+    IRType* arrayType;
+    const Expr* expr;
+    std::string name;
+
+    static bool classof(const Value* v) { return v->kind == ValueKind::ArrayOpInst; }
 };
 
 struct SizeofInst : Instruction {

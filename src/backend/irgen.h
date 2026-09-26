@@ -194,6 +194,9 @@ struct IRGenerator {
         ASSERT(left->getType()->equals(right->getType()));
         return insertBlock->add(new BinaryInst{ValueKind::BinaryInst, op, left, right, expr, name.str()});
     }
+    Value* createArrayOp(BinaryOperator op, Value* left, Value* right, IRType* arrayType, const Expr* expr, const llvm::Twine& name = "") {
+        return insertBlock->add(new ArrayOpInst{ValueKind::ArrayOpInst, op, left, right, arrayType, expr, name.str()});
+    }
     Value* createIsNull(Value* value, const Expr* expr, const llvm::Twine& name) {
         Value* nullValue;
         auto type = value->getType();

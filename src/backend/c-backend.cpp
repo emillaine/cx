@@ -24,6 +24,7 @@ bool isPureTemp(ValueKind kind) {
     case ValueKind::LoadInst:
     case ValueKind::ExtractInst:
     case ValueKind::BinaryInst:
+    case ValueKind::ArrayOpInst:
     case ValueKind::UnaryInst:
     case ValueKind::CastInst:
     case ValueKind::GEPInst:
@@ -88,6 +89,12 @@ template<typename Fn> void forEachOperand(const Instruction* inst, Fn&& fn) {
         auto* binary = llvm::cast<BinaryInst>(inst);
         mark(binary->left);
         mark(binary->right);
+        break;
+    }
+    case ValueKind::ArrayOpInst: {
+        auto* arrayOp = llvm::cast<ArrayOpInst>(inst);
+        mark(arrayOp->left);
+        mark(arrayOp->right);
         break;
     }
     case ValueKind::UnaryInst:
@@ -554,6 +561,76 @@ void CGenerator::codegenBinaryExpr(Token::Kind op, const std::function<void()>& 
     emitRight();
 }
 
+void CGenerator::codegenArrayOp(const ArrayOpInst* inst) {
+    if (deadValues.contains(inst)) return;
+    auto* arrayType = llvm::cast<IRArrayType>(inst->arrayType);
+    int size = arrayType->size;
+    auto* elemType = arrayType->elementType;
+    bool isComparison = inst->op == Token::Equal || inst->op == Token::NotEqual;
+    bool foldAnd = inst->op == Token::Equal;
+    stream.indent(4);
+    // Copy: arithmetic re-registers the pointer form below, after which the
+    // map holds "(&name)"; later reads must still see the bare name.
+    std::string name = getOrCreateTempName(inst, "_array_op");
+    if (isComparison) {
+        codegenTempDeclaration(inst, name);
+        stream << " = " << (foldAnd ? "true" : "false") << ";\n";
+    } else if (!dispatchMode) {
+        codegenDeclaration(stream, arrayType, name, true);
+        stream << ";\n";
+    }
+
+    auto isArraySide = [](const Value* side) { return side->getType()->isPointerType() && side->getType()->getPointee()->isArrayType(); };
+    bool leftIsArray = isArraySide(inst->left);
+    bool rightIsArray = isArraySide(inst->right);
+    std::string index = claimSuffixedName("_i");
+    // Braced so the index declaration is safe everywhere, including directly
+    // under a dispatch case label. The index is declared ahead of the loop
+    // rather than in the for-init, which older C dialects reject.
+    stream.indent(4) << "{\n";
+    stream.indent(8);
+    codegenTempDeclarationForType(getIRType(Type::getInt32()), index);
+    stream << ";\n";
+    stream.indent(8) << "for (" << index << " = 0; " << index << " < " << size << "; ++" << index << ") {\n";
+    auto emitSubscript = [&](const Value* side) {
+        stream << "(";
+        codegenInst(side);
+        stream << ")[0][" << index << "]";
+    };
+    auto emitLeftElem = [&] {
+        if (leftIsArray) {
+            emitSubscript(inst->left);
+        } else {
+            codegenInst(inst->left);
+        }
+    };
+    auto emitRightElem = [&] {
+        if (rightIsArray) {
+            emitSubscript(inst->right);
+        } else {
+            codegenInst(inst->right);
+        }
+    };
+    const Value* scalarRight = rightIsArray ? nullptr : inst->right;
+    stream.indent(12);
+    if (isComparison) {
+        stream << name << " = " << name << (foldAnd ? " & (" : " | (");
+        codegenBinaryExpr(inst->op, emitLeftElem, emitRightElem, elemType->isFloatingPoint(), elemType->isUnsignedInteger(), scalarRight);
+        stream << ");\n";
+    } else {
+        stream << name << "[" << index << "] = ";
+        codegenBinaryExpr(inst->op, emitLeftElem, emitRightElem, elemType->isFloatingPoint(), elemType->isUnsignedInteger(), scalarRight);
+        stream << ";\n";
+    }
+    stream.indent(8) << "}\n";
+    stream.indent(4) << "}\n";
+    if (!isComparison) {
+        // Uses expect a pointer like any alloca; the bare name registered
+        // above does not decay correctly as a call argument.
+        emittedValues[inst] = "(&" + name + ")";
+    }
+}
+
 void CGenerator::codegenUnary(const UnaryInst* inst) {
     if (deadValues.contains(inst)) return;
     stream.indent(4);
@@ -1013,6 +1090,8 @@ void CGenerator::codegenInstImpl(const Value* value) {
         return codegenCall(llvm::cast<CallInst>(value));
     case ValueKind::BinaryInst:
         return codegenBinary(llvm::cast<BinaryInst>(value));
+    case ValueKind::ArrayOpInst:
+        return codegenArrayOp(llvm::cast<ArrayOpInst>(value));
     case ValueKind::UnaryInst:
         return codegenUnary(llvm::cast<UnaryInst>(value));
     case ValueKind::GEPInst:
@@ -1339,6 +1418,19 @@ void CGenerator::codegenFunctionDispatch(const Function* function) {
                 auto name = claimSuffixedName("_insert");
                 stream.indent(4);
                 codegenDeclaration(stream, type, name, true);
+                stream << ";\n";
+                emittedValues.insert({inst, std::move(name)});
+                break;
+            }
+            case ValueKind::ArrayOpInst: {
+                if (deadValues.contains(inst)) break;
+                auto name = claimSuffixedName("_array_op");
+                stream.indent(4);
+                if (inst->getType()->isPointerType()) {
+                    codegenDeclaration(stream, llvm::cast<ArrayOpInst>(inst)->arrayType, name, true);
+                } else {
+                    codegenTempDeclarationForType(inst->getType(), name);
+                }
                 stream << ";\n";
                 emittedValues.insert({inst, std::move(name)});
                 break;
