@@ -854,6 +854,8 @@ bool Parser::lambdaAfterParentheses() {
         case Token::RightParen:
             --parenDepth;
             break;
+        case Token::None:
+            return false;
         default:
             break;
         }
